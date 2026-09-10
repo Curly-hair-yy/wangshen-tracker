@@ -1679,8 +1679,11 @@ function mergeEntities(localList, remoteList, opts){
   return toPush;
 }
 
+let pulling = false;
 async function pullAndMerge(){
+  if(pulling) return;
   if(!isSyncConfigured() || !sb) return;
+  pulling = true;
   setSyncState('syncing');
   try{
     const [{data:remoteCompanies, error:e1}, {data:remotePositions, error:e2}] = await Promise.all([
@@ -1706,6 +1709,8 @@ async function pullAndMerge(){
   }catch(err){
     setSyncState('error', (err && err.message) || String(err));
     scheduleRetry();
+  }finally{
+    pulling = false;
   }
 }
 
@@ -1874,6 +1879,15 @@ document.getElementById('syncSaveConfigBtn').addEventListener('click', ()=>{
 });
 
 window.addEventListener('online', flushQueue);
+
+// "已同步"状态只代表"本机要传的东西传完了"，不代表"已经拿到了别的设备的最新改动"——
+// 之前只在打开页面/切换同步码那一刻拉取一次，如果 Realtime 没生效、页面又开了很久没刷新，
+// 就会一直停留在旧数据上却显示"已同步"，造成"两台设备看着不一样"的假象。这里加两个
+// 兜底的重新拉取时机：切回这个标签页时，以及每隔一分钟，减少对着旧数据却不自知的情况。
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && isSyncConfigured() && sb) pullAndMerge();
+});
+setInterval(()=>{ if(isSyncConfigured() && sb) pullAndMerge(); }, 60000);
 
 /* ---- 初始化 ---- */
 loadData();
