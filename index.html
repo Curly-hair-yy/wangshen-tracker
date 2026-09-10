@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网申追踪台账</title>
+<style>
+  :root{
+    --bg:#E9F1F8;
+    --surface:#FFFFFF;
+    --ink:#1F2C38;
+    --ink-soft:#5D7488;
+    --line:#CBDCEA;
+    --primary:#1F3A5F;
+    --primary-soft:#DCE7F2;
+    --accent:#A6431D;
+    --accent-soft:#F3E4DC;
+    --warn:#B5741B;
+    --warn-soft:#F6EBD8;
+    --danger:#9B2C2C;
+    --danger-soft:#F3E0DE;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.5;
+  }
+  h1,h2,h3,.serif{
+    font-family:"Songti SC","STSong","Noto Serif SC",Georgia,serif;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:16px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  header h1{font-size:26px;margin:0;letter-spacing:1px;}
+  header .sub{color:var(--ink-soft);font-size:13px;margin-top:4px;}
+  .today{font-size:13px;color:var(--ink-soft);text-align:right;}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:20px;
+  }
+  .stat-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:12px 16px;
+  }
+  .stat-card .num{font-size:24px;font-weight:600;font-family:"Songti SC",serif;}
+  .stat-card .label{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .stat-card.warn .num{color:var(--warn);}
+  .stat-card.danger .num{color:var(--danger);}
+
+  .toolbar{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .toolbar input[type=text]{
+    flex:1;
+    min-width:180px;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--surface);
+    font-size:14px;
+  }
+  .toolbar select{
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--surface);
+    font-size:14px;
+    color:var(--ink);
+  }
+  .btn{
+    border:none;
+    border-radius:4px;
+    padding:10px 16px;
+    font-size:14px;
+    cursor:pointer;
+    font-weight:500;
+  }
+  .btn-primary{background:var(--primary);color:#fff;}
+  .btn-primary:hover{background:#16304f;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--ink);}
+
+  .board{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  @media(max-width:860px){
+    .board{grid-template-columns:1fr;}
+    .stats{grid-template-columns:repeat(2,1fr);}
+  }
+  .column{
+    background:rgba(255,255,255,0.45);
+    border:1px solid var(--line);
+    border-radius:6px;
+    min-height:200px;
+    display:flex;
+    flex-direction:column;
+  }
+  .column-head{
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .column-head h2{font-size:15px;margin:0;}
+  .column-head .count{
+    font-size:12px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1px 8px;
+    color:var(--ink-soft);
+  }
+  .column[data-status="todo"] .column-head{border-top:3px solid var(--ink-soft);}
+  .column[data-status="inprogress"] .column-head{border-top:3px solid var(--warn);}
+  .column[data-status="submitted"] .column-head{border-top:3px solid var(--accent);}
+  .column-body{padding:10px;display:flex;flex-direction:column;gap:10px;flex:1;}
+  .empty-hint{
+    color:var(--ink-soft);
+    font-size:13px;
+    text-align:center;
+    padding:24px 10px;
+    border:1px dashed var(--line);
+    border-radius:4px;
+  }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:12px 14px;
+    cursor:pointer;
+    position:relative;
+  }
+  .card:hover{border-color:var(--primary);}
+  .card .company-row{
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .card .company{font-size:15px;font-weight:600;}
+  .card .position{font-size:13px;color:var(--ink-soft);}
+  .card .other-positions{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .card .meta-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:8px;
+    font-size:12px;
+  }
+  .checklist-mini{color:var(--ink-soft);}
+  .deadline-badge{
+    padding:2px 7px;
+    border-radius:10px;
+    font-size:11px;
+  }
+  .deadline-badge.normal{background:var(--primary-soft);color:var(--primary);}
+  .deadline-badge.warn{background:var(--warn-soft);color:var(--warn);}
+  .deadline-badge.danger{background:var(--danger-soft);color:var(--danger);}
+  .card .stamp{
+    margin-top:8px;
+    font-size:11px;
+    color:var(--ink-soft);
+    border-top:1px dashed var(--line);
+    padding-top:6px;
+  }
+
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(31,44,56,0.35);
+    display:none;
+    z-index:50;
+  }
+  .overlay.active{display:block;}
+  .drawer{
+    position:fixed;
+    top:0;right:0;
+    height:100%;
+    width:420px;
+    max-width:92vw;
+    background:var(--bg);
+    box-shadow:-4px 0 18px rgba(0,0,0,0.15);
+    transform:translateX(100%);
+    transition:transform .25s ease;
+    z-index:51;
+    display:flex;
+    flex-direction:column;
+  }
+  .drawer.active{transform:translateX(0);}
+  .drawer-head{
+    padding:18px 20px 14px;
+    border-bottom:2px solid var(--ink);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .drawer-head h3{margin:0;font-size:18px;}
+  .drawer-close{
+    background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-soft);
+    line-height:1;padding:4px;
+  }
+  .drawer-body{padding:16px 20px;overflow-y:auto;flex:1;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;
+  }
+  .field input[type=text],.field input[type=date],.field input[type=url],.field textarea,.field select{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--surface);
+    font-size:14px;
+    font-family:inherit;
+  }
+  .field textarea{resize:vertical;min-height:56px;}
+  .field-hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
+  .status-toggle{display:flex;flex-wrap:wrap;gap:6px;}
+  .status-toggle button{
+    flex:1;
+    min-width:64px;
+    padding:8px 6px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    border-radius:4px;
+    font-size:12px;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .status-toggle button.active{
+    border-color:var(--primary);
+    background:var(--primary-soft);
+    color:var(--primary);
+    font-weight:600;
+  }
+  .checklist-editor .item-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:6px;
+  }
+  .item-row input[type=checkbox]{width:16px;height:16px;flex-shrink:0;}
+  .item-row input[type=text]{flex:1;}
+  .item-row .del{
+    background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:16px;
+    padding:2px 6px;
+  }
+  .item-row .del:hover{color:var(--danger);}
+  .add-item-btn{
+    font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;
+    padding:4px 0;
+  }
+  .position-item-block{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line);}
+  .position-item-block:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
+  .position-item-block .item-row{margin-bottom:4px;}
+  .position-jd-body{margin-top:6px;}
+  .meta-readonly{
+    font-size:12px;
+    color:var(--ink-soft);
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:8px 10px;
+    margin-bottom:14px;
+  }
+  .other-positions-box{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:8px 10px;
+    margin-bottom:14px;
+    font-size:12px;
+  }
+  .other-positions-box .op-title{color:var(--ink-soft);margin-bottom:4px;}
+  .other-positions-box .op-item{
+    display:flex;
+    justify-content:space-between;
+    padding:3px 0;
+  }
+  .op-tag{
+    font-size:10px;
+    padding:1px 6px;
+    border-radius:8px;
+  }
+  .op-tag.todo{background:var(--primary-soft);color:var(--primary);}
+  .op-tag.inprogress{background:var(--warn-soft);color:var(--warn);}
+  .op-tag.submitted{background:var(--accent-soft);color:var(--accent);}
+  .drawer-foot{
+    padding:14px 20px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .drawer-foot .right{display:flex;gap:8px;}
+  .danger-link{
+    background:none;border:none;color:var(--danger);font-size:13px;cursor:pointer;
+  }
+
+  .day-group{margin-bottom:4px;}
+  .day-group-label{
+    font-size:11px;
+    color:var(--ink-soft);
+    padding:2px 2px 6px;
+    border-bottom:1px dashed var(--line);
+    margin-bottom:8px;
+  }
+  .day-group .card{margin-bottom:10px;}
+  .day-group .card:last-child{margin-bottom:0;}
+  .review-stage-group{margin-bottom:14px;}
+  .review-stage-group:last-child{margin-bottom:0;}
+  .review-stage-label{
+    font-size:12px;
+    font-weight:600;
+    color:var(--warn);
+    padding-bottom:6px;
+    margin-bottom:8px;
+    border-bottom:1px solid var(--warn-soft);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .review-stage-label .count-inline{
+    font-size:11px;font-weight:400;color:var(--ink-soft);
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 6px;
+  }
+  .position-list{margin-top:6px;display:flex;flex-direction:column;}
+  .position-line{
+    position:relative;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    padding:5px 22px 5px 0;
+    border-bottom:1px dashed var(--line);
+  }
+  .position-line:last-child{border-bottom:none;}
+  .position-line-meta{
+    display:flex;align-items:center;gap:6px;flex-shrink:0;
+    font-size:11px;color:var(--ink-soft);
+  }
+  .card-del-btn{
+    display:none;
+    position:absolute;top:8px;right:8px;
+    width:20px;height:20px;
+    border-radius:50%;
+    border:none;
+    background:var(--surface);
+    box-shadow:0 0 0 1px var(--line);
+    color:var(--ink-soft);
+    font-size:14px;line-height:1;
+    cursor:pointer;
+  }
+  .card-del-btn:hover{background:var(--danger);color:#fff;box-shadow:none;}
+  .card:hover .card-del-btn{display:flex;align-items:center;justify-content:center;}
+  .position-line-del{
+    display:none;
+    position:absolute;right:0;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;
+    border-radius:50%;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    font-size:13px;line-height:1;
+    cursor:pointer;
+  }
+  .position-line-del:hover{color:var(--danger);}
+  .position-line:hover .position-line-del{display:flex;align-items:center;justify-content:center;}
+
+  .position-detail-item{
+    position:relative;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px 34px 10px 12px;
+    margin-bottom:10px;
+  }
+  .position-detail-item:last-child{margin-bottom:0;}
+  .position-detail-del{
+    display:none;
+    position:absolute;top:10px;right:10px;
+    width:20px;height:20px;
+    border-radius:50%;
+    border:none;
+    background:var(--bg);
+    box-shadow:0 0 0 1px var(--line);
+    color:var(--ink-soft);
+    font-size:14px;line-height:1;
+    cursor:pointer;
+  }
+  .position-detail-del:hover{background:var(--danger);color:#fff;box-shadow:none;}
+  .position-detail-item:hover .position-detail-del{display:flex;align-items:center;justify-content:center;}
+  .position-detail-head{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .position-detail-name{font-weight:600;font-size:14px;}
+  .position-detail-actions{display:flex;gap:14px;margin-top:8px;}
+  .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
+  .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
+  .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
+  .requirement-images img{
+    width:72px;height:72px;object-fit:cover;border-radius:4px;border:1px solid var(--line);
+  }
+  .requirement-image-editor{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;}
+  .req-img-thumb{position:relative;width:64px;height:64px;}
+  .req-img-thumb img{width:100%;height:100%;object-fit:cover;border-radius:4px;border:1px solid var(--line);}
+  .req-img-thumb.uploading{
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:var(--ink-soft);text-align:center;
+    border:1px dashed var(--line);border-radius:4px;
+  }
+  .req-img-del{
+    position:absolute;top:-6px;right:-6px;
+    width:18px;height:18px;border-radius:50%;
+    background:var(--danger);color:#fff;border:none;
+    font-size:12px;line-height:1;cursor:pointer;
+  }
+
+  .sync-indicator{
+    display:flex;align-items:center;gap:6px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:5px 10px 5px 8px;
+    font-size:12px;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .sync-indicator:hover{border-color:var(--primary);}
+  .sync-indicator .dot{width:8px;height:8px;border-radius:50%;background:#9aa9b6;flex-shrink:0;}
+  .sync-indicator[data-state="disconnected"] .dot{background:#9aa9b6;}
+  .sync-indicator[data-state="syncing"] .dot{background:var(--warn);animation:sync-pulse 1s infinite;}
+  .sync-indicator[data-state="synced"] .dot{background:#2E7D4F;}
+  .sync-indicator[data-state="error"] .dot{background:var(--danger);}
+  @keyframes sync-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .sync-banner{
+    background:var(--primary-soft);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:12px 16px;
+    margin-bottom:16px;
+    display:none;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    font-size:13px;
+    color:var(--primary);
+  }
+  .sync-banner .actions{display:flex;gap:8px;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>网申追踪台账</h1>
+      <div class="sub">记录每天申请了什么 · 填到哪一步 · 还差什么没交</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+      <div class="today" id="todayLabel"></div>
+      <button class="sync-indicator" id="syncIndicatorBtn" data-state="disconnected" type="button" title="点击打开同步设置">
+        <span class="dot"></span>
+        <span id="syncText">未连接同步</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="sync-banner" id="firstRunBanner">
+    <span>这份台账目前只存在本机浏览器里。设置一个同步码，就能在手机、电脑之间自动保持一致。</span>
+    <div class="actions">
+      <button class="btn btn-primary" id="firstRunSetupBtn" type="button">设置同步</button>
+      <button class="btn btn-ghost" id="firstRunDismissBtn" type="button">以后再说</button>
+    </div>
+  </div>
+
+  <div class="stats" id="statsRow"></div>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
+    <select id="filterUrgent">
+      <option value="all">全部截止情况</option>
+      <option value="urgent">3天内截止</option>
+      <option value="overdue">已逾期</option>
+    </select>
+    <button class="btn btn-primary" id="addBtn">+ 新增网申</button>
+  </div>
+
+  <div class="board" id="board">
+    <div class="column" data-status="todo">
+      <div class="column-head"><h2 class="serif">待填写</h2><span class="count" id="count-todo">0</span></div>
+      <div class="column-body" id="col-todo"></div>
+    </div>
+    <div class="column" data-status="inprogress">
+      <div class="column-head"><h2 class="serif">填报中</h2><span class="count" id="count-inprogress">0</span></div>
+      <div class="column-body" id="col-inprogress"></div>
+    </div>
+    <div class="column" data-status="submitted">
+      <div class="column-head"><h2 class="serif">已提交</h2><span class="count" id="count-submitted">0</span></div>
+      <div class="column-body" id="col-submitted"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3 id="drawerTitle">新增网申</h3>
+    <button class="drawer-close" id="drawerClose">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="meta-readonly" id="metaReadonly" style="display:none;"></div>
+
+    <div class="field">
+      <label>公司</label>
+      <input type="text" id="f-company" placeholder="例如：中国工商银行" list="companyList">
+      <datalist id="companyList"></datalist>
+      <div class="field-hint">同一家公司填多次会自动归到一起，切换看这家公司还申了哪些岗位</div>
+    </div>
+
+    <div class="other-positions-box" id="otherPositionsBox" style="display:none;">
+      <div class="op-title">这家公司已有的其他岗位</div>
+      <div id="otherPositionsList"></div>
+    </div>
+
+    <div class="field checklist-editor" id="positionField">
+      <label id="positionLabel">岗位</label>
+      <div id="positionItems"></div>
+      <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
+      <div class="field-hint" id="positionHint" style="display:none;">下面填的状态、截止时间、备注、待办清单会应用到每一个岗位上；岗位要求和图片每个岗位单独填写</div>
+    </div>
+    <div class="field">
+      <label>状态</label>
+      <div class="status-toggle" id="statusToggle">
+        <button data-v="todo" type="button">待填写</button>
+        <button data-v="inprogress" type="button">填报中</button>
+        <button data-v="submitted" type="button">已提交</button>
+      </div>
+    </div>
+    <div class="field" id="reviewStageField" style="display:none;">
+      <label>审核情况</label>
+      <div class="status-toggle" id="reviewStageToggle">
+        <button data-v="pending" type="button">待审核</button>
+        <button data-v="reviewed" type="button">已审核</button>
+      </div>
+      <div class="field-hint">待审核：填完了但你还没检查；已审核：检查过没问题，只差投递</div>
+    </div>
+    <div class="field">
+      <label>截止时间</label>
+      <input type="date" id="f-deadline">
+    </div>
+    <div class="field">
+      <label>网申链接</label>
+      <input type="url" id="f-link" placeholder="https://…">
+    </div>
+    <div class="field checklist-editor">
+      <label>还差什么没填 / 待办清单</label>
+      <div id="checklistItems"></div>
+      <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
+    </div>
+    <div class="field">
+      <label>备注</label>
+      <textarea id="f-note" placeholder="任何需要记的：笔试时间、内推码、联系人…"></textarea>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="danger-link" id="deleteBtn" style="display:none;">删除这条记录</button>
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="cancelBtn">取消</button>
+      <button class="btn btn-primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="syncOverlay"></div>
+<div class="drawer" id="syncDrawer">
+  <div class="drawer-head">
+    <h3>同步设置</h3>
+    <button class="drawer-close" id="syncDrawerClose">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field">
+      <label>当前同步码</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="syncCodeDisplay" readonly style="flex:1;">
+        <button class="btn btn-ghost" id="syncCopyBtn" type="button">复制</button>
+      </div>
+      <div class="field-hint">在另一台设备上打开这个页面，在下面"连接到已有同步码"里粘贴这个码，两边数据会自动合并。</div>
+    </div>
+
+    <div class="meta-readonly" id="syncStateText">未连接同步</div>
+
+    <div class="field">
+      <label>生成一个新的同步空间</label>
+      <div><button class="btn btn-ghost" id="syncGenNewBtn" type="button">生成新同步码</button></div>
+      <div class="field-hint">会切换到一个全新的空间，当前设备上的数据会自动上传过去。如果只是想在新设备上接入已有数据，不要点这个，用下面的"连接到已有同步码"。</div>
+    </div>
+
+    <div class="field">
+      <label>连接到已有同步码</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="syncJoinInput" placeholder="粘贴另一台设备上的同步码">
+        <button class="btn btn-primary" id="syncJoinBtn" type="button">连接</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Supabase 项目配置</label>
+      <input type="text" id="syncUrlInput" placeholder="Project URL" style="margin-bottom:8px;">
+      <input type="text" id="syncKeyInput" placeholder="anon public key">
+      <div class="field-hint">这两项是设计上允许暴露在前端的公开凭证。真正隔离数据的是上面的同步码本身，请不要把同步码分享给不信任的人。</div>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="syncDrawerCancelBtn">关闭</button>
+      <button class="btn btn-primary" id="syncSaveConfigBtn">保存配置</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="companyDetailOverlay"></div>
+<div class="drawer" id="companyDetailDrawer">
+  <div class="drawer-head">
+    <h3 id="companyDetailTitle">公司详情</h3>
+    <button class="drawer-close" id="companyDetailClose">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field">
+      <label>归类</label>
+      <div class="status-toggle" id="companyDetailMoveToggle">
+        <button data-status="todo" type="button">待填写</button>
+        <button data-status="inprogress" data-review-stage="pending" type="button">待审核</button>
+        <button data-status="inprogress" data-review-stage="reviewed" type="button">已审核</button>
+        <button data-status="submitted" type="button">已提交</button>
+      </div>
+      <div class="field-hint">点一个和当前不一样的，会把这张卡里的所有岗位一起移过去</div>
+    </div>
+    <div id="companyDetailBody"></div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn btn-primary" id="companyDetailAddBtn">+ 给这家公司加岗位</button>
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="companyDetailCloseBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/*
+  数据模型：
+  companies: [{ id, name, createdAt, updatedAt, deleted, deletedAt }]
+  positions: [{ id, companyId, position, status, deadline, link, note, checklist,
+                requirement, requirementImages(Supabase Storage 里的路径数组),
+                reviewStage('' | 'pending' | 'reviewed'，只在 status==='inprogress' 时有意义，
+                  ''表示这条记录是功能上线前就有的老数据、还没被手动归到待审核/已审核，
+                  看板显示时会把它当"待审核"处理，但不会自动写回数据，只有手动编辑保存过才会真正写入),
+                deleted, deletedAt,
+                createdAt, updatedAt }]
+
+  删除用的是"软删除"（tombstone）：deleted=true 只是一个普通字段，不会把记录从
+  数组/数据库里物理移除。这是为了解决多设备同步时的"复活"问题——如果直接物理删除，
+  另一台设备如果在删除发生前就已经把这条记录拉到本地、还没来得及感知这次删除，
+  它下次同步时会把云端"缺了这一条"误判成"这是我这边新增的，需要补传上去"，
+  于是又把已经删除的记录重新插回数据库。软删除之后，"删除"和"编辑内容"一样，
+  只是把 updatedAt 往前推一格，交给已有的按 updatedAt 比较新旧的合并逻辑
+  （mergeEntities / handleRemoteChange）统一处理，不需要特殊区分。
+  所有"显示"相关的地方（看板、统计数字、搜索、下拉列表、公司详情）都必须
+  过滤掉 deleted===true 的记录；只有同步用的内部函数（queueUpsert、
+  mergeEntities、toRemote/fromRemote）才能看到完整数据（包括已删除的）。
+*/
+const STORAGE_KEY = 'wangshen_tracker_v2';
+const LEGACY_KEY = 'wangshen_tracker_v1';
+const REQUIREMENT_BUCKET = 'position-attachments';
+const REVIEW_STAGE_LABEL = {pending:'待审核', reviewed:'已审核'};
+let companies = [];
+let positions = [];
+let editingId = null;
+let checklistDraft = [];
+// positionDraft: [{ name, requirement, images:[{path}|{uploading:true}], _jdOpen }]
+// 新增网申时每个岗位一条，各自的岗位要求/图片互不共用；只有编辑单个岗位时数组长度固定为 1
+let positionDraft = [{name:'', requirement:'', images:[], _jdOpen:false}];
+let reviewStageDraft = '';
+
+function loadData(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    try{
+      const parsed = JSON.parse(raw);
+      companies = parsed.companies || [];
+      positions = parsed.positions || [];
+      return;
+    }catch(e){}
+  }
+  // 尝试从旧版本(v1，扁平结构)迁移数据
+  const legacyRaw = localStorage.getItem(LEGACY_KEY);
+  if(legacyRaw){
+    try{
+      const legacy = JSON.parse(legacyRaw);
+      const nameToId = {};
+      legacy.forEach(r=>{
+        let cid = nameToId[r.company];
+        if(!cid){
+          cid = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+          nameToId[r.company] = cid;
+          companies.push({id:cid, name:r.company, createdAt:r.createdAt});
+        }
+        positions.push({
+          id: r.id,
+          companyId: cid,
+          position: r.position,
+          status: r.status,
+          deadline: r.deadline,
+          link: r.link,
+          note: r.note,
+          checklist: r.checklist || [],
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        });
+      });
+      saveData();
+    }catch(e){}
+  }
+}
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({companies, positions}));
+}
+
+function getCompany(id){ return companies.find(c=>c.id===id); }
+
+function fmtDateTime(iso){
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso+'T00:00:00');
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr+'T00:00:00');
+  return Math.round((target - today)/86400000);
+}
+
+function renderTodayLabel(){
+  const d = new Date();
+  const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+  document.getElementById('todayLabel').textContent =
+    `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
+}
+
+function renderStats(){
+  const active = positions.filter(r=>!r.deleted);
+  const todo = active.filter(r=>r.status==='todo').length;
+  const inprogress = active.filter(r=>r.status==='inprogress').length;
+  const startOfWeek = new Date(); startOfWeek.setHours(0,0,0,0);
+  startOfWeek.setDate(startOfWeek.getDate()-startOfWeek.getDay());
+  const thisWeek = active.filter(r=>new Date(r.createdAt) >= startOfWeek).length;
+  const overdue = active.filter(r=>r.status!=='submitted' && r.deadline && daysUntil(r.deadline)<0).length;
+
+  const stats = [
+    {label:'本周新增', num:thisWeek, cls:''},
+    {label:'待填写', num:todo, cls:''},
+    {label:'填报中', num:inprogress, cls:'warn'},
+    {label:'已逾期未提交', num:overdue, cls:'danger'},
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s=>`
+    <div class="stat-card ${s.cls}">
+      <div class="num">${s.num}</div>
+      <div class="label">${s.label}</div>
+    </div>
+  `).join('');
+}
+
+function deadlineBadge(r){
+  if(!r.deadline) return '';
+  const d = daysUntil(r.deadline);
+  let cls='normal', text=`截止 ${fmtDate(r.deadline)}`;
+  if(d<0){ cls='danger'; text=`已逾期 ${Math.abs(d)} 天`; }
+  else if(d<=3){ cls='warn'; text = d===0 ? '今天截止' : `${d}天后截止`; }
+  return `<span class="deadline-badge ${cls}">${text}</span>`;
+}
+
+function matchesFilters(r){
+  const company = getCompany(r.companyId);
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if(q){
+    const hay = ((company?company.name:'') + ' ' + (r.position||'')).toLowerCase();
+    if(!hay.includes(q)) return false;
+  }
+  const urgent = document.getElementById('filterUrgent').value;
+  if(urgent!=='all'){
+    if(!r.deadline) return false;
+    const d = daysUntil(r.deadline);
+    if(urgent==='urgent' && !(d>=0 && d<=3)) return false;
+    if(urgent==='overdue' && !(d<0)) return false;
+  }
+  return true;
+}
+
+function reviewStageOf(p){
+  return p.reviewStage==='reviewed' ? 'reviewed' : 'pending';
+}
+function siblingElsewhereCount(companyId, status, reviewStage){
+  return positions.filter(p=>{
+    if(p.deleted) return false;
+    if(p.companyId!==companyId) return false;
+    if(p.status!==status) return true;
+    if(status==='inprogress' && reviewStage!==undefined) return reviewStageOf(p)!==reviewStage;
+    return false;
+  }).length;
+}
+
+function dayKeyOf(iso){
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function dayLabel(key){
+  const d = new Date(key+'T00:00:00');
+  const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+  return `${d.getMonth()+1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
+}
+
+// 把一组岗位按创建日期分组，同一天内再按公司合并成一张卡，返回 HTML 字符串。
+// reviewStage 只在渲染"填报中"栏的某个审核子分组时传入，用来给卡片打标记。
+function renderGroupedCards(list, status, reviewStage){
+  const dayMap = new Map();
+  list.forEach(r=>{
+    const key = dayKeyOf(r.createdAt);
+    if(!dayMap.has(key)) dayMap.set(key, []);
+    dayMap.get(key).push(r);
+  });
+  const dayKeys = [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
+
+  return dayKeys.map(dayKey=>{
+    const companyMap = new Map();
+    dayMap.get(dayKey).forEach(r=>{
+      if(!companyMap.has(r.companyId)) companyMap.set(r.companyId, []);
+      companyMap.get(r.companyId).push(r);
+    });
+    const groups = [...companyMap.entries()].map(([companyId, list])=>({companyId, list}));
+    groups.sort((a,b)=>{
+      const aDeadlines = a.list.map(x=>x.deadline).filter(Boolean).sort();
+      const bDeadlines = b.list.map(x=>x.deadline).filter(Boolean).sort();
+      if(aDeadlines.length && bDeadlines.length) return aDeadlines[0].localeCompare(bDeadlines[0]);
+      if(aDeadlines.length) return -1;
+      if(bDeadlines.length) return 1;
+      const aMax = Math.max(...a.list.map(x=>new Date(x.createdAt).getTime()));
+      const bMax = Math.max(...b.list.map(x=>new Date(x.createdAt).getTime()));
+      return bMax - aMax;
+    });
+
+    const cardsHtml = groups.map(g=>{
+      const company = getCompany(g.companyId);
+      const crossCount = siblingElsewhereCount(g.companyId, status, reviewStage);
+      const positionLines = g.list.map(p=>{
+        const doneCount = (p.checklist||[]).filter(i=>i.done).length;
+        const totalCount = (p.checklist||[]).length;
+        const checklistText = totalCount>0 ? `<span class="checklist-mini">待办 ${doneCount}/${totalCount}</span>` : '';
+        return `
+          <div class="position-line">
+            <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
+            <span class="position-line-meta">${checklistText}${deadlineBadge(p)}</span>
+            <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
+          </div>
+        `;
+      }).join('');
+      return `
+        <div class="card" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
+          <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}" title="删除这张卡里的所有岗位">&times;</button>
+          <div class="company-row">
+            <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+          </div>
+          <div class="position-list">${positionLines}</div>
+          ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="day-group">
+        <div class="day-group-label">${dayLabel(dayKey)}</div>
+        ${cardsHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderBoard(){
+  const statuses = ['todo','inprogress','submitted'];
+  statuses.forEach(st=>{
+    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r));
+    document.getElementById('count-'+st).textContent = filtered.length;
+    const col = document.getElementById('col-'+st);
+    if(filtered.length===0){
+      col.innerHTML = `<div class="empty-hint">暂无记录</div>`;
+      return;
+    }
+
+    if(st==='inprogress'){
+      const pendingList = filtered.filter(p=>reviewStageOf(p)==='pending');
+      const reviewedList = filtered.filter(p=>reviewStageOf(p)==='reviewed');
+      col.innerHTML = `
+        <div class="review-stage-group">
+          <div class="review-stage-label"><span>待审核</span><span class="count-inline">${pendingList.length}</span></div>
+          ${pendingList.length ? renderGroupedCards(pendingList, st, 'pending') : '<div class="empty-hint">暂无记录</div>'}
+        </div>
+        <div class="review-stage-group">
+          <div class="review-stage-label"><span>已审核</span><span class="count-inline">${reviewedList.length}</span></div>
+          ${reviewedList.length ? renderGroupedCards(reviewedList, st, 'reviewed') : '<div class="empty-hint">暂无记录</div>'}
+        </div>
+      `;
+    } else {
+      col.innerHTML = renderGroupedCards(filtered, st);
+    }
+  });
+  document.querySelectorAll('.card').forEach(el=>{
+    el.addEventListener('click', ()=> openCompanyDetail(el.dataset.companyId, el.dataset.status, el.dataset.reviewStage||undefined));
+  });
+  document.querySelectorAll('.card-del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      deleteCardGroup(btn.dataset.companyId, btn.dataset.status, btn.dataset.reviewStage||undefined);
+    });
+  });
+  document.querySelectorAll('.position-line-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const pos = positions.find(p=>p.id===id);
+      if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这个岗位吗？此操作无法撤销。`})){
+        renderAll();
+      }
+    });
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderAll(){
+  renderTodayLabel();
+  renderStats();
+  renderBoard();
+  renderCompanyDatalist();
+}
+
+function renderCompanyDatalist(){
+  const dl = document.getElementById('companyList');
+  dl.innerHTML = companies.filter(c=>!c.deleted).map(c=>`<option value="${escapeHtml(c.name)}">`).join('');
+}
+
+/* ---- 抽屉表单 ---- */
+const overlay = document.getElementById('overlay');
+const drawer = document.getElementById('drawer');
+let currentEditCompanyId = null;
+
+function openDrawer(id){
+  editingId = id || null;
+  const r = id ? positions.find(x=>x.id===id) : null;
+  currentEditCompanyId = r ? r.companyId : null;
+
+  document.getElementById('drawerTitle').textContent = r ? '编辑网申' : '新增网申';
+  document.getElementById('f-company').value = r ? getCompany(r.companyId)?.name || '' : '';
+  positionDraft = r
+    ? [{
+        name: r.position||'',
+        requirement: r.requirement||'',
+        images: (r.requirementImages||[]).map(path=>({path})),
+        _jdOpen: !!(r.requirement || (r.requirementImages||[]).length),
+      }]
+    : [{name:'', requirement:'', images:[], _jdOpen:false}];
+  document.getElementById('positionLabel').textContent = r ? '岗位' : '岗位（可以一次添加多个，每个岗位的要求/图片各自单独填）';
+  document.getElementById('addPositionBtn').style.display = r ? 'none' : 'inline-block';
+  document.getElementById('positionHint').style.display = r ? 'none' : 'block';
+  renderPositionEditor();
+  document.getElementById('f-deadline').value = r ? (r.deadline||'') : '';
+  document.getElementById('f-link').value = r ? (r.link||'') : '';
+  document.getElementById('f-note').value = r ? (r.note||'') : '';
+  setStatusToggle(r ? r.status : 'todo');
+  reviewStageDraft = r ? (r.reviewStage||'') : '';
+  setReviewStageToggle(reviewStageDraft);
+  updateReviewStageFieldVisibility();
+  checklistDraft = r ? JSON.parse(JSON.stringify(r.checklist||[])) : [];
+  renderChecklistEditor();
+  renderOtherPositionsBox();
+
+  const metaBox = document.getElementById('metaReadonly');
+  if(r){
+    metaBox.style.display='block';
+    metaBox.innerHTML = `创建时间：${fmtDateTime(r.createdAt)}${r.updatedAt && r.updatedAt!==r.createdAt ? '　·　最近更新：'+fmtDateTime(r.updatedAt) : ''}`;
+  } else {
+    metaBox.style.display='block';
+    metaBox.innerHTML = `创建时间：保存后自动记录为当前时间`;
+  }
+
+  document.getElementById('deleteBtn').style.display = r ? 'inline-block' : 'none';
+
+  overlay.classList.add('active');
+  drawer.classList.add('active');
+}
+
+function renderOtherPositionsBox(){
+  const box = document.getElementById('otherPositionsBox');
+  const nameInput = document.getElementById('f-company');
+  const name = nameInput.value.trim();
+  const existing = companies.find(c=>c.name.toLowerCase()===name.toLowerCase());
+  if(!existing){
+    box.style.display='none';
+    return;
+  }
+  const siblings = positions.filter(p=>!p.deleted && p.companyId===existing.id && p.id!==editingId);
+  if(siblings.length===0){
+    box.style.display='none';
+    return;
+  }
+  const labelMap = {todo:'待填写', inprogress:'填报中', submitted:'已提交'};
+  document.getElementById('otherPositionsList').innerHTML = siblings.map(p=>`
+    <div class="op-item">
+      <span>${escapeHtml(p.position||'（未命名岗位）')}</span>
+      <span class="op-tag ${p.status}">${labelMap[p.status]}</span>
+    </div>
+  `).join('');
+  box.style.display='block';
+}
+document.getElementById('f-company').addEventListener('input', renderOtherPositionsBox);
+
+/* ---- 岗位要求配图（存在 Supabase Storage，需要先连接同步） ---- */
+function requirementImageUrl(path){
+  if(!sb || !path) return '';
+  const { data } = sb.storage.from(REQUIREMENT_BUCKET).getPublicUrl(path);
+  return data ? data.publicUrl : '';
+}
+function deleteStorageImage(path){
+  if(!sb || !path) return;
+  sb.storage.from(REQUIREMENT_BUCKET).remove([path]).catch(()=>{});
+}
+
+// 岗位列表编辑器：新增网申时每个岗位一块，各自可以展开填写自己的岗位要求 + 多张图片
+function renderPositionEditor(){
+  const box = document.getElementById('positionItems');
+  box.innerHTML = positionDraft.map((item, idx)=>{
+    const hasJd = item.requirement || (item.images||[]).length>0;
+    const imagesHtml = (item.images||[]).map((img, imgIdx)=>{
+      if(img.uploading){
+        return `<div class="req-img-thumb uploading" data-idx="${idx}" data-img-idx="${imgIdx}">上传中…</div>`;
+      }
+      return `<div class="req-img-thumb" data-idx="${idx}" data-img-idx="${imgIdx}">
+        <img src="${requirementImageUrl(img.path)}">
+        <button class="req-img-del" type="button" data-idx="${idx}" data-img-idx="${imgIdx}">&times;</button>
+      </div>`;
+    }).join('');
+    return `
+      <div class="position-item-block" data-idx="${idx}">
+        <div class="item-row">
+          <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
+          ${positionDraft.length>1 ? '<button class="del" type="button">&times;</button>' : ''}
+        </div>
+        <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
+        <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
+          <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
+          <div class="requirement-image-editor">${imagesHtml}</div>
+          <button class="add-item-btn position-jd-addimg" type="button" data-idx="${idx}">+ 添加图片</button>
+          <input type="file" class="position-jd-file" data-idx="${idx}" accept="image/*" multiple style="display:none;">
+          <div class="field-hint position-jd-hint" data-idx="${idx}">${escapeHtml(item._imageError||'')}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  box.querySelectorAll('.position-item-block').forEach(block=>{
+    const idx = Number(block.dataset.idx);
+    block.querySelector('.position-name-input').addEventListener('input', e=>{
+      positionDraft[idx].name = e.target.value;
+    });
+    const delBtn = block.querySelector('.del');
+    if(delBtn){
+      delBtn.addEventListener('click', ()=>{
+        positionDraft.splice(idx,1);
+        renderPositionEditor();
+      });
+    }
+    block.querySelector('.position-jd-toggle').addEventListener('click', ()=>{
+      positionDraft[idx]._jdOpen = !positionDraft[idx]._jdOpen;
+      renderPositionEditor();
+    });
+    block.querySelector('.position-jd-text').addEventListener('input', e=>{
+      positionDraft[idx].requirement = e.target.value;
+    });
+    const addImgBtn = block.querySelector('.position-jd-addimg');
+    const fileInput = block.querySelector('.position-jd-file');
+    addImgBtn.addEventListener('click', ()=>{
+      if(!sb){
+        positionDraft[idx]._imageError = '需要先在"同步设置"里连接同步码和 Supabase，才能上传图片';
+        renderPositionEditor();
+        return;
+      }
+      fileInput.click();
+    });
+    fileInput.addEventListener('change', async (e)=>{
+      const files = [...e.target.files];
+      e.target.value = '';
+      positionDraft[idx]._imageError = '';
+      for(const file of files){
+        const placeholder = { uploading:true };
+        positionDraft[idx].images.push(placeholder);
+        renderPositionEditor();
+        try{
+          const path = `${syncId||'local'}/${editingId||'new_'+Date.now()}/${idx}_${Date.now()}_${file.name}`;
+          const { error } = await sb.storage.from(REQUIREMENT_BUCKET).upload(path, file);
+          if(error) throw error;
+          placeholder.uploading = false;
+          placeholder.path = path;
+        }catch(err){
+          positionDraft[idx].images = positionDraft[idx].images.filter(x=>x!==placeholder);
+          positionDraft[idx]._imageError = '图片上传失败：' + ((err&&err.message)||String(err));
+        }
+        renderPositionEditor();
+      }
+    });
+    block.querySelectorAll('.req-img-del').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const imgIdx = Number(btn.dataset.imgIdx);
+        const [removed] = positionDraft[idx].images.splice(imgIdx,1);
+        if(removed && removed.path) deleteStorageImage(removed.path);
+        renderPositionEditor();
+      });
+    });
+  });
+}
+document.getElementById('addPositionBtn').addEventListener('click', ()=>{
+  positionDraft.push({name:'', requirement:'', images:[], _jdOpen:false});
+  renderPositionEditor();
+});
+
+function closeDrawer(){
+  overlay.classList.remove('active');
+  drawer.classList.remove('active');
+  editingId = null;
+}
+
+function setStatusToggle(v){
+  document.querySelectorAll('#statusToggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.v===v);
+  });
+}
+function setReviewStageToggle(v){
+  document.querySelectorAll('#reviewStageToggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.v===v);
+  });
+}
+function updateReviewStageFieldVisibility(){
+  const active = document.querySelector('#statusToggle button.active');
+  document.getElementById('reviewStageField').style.display = (active && active.dataset.v==='inprogress') ? 'block' : 'none';
+}
+document.getElementById('statusToggle').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const prevActive = document.querySelector('#statusToggle button.active');
+  const prevStatus = prevActive ? prevActive.dataset.v : null;
+  setStatusToggle(btn.dataset.v);
+  if(btn.dataset.v==='inprogress' && prevStatus!=='inprogress' && !reviewStageDraft){
+    reviewStageDraft = 'pending';
+    setReviewStageToggle(reviewStageDraft);
+  }
+  updateReviewStageFieldVisibility();
+});
+document.getElementById('reviewStageToggle').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  reviewStageDraft = btn.dataset.v;
+  setReviewStageToggle(reviewStageDraft);
+});
+
+function renderChecklistEditor(){
+  const box = document.getElementById('checklistItems');
+  box.innerHTML = checklistDraft.map((item, idx)=>`
+    <div class="item-row" data-idx="${idx}">
+      <input type="checkbox" ${item.done?'checked':''}>
+      <input type="text" value="${escapeHtml(item.text)}" placeholder="例如：性格测试还没做">
+      <button class="del" type="button">&times;</button>
+    </div>
+  `).join('');
+  box.querySelectorAll('.item-row').forEach(row=>{
+    const idx = Number(row.dataset.idx);
+    row.querySelector('input[type=checkbox]').addEventListener('change', e=>{
+      checklistDraft[idx].done = e.target.checked;
+    });
+    row.querySelector('input[type=text]').addEventListener('input', e=>{
+      checklistDraft[idx].text = e.target.value;
+    });
+    row.querySelector('.del').addEventListener('click', ()=>{
+      checklistDraft.splice(idx,1);
+      renderChecklistEditor();
+    });
+  });
+}
+document.getElementById('addItemBtn').addEventListener('click', ()=>{
+  checklistDraft.push({text:'', done:false});
+  renderChecklistEditor();
+});
+
+document.getElementById('addBtn').addEventListener('click', ()=>openDrawer(null));
+document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+document.getElementById('cancelBtn').addEventListener('click', closeDrawer);
+overlay.addEventListener('click', closeDrawer);
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  const companyName = document.getElementById('f-company').value.trim();
+  if(!companyName){
+    alert('请填写公司名称');
+    return;
+  }
+  const status = document.querySelector('#statusToggle button.active').dataset.v;
+  const now = new Date().toISOString();
+  const cleanChecklist = checklistDraft.filter(i=>i.text.trim()!=='');
+
+  // 查找或创建公司（按名字匹配时不管有没有被软删除都算找到——如果之前删过这家公司，
+  // 现在又新增了它的岗位，直接把原来的公司记录复活，而不是产生一个重复的新公司）
+  let companyTouched = false;
+  let company = companies.find(c=>c.name.toLowerCase()===companyName.toLowerCase());
+  if(!company){
+    company = {id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name:companyName, createdAt:now, updatedAt:now, deleted:false, deletedAt:null};
+    companies.push(company);
+    companyTouched = true;
+  } else if(company.deleted){
+    company.deleted = false;
+    company.deletedAt = null;
+    company.updatedAt = now;
+    companyTouched = true;
+  }
+
+  const touchedPositionIds = [];
+  if(editingId){
+    const r = positions.find(x=>x.id===editingId);
+    const entry = positionDraft[0];
+    r.companyId = company.id;
+    r.position = (entry.name||'').trim();
+    r.status = status;
+    r.deadline = document.getElementById('f-deadline').value;
+    r.link = document.getElementById('f-link').value.trim();
+    r.note = document.getElementById('f-note').value.trim();
+    r.checklist = cleanChecklist;
+    r.requirement = (entry.requirement||'').trim();
+    r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
+    r.reviewStage = status==='inprogress' ? reviewStageDraft : '';
+    r.updatedAt = now;
+    touchedPositionIds.push(editingId);
+  } else {
+    const deadline = document.getElementById('f-deadline').value;
+    const link = document.getElementById('f-link').value.trim();
+    const note = document.getElementById('f-note').value.trim();
+    const validEntries = positionDraft.filter(e=>e.name.trim()!=='');
+    const entriesToUse = validEntries.length ? validEntries : [positionDraft[0] || {name:'', requirement:'', images:[]}];
+    entriesToUse.forEach((entry, i)=>{
+      const newId = 'r_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,7);
+      positions.push({
+        id: newId,
+        companyId: company.id,
+        position: entry.name.trim(),
+        status,
+        deadline,
+        link,
+        note,
+        checklist: JSON.parse(JSON.stringify(cleanChecklist)),
+        requirement: (entry.requirement||'').trim(),
+        requirementImages: (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path),
+        reviewStage: status==='inprogress' ? reviewStageDraft : '',
+        deleted: false,
+        deletedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      touchedPositionIds.push(newId);
+    });
+  }
+  saveData();
+  if(companyTouched) queueUpsert('companies', company.id);
+  touchedPositionIds.forEach(id=>queueUpsert('positions', id));
+  flushQueue();
+  closeDrawer();
+  renderAll();
+});
+
+/* ---- 删除岗位 / 整张卡（软删除：只打标记，不物理移除，避免多设备同步时复活，见文件顶部说明） ---- */
+function deletePosition(id, {skipConfirm=false, confirmMessage} = {}){
+  const msg = confirmMessage || '确定删除这条网申记录吗？此操作无法撤销。';
+  if(!skipConfirm && !confirm(msg)) return false;
+  const r = positions.find(x=>x.id===id);
+  if(!r || r.deleted) return false;
+  const now = new Date().toISOString();
+  r.deleted = true;
+  r.deletedAt = now;
+  r.updatedAt = now;
+
+  // 如果这是该公司仅剩的未删除岗位，公司也一并软删除
+  let companyAlsoDeleted = false;
+  const company = getCompany(r.companyId);
+  if(company && !company.deleted && !positions.some(p=>p.companyId===r.companyId && p.id!==id && !p.deleted)){
+    company.deleted = true;
+    company.deletedAt = now;
+    company.updatedAt = now;
+    companyAlsoDeleted = true;
+  }
+
+  saveData();
+  queueUpsert('positions', id);
+  if(companyAlsoDeleted) queueUpsert('companies', company.id);
+  flushQueue();
+  return true;
+}
+function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toReviewStage){
+  const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===fromStatus
+    && (fromReviewStage===undefined || reviewStageOf(p)===fromReviewStage));
+  if(list.length===0) return;
+  const now = new Date().toISOString();
+  const finalReviewStage = toStatus==='inprogress' ? (toReviewStage || 'pending') : '';
+  list.forEach(p=>{
+    p.status = toStatus;
+    p.reviewStage = finalReviewStage;
+    p.updatedAt = now;
+  });
+  saveData();
+  list.forEach(p=>queueUpsert('positions', p.id));
+  flushQueue();
+  renderAll();
+  openCompanyDetail(companyId, toStatus, toStatus==='inprogress' ? finalReviewStage : undefined);
+}
+function deleteCardGroup(companyId, status, reviewStage){
+  const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
+    && (reviewStage===undefined || reviewStageOf(p)===reviewStage));
+  if(list.length===0) return;
+  const company = getCompany(companyId);
+  const stageLabel = reviewStage ? `·${REVIEW_STAGE_LABEL[reviewStage]}` : '';
+  const msg = `确定要删除「${company?company.name:'该公司'}」在"${STATUS_LABEL[status]}${stageLabel}"的这 ${list.length} 个岗位吗？此操作无法撤销。`;
+  if(!confirm(msg)) return;
+  list.forEach(p=>deletePosition(p.id, {skipConfirm:true}));
+  renderAll();
+}
+
+document.getElementById('deleteBtn').addEventListener('click', ()=>{
+  if(!editingId) return;
+  if(deletePosition(editingId)){
+    closeDrawer();
+    renderAll();
+  }
+});
+
+document.getElementById('searchInput').addEventListener('input', renderBoard);
+document.getElementById('filterUrgent').addEventListener('change', renderBoard);
+
+/* ---- 公司详情抽屉（点击看板卡片打开） ---- */
+const companyDetailOverlay = document.getElementById('companyDetailOverlay');
+const companyDetailDrawer = document.getElementById('companyDetailDrawer');
+const STATUS_LABEL = {todo:'待填写', inprogress:'填报中', submitted:'已提交'};
+
+function openCompanyDetail(companyId, status, reviewStage){
+  const company = getCompany(companyId);
+  const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
+    && (reviewStage===undefined || reviewStageOf(p)===reviewStage));
+  const stageLabel = reviewStage ? ` · ${REVIEW_STAGE_LABEL[reviewStage]}` : '';
+  document.getElementById('companyDetailTitle').textContent =
+    `${company?company.name:'（未知公司）'} · ${STATUS_LABEL[status]}${stageLabel}`;
+
+  document.querySelectorAll('#companyDetailMoveToggle button').forEach(btn=>{
+    const isActive = btn.dataset.status===status && (btn.dataset.reviewStage||undefined)===reviewStage;
+    btn.classList.toggle('active', isActive);
+    btn.onclick = ()=>{
+      if(isActive) return;
+      bulkMoveCardGroup(companyId, status, reviewStage, btn.dataset.status, btn.dataset.reviewStage);
+    };
+  });
+
+  document.getElementById('companyDetailBody').innerHTML = list.map(p=>{
+    const doneCount = (p.checklist||[]).filter(i=>i.done).length;
+    const totalCount = (p.checklist||[]).length;
+    const checklistText = totalCount>0 ? `待办 ${doneCount}/${totalCount}` : '';
+    const hasReq = p.requirement || (p.requirementImages||[]).length>0;
+    const imagesHtml = (p.requirementImages||[]).map(path=>
+      `<a href="${requirementImageUrl(path)}" target="_blank" rel="noopener"><img src="${requirementImageUrl(path)}"></a>`
+    ).join('');
+    return `
+      <div class="position-detail-item" data-id="${p.id}">
+        <button class="position-detail-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
+        <div class="position-detail-head">
+          <span class="position-detail-name">${escapeHtml(p.position||'（未命名岗位）')}</span>
+          ${deadlineBadge(p)}
+        </div>
+        <div class="field-hint">${checklistText}</div>
+        <div class="position-detail-actions">
+          <button class="add-item-btn requirement-toggle-btn" data-id="${p.id}" type="button">${hasReq?'查看岗位要求':'添加岗位要求'} ▾</button>
+          <button class="add-item-btn edit-position-btn" data-id="${p.id}" type="button">编辑这个岗位</button>
+        </div>
+        <div class="requirement-body" id="req-${p.id}" style="display:none;">
+          ${p.requirement ? `<div class="requirement-text">${escapeHtml(p.requirement)}</div>` : '<div class="field-hint">还没有填写岗位要求</div>'}
+          ${imagesHtml ? `<div class="requirement-images">${imagesHtml}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.querySelectorAll('.requirement-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const body = document.getElementById('req-'+btn.dataset.id);
+      body.style.display = body.style.display==='none' ? 'block' : 'none';
+    });
+  });
+  document.querySelectorAll('.edit-position-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      closeCompanyDetail();
+      openDrawer(btn.dataset.id);
+    });
+  });
+  document.querySelectorAll('.position-detail-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const pos = positions.find(p=>p.id===id);
+      const ok = deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这个岗位吗？此操作无法撤销。`});
+      if(!ok) return;
+      renderAll();
+      const remaining = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
+        && (reviewStage===undefined || reviewStageOf(p)===reviewStage));
+      if(remaining.length===0){
+        closeCompanyDetail();
+      } else {
+        openCompanyDetail(companyId, status, reviewStage);
+      }
+    });
+  });
+  document.getElementById('companyDetailAddBtn').onclick = ()=>{
+    closeCompanyDetail();
+    openDrawer(null);
+    document.getElementById('f-company').value = company ? company.name : '';
+    renderOtherPositionsBox();
+  };
+
+  companyDetailOverlay.classList.add('active');
+  companyDetailDrawer.classList.add('active');
+}
+function closeCompanyDetail(){
+  companyDetailOverlay.classList.remove('active');
+  companyDetailDrawer.classList.remove('active');
+}
+document.getElementById('companyDetailClose').addEventListener('click', closeCompanyDetail);
+document.getElementById('companyDetailCloseBtn').addEventListener('click', closeCompanyDetail);
+companyDetailOverlay.addEventListener('click', closeCompanyDetail);
+
+/* =========================================================
+   多设备同步（Supabase）
+   ---------------------------------------------------------
+   用"同步码"(sync_id) 而不是账号登录来隔离数据：数据库的行级
+   安全策略是 using(true) with check(true)，也就是任何拿到这个
+   sync_id 字符串的人理论上都能读写这个空间——这不是强安全边界，
+   只适合个人自用、不怕熟人知道的场景。所有查询/写入都必须自己
+   带上 sync_id 过滤（下面每处都这么做了）。以后如果要更强的隔离，
+   需要升级成 Supabase Auth（邮箱登录）+ 基于 auth.uid() 的 RLS。
+
+   本地优先：所有增删改先写本地 state + localStorage 并立即渲染，
+   同步是"顺带"发生的，离线也不影响正常使用；失败的写入进队列，
+   联网后自动重试。合并策略是简单的 last-write-wins（比较
+   updatedAt），不做三方合并——个人工具，冲突概率低。
+
+   删除是软删除（见文件顶部数据模型说明的 tombstone 部分），"删除"
+   在同步层面就是一次普通的 upsert（deleted:true），所以能直接复用
+   同一套 last-write-wins 合并逻辑，不需要给删除单独写分支。
+   ========================================================= */
+
+const SYNC_ID_KEY = 'wangshen_sync_id';
+const SYNC_CONFIG_KEY = 'wangshen_sync_config';
+const SYNC_QUEUE_KEY = 'wangshen_sync_queue';
+const SYNC_DISMISS_KEY = 'wangshen_sync_banner_dismissed';
+const DEFAULT_SUPABASE_URL = 'https://xbmnadxitkzsofgizqew.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_QNCf-to238GBDK0-GbLxXg_6bOr9a8t';
+
+let syncId = localStorage.getItem(SYNC_ID_KEY) || '';
+let syncConfig = loadSyncConfig();
+let sb = null;
+let realtimeChannel = null;
+let syncQueue = loadSyncQueue();
+let syncState = { phase: 'disconnected', lastSyncedAt: null, lastError: '' };
+let retryTimer = null;
+let flushing = false;
+
+function loadSyncConfig(){
+  try{
+    const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_KEY };
+}
+function saveSyncConfig(cfg){
+  syncConfig = cfg;
+  localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
+}
+function loadSyncQueue(){
+  try{
+    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return [];
+}
+function saveSyncQueue(){
+  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(syncQueue));
+}
+function isSyncConfigured(){
+  return !!(syncId && syncConfig && syncConfig.url && syncConfig.key);
+}
+function genSyncId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
+}
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+}
+
+/* ---- 本地字段 <-> 远端表字段 ---- */
+function companyToRemote(c){
+  return {
+    id:c.id, sync_id:syncId, name:c.name, created_at:c.createdAt, updated_at:c.updatedAt||c.createdAt,
+    deleted:!!c.deleted, deleted_at:c.deletedAt||null,
+  };
+}
+function companyFromRemote(row){
+  return {
+    id:row.id, name:row.name, createdAt:row.created_at, updatedAt:row.updated_at,
+    deleted:!!row.deleted, deletedAt:row.deleted_at||null,
+  };
+}
+function positionToRemote(p){
+  return {
+    id:p.id, sync_id:syncId, company_id:p.companyId, position:p.position||'',
+    status:p.status, deadline:p.deadline || null, link:p.link||'', note:p.note||'',
+    checklist:p.checklist||[], requirement:p.requirement||'', requirement_images:p.requirementImages||[],
+    review_stage:p.reviewStage||'', deleted:!!p.deleted, deleted_at:p.deletedAt||null,
+    created_at:p.createdAt, updated_at:p.updatedAt,
+  };
+}
+function positionFromRemote(row){
+  return {
+    id:row.id, companyId:row.company_id, position:row.position||'', status:row.status,
+    deadline:row.deadline||'', link:row.link||'', note:row.note||'',
+    checklist:row.checklist||[], requirement:row.requirement||'', requirementImages:row.requirement_images||[],
+    reviewStage:row.review_stage||'', deleted:!!row.deleted, deletedAt:row.deleted_at||null,
+    createdAt:row.created_at, updatedAt:row.updated_at,
+  };
+}
+
+/* ---- 离线队列：写失败时先存起来，联网后重试 ---- */
+function queueUpsert(table, recordId){
+  const record = table==='companies' ? getCompany(recordId) : positions.find(p=>p.id===recordId);
+  if(!record) return;
+  const payload = table==='companies' ? companyToRemote(record) : positionToRemote(record);
+  syncQueue = syncQueue.filter(t=>!(t.table===table && t.recordId===recordId));
+  syncQueue.push({ table, op:'upsert', recordId, payload, addedAt:Date.now() });
+  saveSyncQueue();
+}
+async function flushQueue(){
+  if(flushing) return;
+  if(!isSyncConfigured() || !sb) return;
+  if(syncQueue.length===0){ setSyncState('synced'); return; }
+  flushing = true;
+  setSyncState('syncing');
+  const ordered = [...syncQueue].sort((a,b)=>(a.table==='companies'?0:1) - (b.table==='companies'?0:1));
+  const remaining = [];
+  let lastError = '';
+  for(const task of ordered){
+    try{
+      if(task.op==='upsert'){
+        const { error } = await sb.from(task.table).upsert(task.payload);
+        if(error) throw error;
+      } else {
+        // 现在的删除都走软删除（upsert 一条 deleted:true 的记录），不会再新产生 op:'delete'
+        // 的任务；这个分支只是为了兼容旧版本可能残留在本地队列里的物理删除任务。
+        const { error } = await sb.from(task.table).delete().eq('id', task.recordId).eq('sync_id', syncId);
+        if(error) throw error;
+      }
+    }catch(err){
+      remaining.push(task);
+      lastError = (err && err.message) || String(err);
+    }
+  }
+  // 这一轮处理期间，syncQueue 可能已经被别的删除/保存操作追加了新任务——
+  // 不能直接用 remaining 覆盖 syncQueue，否则并发追加的任务会被静默丢弃
+  // （比如批量删除一张卡的多个岗位时，后面几个的删除请求会连着队列记录一起消失，
+  // 本地却已经显示"已同步"）。这里只把"这一轮确实处理成功"的任务摘掉。
+  const succeeded = new Set(ordered.filter(t=>!remaining.includes(t)));
+  syncQueue = syncQueue.filter(t=>!succeeded.has(t));
+  saveSyncQueue();
+  flushing = false;
+  if(syncQueue.length===0){
+    setSyncState('synced');
+  } else if(remaining.length>0){
+    setSyncState('error', lastError);
+    scheduleRetry();
+  } else {
+    // 没有失败，只是处理期间又来了新任务，立刻接着处理，不用等重试计时器
+    flushQueue();
+  }
+}
+function scheduleRetry(){
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(flushQueue, 15000);
+}
+
+/* ---- 启动/切换同步码时：拉取云端数据，与本地按 updatedAt 合并 ---- */
+function mergeEntities(localList, remoteList, opts){
+  const localMap = new Map(localList.map(r=>[r.id, r]));
+  const remoteMap = new Map(remoteList.map(r=>[opts.getId(r), r]));
+  const toPush = [];
+  remoteMap.forEach((remoteRow, id)=>{
+    const localRow = localMap.get(id);
+    if(!localRow){
+      localList.push(opts.fromRemote(remoteRow));
+      return;
+    }
+    const remoteTime = new Date(opts.getUpdatedAt(remoteRow)).getTime();
+    const localTime = new Date(localRow.updatedAt || localRow.createdAt).getTime();
+    if(remoteTime > localTime){
+      Object.assign(localRow, opts.fromRemote(remoteRow));
+    } else if(localTime > remoteTime){
+      toPush.push(id);
+    }
+  });
+  localMap.forEach((localRow, id)=>{
+    if(!remoteMap.has(id)) toPush.push(id);
+  });
+  return toPush;
+}
+
+async function pullAndMerge(){
+  if(!isSyncConfigured() || !sb) return;
+  setSyncState('syncing');
+  try{
+    const [{data:remoteCompanies, error:e1}, {data:remotePositions, error:e2}] = await Promise.all([
+      sb.from('companies').select('*').eq('sync_id', syncId),
+      sb.from('positions').select('*').eq('sync_id', syncId),
+    ]);
+    if(e1) throw e1;
+    if(e2) throw e2;
+
+    const companiesToPush = mergeEntities(companies, remoteCompanies||[], {
+      getId:r=>r.id, getUpdatedAt:r=>r.updated_at, fromRemote:companyFromRemote,
+    });
+    const positionsToPush = mergeEntities(positions, remotePositions||[], {
+      getId:r=>r.id, getUpdatedAt:r=>r.updated_at, fromRemote:positionFromRemote,
+    });
+
+    saveData();
+    renderAll();
+
+    companiesToPush.forEach(id=>queueUpsert('companies', id));
+    positionsToPush.forEach(id=>queueUpsert('positions', id));
+    await flushQueue();
+  }catch(err){
+    setSyncState('error', (err && err.message) || String(err));
+    scheduleRetry();
+  }
+}
+
+/* ---- 实时订阅：另一台设备的改动几秒内合并过来（需要在 Supabase
+   后台把 companies/positions 加入 realtime publication 才会生效，
+   没开也不影响核心同步——刷新页面照样能看到最新数据） ---- */
+function subscribeRealtime(){
+  if(!sb) return;
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+  realtimeChannel = sb.channel('sync-'+syncId)
+    .on('postgres_changes', { event:'*', schema:'public', table:'companies', filter:`sync_id=eq.${syncId}` }, handleRemoteChange('companies'))
+    .on('postgres_changes', { event:'*', schema:'public', table:'positions', filter:`sync_id=eq.${syncId}` }, handleRemoteChange('positions'))
+    .subscribe();
+}
+function handleRemoteChange(table){
+  return (payload)=>{
+    const list = table==='companies' ? companies : positions;
+    const fromRemote = table==='companies' ? companyFromRemote : positionFromRemote;
+    if(payload.eventType==='DELETE'){
+      const id = payload.old.id;
+      const idx = list.findIndex(r=>r.id===id);
+      if(idx>=0) list.splice(idx,1);
+    } else {
+      const row = fromRemote(payload.new);
+      const existing = list.find(r=>r.id===row.id);
+      if(!existing){
+        list.push(row);
+      } else {
+        const remoteTime = new Date(row.updatedAt).getTime();
+        const localTime = new Date(existing.updatedAt||existing.createdAt).getTime();
+        if(remoteTime >= localTime) Object.assign(existing, row);
+      }
+    }
+    if(table==='companies') companies = list; else positions = list;
+    saveData();
+    renderAll();
+    setSyncState('synced');
+  };
+}
+
+/* ---- 状态指示 ---- */
+function setSyncState(phase, error){
+  syncState.phase = phase;
+  if(phase==='synced') syncState.lastSyncedAt = Date.now();
+  if(phase==='error') syncState.lastError = error||'';
+  renderSyncIndicator();
+}
+function timeAgo(ts){
+  if(!ts) return '';
+  const sec = Math.floor((Date.now()-ts)/1000);
+  if(sec<60) return '刚刚';
+  const min = Math.floor(sec/60);
+  if(min<60) return `${min}分钟前`;
+  const hr = Math.floor(min/60);
+  if(hr<24) return `${hr}小时前`;
+  return `${Math.floor(hr/24)}天前`;
+}
+function renderSyncIndicator(){
+  const btn = document.getElementById('syncIndicatorBtn');
+  const txt = document.getElementById('syncText');
+  if(!btn) return;
+  if(!isSyncConfigured()){
+    btn.dataset.state = 'disconnected';
+    txt.textContent = '未连接同步';
+    btn.title = '';
+  } else if(syncState.phase==='syncing'){
+    btn.dataset.state = 'syncing';
+    txt.textContent = '同步中…';
+    btn.title = '';
+  } else if(syncState.phase==='error'){
+    btn.dataset.state = 'error';
+    txt.textContent = '同步失败，将自动重试';
+    btn.title = syncState.lastError;
+  } else {
+    btn.dataset.state = 'synced';
+    txt.textContent = syncState.lastSyncedAt ? `已同步 · ${timeAgo(syncState.lastSyncedAt)}` : '已连接同步';
+    btn.title = '';
+  }
+  const stateText = document.getElementById('syncStateText');
+  if(stateText) stateText.textContent = txt.textContent;
+}
+setInterval(()=>{ if(syncState.phase==='synced') renderSyncIndicator(); }, 30000);
+
+/* ---- 初始化 / 切换 Supabase 客户端 ---- */
+function initSupabaseClient(){
+  if(!syncConfig.url || !syncConfig.key){ sb = null; return; }
+  sb = window.supabase.createClient(syncConfig.url, syncConfig.key);
+}
+async function startSync(){
+  renderSyncIndicator();
+  if(!isSyncConfigured()){
+    maybeShowFirstRunBanner();
+    return;
+  }
+  document.getElementById('firstRunBanner').style.display = 'none';
+  initSupabaseClient();
+  await pullAndMerge();
+  subscribeRealtime();
+  flushQueue();
+}
+function maybeShowFirstRunBanner(){
+  if(syncId) return;
+  if(localStorage.getItem(SYNC_DISMISS_KEY)) return;
+  document.getElementById('firstRunBanner').style.display = 'flex';
+}
+
+/* ---- 同步设置抽屉交互 ---- */
+const syncOverlay = document.getElementById('syncOverlay');
+const syncDrawer = document.getElementById('syncDrawer');
+function openSyncDrawer(){
+  document.getElementById('syncCodeDisplay').value = syncId || '（还没有同步码）';
+  document.getElementById('syncUrlInput').value = syncConfig.url || '';
+  document.getElementById('syncKeyInput').value = syncConfig.key || '';
+  document.getElementById('syncJoinInput').value = '';
+  renderSyncIndicator();
+  syncOverlay.classList.add('active');
+  syncDrawer.classList.add('active');
+}
+function closeSyncDrawer(){
+  syncOverlay.classList.remove('active');
+  syncDrawer.classList.remove('active');
+}
+document.getElementById('syncIndicatorBtn').addEventListener('click', openSyncDrawer);
+document.getElementById('syncDrawerClose').addEventListener('click', closeSyncDrawer);
+document.getElementById('syncDrawerCancelBtn').addEventListener('click', closeSyncDrawer);
+syncOverlay.addEventListener('click', closeSyncDrawer);
+
+document.getElementById('syncCopyBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('syncCodeDisplay').value;
+  if(!val || val.startsWith('（')) return;
+  copyText(val);
+  const btn = document.getElementById('syncCopyBtn');
+  const old = btn.textContent;
+  btn.textContent = '已复制';
+  setTimeout(()=>{ btn.textContent = old; }, 1200);
+});
+
+document.getElementById('firstRunSetupBtn').addEventListener('click', ()=>{
+  document.getElementById('firstRunBanner').style.display = 'none';
+  openSyncDrawer();
+});
+document.getElementById('firstRunDismissBtn').addEventListener('click', ()=>{
+  localStorage.setItem(SYNC_DISMISS_KEY, '1');
+  document.getElementById('firstRunBanner').style.display = 'none';
+});
+
+document.getElementById('syncGenNewBtn').addEventListener('click', ()=>{
+  syncId = genSyncId();
+  localStorage.setItem(SYNC_ID_KEY, syncId);
+  document.getElementById('syncCodeDisplay').value = syncId;
+  startSync();
+});
+document.getElementById('syncJoinBtn').addEventListener('click', ()=>{
+  const code = document.getElementById('syncJoinInput').value.trim();
+  if(!code) return;
+  syncId = code;
+  localStorage.setItem(SYNC_ID_KEY, syncId);
+  document.getElementById('syncCodeDisplay').value = syncId;
+  startSync();
+});
+document.getElementById('syncSaveConfigBtn').addEventListener('click', ()=>{
+  const url = document.getElementById('syncUrlInput').value.trim();
+  const key = document.getElementById('syncKeyInput').value.trim();
+  saveSyncConfig({ url, key });
+  startSync();
+});
+
+window.addEventListener('online', flushQueue);
+
+/* ---- 初始化 ---- */
+loadData();
+renderAll();
+startSync();
+</script>
+</body>
+</html>
