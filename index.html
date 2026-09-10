@@ -754,8 +754,22 @@ function loadData(){
     }catch(e){}
   }
 }
+// localStorage 在部分浏览器/隐私设置下（尤其是 Safari）可能会因为配额或权限问题
+// 直接抛异常——如果不挡住，会把调用它的整个函数（比如保存按钮的点击处理）从这里
+// 中断掉，后面该做的 renderAll()/closeDrawer() 全部不会执行，表现就是"点了保存
+// 像没反应一样"。所以本地缓存写入失败只记一条警告，不能让它拖垮别的逻辑——
+// 反正真正的数据以内存里的 companies/positions 为准，云端同步也不依赖 localStorage。
+function safeSetItem(key, value){
+  try{
+    localStorage.setItem(key, value);
+    return true;
+  }catch(err){
+    console.warn('本地存储写入失败（' + key + '）：', err);
+    return false;
+  }
+}
 function saveData(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({companies, positions}));
+  safeSetItem(STORAGE_KEY, JSON.stringify({companies, positions}));
 }
 
 function getCompany(id){ return companies.find(c=>c.id===id); }
@@ -1529,7 +1543,7 @@ function loadSyncConfig(){
 }
 function saveSyncConfig(cfg){
   syncConfig = cfg;
-  localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
+  safeSetItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
 }
 function loadSyncQueue(){
   try{
@@ -1539,7 +1553,7 @@ function loadSyncQueue(){
   return [];
 }
 function saveSyncQueue(){
-  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(syncQueue));
+  safeSetItem(SYNC_QUEUE_KEY, JSON.stringify(syncQueue));
 }
 function isSyncConfigured(){
   return !!(syncId && syncConfig && syncConfig.url && syncConfig.key);
@@ -1853,13 +1867,13 @@ document.getElementById('firstRunSetupBtn').addEventListener('click', ()=>{
   openSyncDrawer();
 });
 document.getElementById('firstRunDismissBtn').addEventListener('click', ()=>{
-  localStorage.setItem(SYNC_DISMISS_KEY, '1');
+  safeSetItem(SYNC_DISMISS_KEY, '1');
   document.getElementById('firstRunBanner').style.display = 'none';
 });
 
 document.getElementById('syncGenNewBtn').addEventListener('click', ()=>{
   syncId = genSyncId();
-  localStorage.setItem(SYNC_ID_KEY, syncId);
+  safeSetItem(SYNC_ID_KEY, syncId);
   document.getElementById('syncCodeDisplay').value = syncId;
   startSync();
 });
@@ -1867,7 +1881,7 @@ document.getElementById('syncJoinBtn').addEventListener('click', ()=>{
   const code = document.getElementById('syncJoinInput').value.trim();
   if(!code) return;
   syncId = code;
-  localStorage.setItem(SYNC_ID_KEY, syncId);
+  safeSetItem(SYNC_ID_KEY, syncId);
   document.getElementById('syncCodeDisplay').value = syncId;
   startSync();
 });
