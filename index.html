@@ -424,6 +424,14 @@
   }
   .position-detail-name{font-weight:600;font-size:14px;}
   .position-detail-actions{display:flex;gap:14px;margin-top:8px;}
+  .position-link{
+    display:inline-block;
+    font-size:12px;
+    color:var(--primary);
+    text-decoration:none;
+    margin-top:4px;
+  }
+  .position-link:hover{text-decoration:underline;}
   .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
   .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
   .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
@@ -990,6 +998,15 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// 网申链接经常是用户直接粘贴的，可能没带 http(s):// 前缀，点开会被浏览器当成相对路径
+// 处理（跳到 github.io 底下的某个不存在的子路径），这里统一补全协议头。
+function normalizeLink(url){
+  const trimmed = (url||'').trim();
+  if(!trimmed) return '';
+  if(/^https?:\/\//i.test(trimmed)) return trimmed;
+  return 'https://' + trimmed;
+}
+
 function renderAll(){
   renderTodayLabel();
   renderStats();
@@ -1431,6 +1448,7 @@ function openCompanyDetail(companyId, status, reviewStage){
     const imagesHtml = (p.requirementImages||[]).map(path=>
       `<a href="${requirementImageUrl(path)}" target="_blank" rel="noopener"><img src="${requirementImageUrl(path)}"></a>`
     ).join('');
+    const linkHref = normalizeLink(p.link);
     return `
       <div class="position-detail-item" data-id="${p.id}">
         <button class="position-detail-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
@@ -1439,6 +1457,7 @@ function openCompanyDetail(companyId, status, reviewStage){
           ${deadlineBadge(p)}
         </div>
         <div class="field-hint">${checklistText}</div>
+        ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 打开网申链接 ↗</a>` : ''}
         <div class="position-detail-actions">
           <button class="add-item-btn requirement-toggle-btn" data-id="${p.id}" type="button">${hasReq?'查看岗位要求':'添加岗位要求'} ▾</button>
           <button class="add-item-btn edit-position-btn" data-id="${p.id}" type="button">编辑这个岗位</button>
