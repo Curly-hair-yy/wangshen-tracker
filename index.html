@@ -403,8 +403,10 @@
     border-radius:4px;
     padding:10px 34px 10px 12px;
     margin-bottom:10px;
+    cursor:pointer;
   }
   .position-detail-item:last-child{margin-bottom:0;}
+  .position-detail-item:hover{border-color:var(--primary);}
   .position-detail-del{
     display:none;
     position:absolute;top:10px;right:10px;
@@ -423,7 +425,6 @@
     display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
   }
   .position-detail-name{font-weight:600;font-size:14px;}
-  .position-detail-actions{display:flex;gap:14px;margin-top:8px;}
   .position-link{
     display:inline-block;
     font-size:12px;
@@ -432,15 +433,6 @@
     margin-top:4px;
   }
   .position-link:hover{text-decoration:underline;}
-  .position-status-select{
-    margin-top:8px;
-    padding:5px 7px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    background:var(--surface);
-    font-size:12px;
-    color:var(--ink-soft);
-  }
   .detail-checklist{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
   .detail-checklist-item{
     display:flex;align-items:center;gap:7px;
@@ -1394,17 +1386,6 @@ function deletePosition(id, {skipConfirm=false, confirmMessage} = {}){
   flushQueue();
   return true;
 }
-function moveSinglePosition(id, toStatus, toReviewStage){
-  const p = positions.find(x=>x.id===id);
-  if(!p) return;
-  p.status = toStatus;
-  p.reviewStage = toStatus==='inprogress' ? (toReviewStage||'pending') : '';
-  p.updatedAt = new Date().toISOString();
-  saveData();
-  queueUpsert('positions', id);
-  flushQueue();
-  renderAll();
-}
 function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toReviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===fromStatus
     && (fromReviewStage===undefined || reviewStageOf(p)===fromReviewStage));
@@ -1476,7 +1457,6 @@ function openCompanyDetail(companyId, status, reviewStage){
       `<a href="${requirementImageUrl(path)}" target="_blank" rel="noopener"><img src="${requirementImageUrl(path)}"></a>`
     ).join('');
     const linkHref = normalizeLink(p.link);
-    const pStage = p.status==='inprogress' ? reviewStageOf(p) : '';
     const checklistHtml = (p.checklist||[]).map((item, idx)=>`
       <label class="detail-checklist-item${item.done?' done':''}" data-idx="${idx}">
         <input type="checkbox" data-id="${p.id}" data-idx="${idx}" ${item.done?'checked':''}>
@@ -1490,23 +1470,15 @@ function openCompanyDetail(companyId, status, reviewStage){
           <span class="position-detail-name">${escapeHtml(p.position||'（未命名岗位）')}</span>
           ${deadlineBadge(p)}
         </div>
-        <div class="field-hint" id="checklist-count-${p.id}">${checklistText}</div>
+        ${checklistText ? `<div class="field-hint" id="checklist-count-${p.id}">${checklistText}</div>` : ''}
         ${checklistHtml ? `<div class="detail-checklist">${checklistHtml}</div>` : ''}
         ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 打开网申链接 ↗</a>` : ''}
-        <select class="position-status-select" data-id="${p.id}">
-          <option value="todo" ${p.status==='todo'?'selected':''}>待填写</option>
-          <option value="inprogress:pending" ${p.status==='inprogress'&&pStage==='pending'?'selected':''}>待审核</option>
-          <option value="inprogress:reviewed" ${p.status==='inprogress'&&pStage==='reviewed'?'selected':''}>已审核</option>
-          <option value="submitted" ${p.status==='submitted'?'selected':''}>已提交</option>
-        </select>
-        <div class="position-detail-actions">
-          <button class="add-item-btn requirement-toggle-btn" data-id="${p.id}" type="button">${hasReq?'查看岗位要求':'添加岗位要求'} ▾</button>
-          <button class="add-item-btn edit-position-btn" data-id="${p.id}" type="button">编辑这个岗位</button>
-        </div>
-        <div class="requirement-body" id="req-${p.id}" style="display:none;">
-          ${p.requirement ? `<div class="requirement-text">${escapeHtml(p.requirement)}</div>` : '<div class="field-hint">还没有填写岗位要求</div>'}
-          ${imagesHtml ? `<div class="requirement-images">${imagesHtml}</div>` : ''}
-        </div>
+        ${hasReq ? `
+          <div class="requirement-body">
+            ${p.requirement ? `<div class="requirement-text">${escapeHtml(p.requirement)}</div>` : ''}
+            ${imagesHtml ? `<div class="requirement-images">${imagesHtml}</div>` : ''}
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
@@ -1527,30 +1499,12 @@ function openCompanyDetail(companyId, status, reviewStage){
       renderBoard();
     });
   });
-  document.querySelectorAll('.position-status-select').forEach(sel=>{
-    sel.addEventListener('change', ()=>{
-      const [toStatus, toReviewStage] = sel.value.split(':');
-      moveSinglePosition(sel.dataset.id, toStatus, toReviewStage);
-      const remaining = positions.filter(x=>!x.deleted && x.companyId===companyId && x.status===status
-        && (reviewStage===undefined || reviewStageOf(x)===reviewStage));
-      if(remaining.length===0){
-        closeCompanyDetail();
-      } else {
-        openCompanyDetail(companyId, status, reviewStage);
-      }
-    });
-  });
-
-  document.querySelectorAll('.requirement-toggle-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const body = document.getElementById('req-'+btn.dataset.id);
-      body.style.display = body.style.display==='none' ? 'block' : 'none';
-    });
-  });
-  document.querySelectorAll('.edit-position-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+  // 点岗位卡片本身直接进编辑；勾选框、链接、图片自己有各自的动作，点这些不应该顺带触发编辑
+  document.querySelectorAll('.position-detail-item').forEach(item=>{
+    item.addEventListener('click', (e)=>{
+      if(e.target.closest('.position-detail-del, .detail-checklist-item, .position-link, .requirement-images a')) return;
       closeCompanyDetail();
-      openDrawer(btn.dataset.id);
+      openDrawer(item.dataset.id);
     });
   });
   document.querySelectorAll('.position-detail-del').forEach(btn=>{
