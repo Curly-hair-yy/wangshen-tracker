@@ -485,14 +485,15 @@
     margin-top:10px;display:flex;flex-direction:column;gap:6px;
   }
   .progress-date-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    display:flex;align-items:center;gap:10px;
     background:var(--surface);border:1px solid var(--line);border-radius:6px;
-    padding:6px 10px;
+    padding:4px 10px;
   }
-  .progress-date-row-label{font-size:12px;color:var(--ink);}
+  .progress-date-row-label{font-size:12px;color:var(--ink);white-space:nowrap;flex-shrink:0;}
   .progress-date-input{
-    font-size:12px;color:var(--ink-soft);border:1px solid var(--line);
-    border-radius:6px;padding:3px 6px;background:#fff;
+    flex:1;min-width:0;text-align:right;
+    font-size:12px;color:var(--ink-soft);border:none;
+    padding:3px 0;background:transparent;
     font-family:inherit;line-height:1.4;
   }
 
