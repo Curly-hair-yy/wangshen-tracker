@@ -469,42 +469,16 @@
   .progress-checkbox-item input[type=checkbox]{width:14px;height:14px;flex-shrink:0;}
   .progress-checkbox-item.checked{color:var(--ink);font-weight:600;}
 
-  .submitted-list{display:flex;flex-direction:column;gap:8px;}
-  .submitted-row{
-    position:relative;
-    background:#F6FAFD;
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:10px 34px 10px 12px;
-    cursor:pointer;
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:6px 16px;
-  }
-  .submitted-row:hover{border-color:var(--primary);}
-  .submitted-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;width:20px;}
-  .submitted-row .company{font-weight:600;font-size:14px;}
-  .submitted-row .position{font-size:13px;color:var(--ink-soft);}
-  .submitted-row .submitted-row-progress{
+  .submitted-list{display:flex;flex-direction:column;gap:12px;}
+  #submittedList .card{background:#F6FAFD;cursor:default;}
+  .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;}
+  .position-line-main .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
+  .submitted-position-line{cursor:pointer;}
+  .submitted-row-progress{
     display:flex;flex-wrap:wrap;gap:4px 12px;
-    flex-basis:100%;margin-left:20px;
+    margin:2px 0 6px 0;
   }
   .submitted-row-progress .progress-checkbox-item{font-size:11.5px;}
-  .submitted-row-del{
-    display:none;
-    position:absolute;top:10px;right:10px;
-    width:20px;height:20px;
-    border-radius:50%;
-    border:none;
-    background:var(--surface);
-    box-shadow:0 0 0 1px var(--line);
-    color:var(--ink-soft);
-    font-size:14px;line-height:1;
-    cursor:pointer;
-  }
-  .submitted-row-del:hover{background:var(--danger);color:#fff;box-shadow:none;}
-  .submitted-row:hover .submitted-row-del{display:flex;align-items:center;justify-content:center;}
   .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
   .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
   .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
@@ -1142,14 +1116,6 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// 已提交进度排序用：走得越远排越前面；"结束"不管之前走到哪一步，都沉到最后
-function submittedProgressRank(p){
-  if(p.progress && p.progress.ended) return -100;
-  const order = ['assessment','groupInterview','aiInterview','interview1','interview2','offered'];
-  let idx = -1;
-  order.forEach((k,i)=>{ if(p.progress && p.progress[k]) idx = i; });
-  return idx;
-}
 function renderSubmittedList(){
   // 序号按创建先后固定编号，不随排序/筛选变化
   const allSubmitted = positions.filter(p=>!p.deleted && p.status==='submitted')
@@ -1165,30 +1131,86 @@ function renderSubmittedList(){
     list.innerHTML = `<div class="empty-hint">暂无记录</div>`;
     return;
   }
-  const sorted = [...filtered].sort((a,b)=> submittedProgressRank(b) - submittedProgressRank(a));
 
-  list.innerHTML = sorted.map(p=>{
-    const company = getCompany(p.companyId);
-    const linkHref = normalizeLink(p.link);
-    const progress = p.progress || {};
-    const progressHtml = PROGRESS_STAGES.map(s=>`
-      <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
-        <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-        <span>${s.label}</span>
-      </label>
-    `).join('');
+  // 同一家公司合并成一张卡——提交这个动作是整家公司一起发生的，同一公司的岗位之间
+  // 不该因为"已提交/待审核"这类状态产生差异（只有面试进度才可能不一样，那部分保留在
+  // 每个岗位自己身上）。卡片按公司创建时间排，不会因为某个岗位勾了新进度就跳位置。
+  const companyMap = new Map();
+  filtered.forEach(p=>{
+    if(!companyMap.has(p.companyId)) companyMap.set(p.companyId, []);
+    companyMap.get(p.companyId).push(p);
+  });
+  const groups = [...companyMap.entries()].map(([companyId, list])=>({companyId, list}));
+  groups.sort((a,b)=>{
+    const ca = getCompany(a.companyId), cb = getCompany(b.companyId);
+    const ta = ca ? new Date(ca.createdAt).getTime() : 0;
+    const tb = cb ? new Date(cb.createdAt).getTime() : 0;
+    return tb - ta;
+  });
+
+  list.innerHTML = groups.map(g=>{
+    const company = getCompany(g.companyId);
+    const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
+    const positionLines = g.list.map(p=>{
+      const linkHref = normalizeLink(p.link);
+      const progress = p.progress || {};
+      const progressHtml = PROGRESS_STAGES.map(s=>`
+        <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
+          <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
+          <span>${s.label}</span>
+        </label>
+      `).join('');
+      return `
+        <div class="submitted-position-line" data-id="${p.id}">
+          <div class="position-line">
+            <span class="position-line-main">
+              <span class="seq">${seqMap.get(p.id)}</span>
+              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
+            </span>
+            <span class="position-line-meta">
+              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 链接 ↗</a>` : ''}
+            </span>
+            <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
+          </div>
+          <div class="submitted-row-progress">${progressHtml}</div>
+        </div>
+      `;
+    }).join('');
     return `
-      <div class="submitted-row" data-id="${p.id}">
-        <button class="submitted-row-del" type="button" data-id="${p.id}" title="删除这条记录">&times;</button>
-        <span class="seq">${seqMap.get(p.id)}</span>
-        <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-        <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
-        ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 网申链接 ↗</a>` : ''}
-        <div class="submitted-row-progress">${progressHtml}</div>
+      <div class="card" data-company-id="${g.companyId}">
+        <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="submitted" data-review-stage="" title="删除这张卡里的所有岗位">&times;</button>
+        <div class="company-row">
+          <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+          <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+        </div>
+        <div class="position-list">${positionLines}</div>
+        ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
       </div>
     `;
   }).join('');
 
+  list.querySelectorAll('.card-del-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      deleteCardGroup(btn.dataset.companyId, 'submitted', undefined);
+    });
+  });
+  list.querySelectorAll('.favorite-star').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(btn.dataset.companyId);
+    });
+  });
+  list.querySelectorAll('.position-line-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const pos = positions.find(p=>p.id===id);
+      if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这条已提交记录吗？此操作无法撤销。`})){
+        renderAll();
+      }
+    });
+  });
   list.querySelectorAll('.submitted-row-progress input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
       const pos = positions.find(x=>x.id===cb.dataset.id);
@@ -1201,22 +1223,18 @@ function renderSubmittedList(){
       saveData();
       queueUpsert('positions', pos.id);
       flushQueue();
-      renderSubmittedList();
+      // 排序不看进度，不用整个重新渲染——只局部刷新这一个岗位自己的勾选框状态
+      const container = cb.closest('.submitted-position-line').querySelector('.submitted-row-progress');
+      container.querySelectorAll('.progress-checkbox-item').forEach(label=>{
+        const checked = !!pos.progress[label.dataset.key];
+        label.classList.toggle('checked', checked);
+        label.querySelector('input').checked = checked;
+      });
     });
   });
-  list.querySelectorAll('.submitted-row-del').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      const pos = positions.find(p=>p.id===id);
-      if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这条已提交记录吗？此操作无法撤销。`})){
-        renderAll();
-      }
-    });
-  });
-  list.querySelectorAll('.submitted-row').forEach(row=>{
+  list.querySelectorAll('.submitted-position-line').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.submitted-row-del, .position-link, .submitted-row-progress')) return;
+      if(e.target.closest('.position-line-del, .position-link, .submitted-row-progress')) return;
       openDrawer(row.dataset.id);
     });
   });
