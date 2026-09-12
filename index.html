@@ -104,13 +104,24 @@
 
   .board{
     display:grid;
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(2,1fr);
     gap:16px;
   }
   @media(max-width:860px){
     .board{grid-template-columns:1fr;}
     .stats{grid-template-columns:repeat(2,1fr);}
   }
+  .view-tabs{display:flex;gap:8px;margin-bottom:20px;}
+  .view-tab{
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink-soft);
+    padding:9px 16px;
+    border-radius:4px;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .view-tab.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;}
   .column{
     background:rgba(255,255,255,0.45);
     border:1px solid var(--line);
@@ -457,6 +468,43 @@
   }
   .progress-checkbox-item input[type=checkbox]{width:14px;height:14px;flex-shrink:0;}
   .progress-checkbox-item.checked{color:var(--ink);font-weight:600;}
+
+  .submitted-list{display:flex;flex-direction:column;gap:8px;}
+  .submitted-row{
+    position:relative;
+    background:#F6FAFD;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:10px 34px 10px 12px;
+    cursor:pointer;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:6px 16px;
+  }
+  .submitted-row:hover{border-color:var(--primary);}
+  .submitted-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;width:20px;}
+  .submitted-row .company{font-weight:600;font-size:14px;}
+  .submitted-row .position{font-size:13px;color:var(--ink-soft);}
+  .submitted-row .submitted-row-progress{
+    display:flex;flex-wrap:wrap;gap:4px 12px;
+    flex-basis:100%;margin-left:20px;
+  }
+  .submitted-row-progress .progress-checkbox-item{font-size:11.5px;}
+  .submitted-row-del{
+    display:none;
+    position:absolute;top:10px;right:10px;
+    width:20px;height:20px;
+    border-radius:50%;
+    border:none;
+    background:var(--surface);
+    box-shadow:0 0 0 1px var(--line);
+    color:var(--ink-soft);
+    font-size:14px;line-height:1;
+    cursor:pointer;
+  }
+  .submitted-row-del:hover{background:var(--danger);color:#fff;box-shadow:none;}
+  .submitted-row:hover .submitted-row-del{display:flex;align-items:center;justify-content:center;}
   .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
   .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
   .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
@@ -523,10 +571,13 @@
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
       <div class="today" id="todayLabel"></div>
-      <button class="sync-indicator" id="syncIndicatorBtn" data-state="disconnected" type="button" title="点击打开同步设置">
-        <span class="dot"></span>
-        <span id="syncText">未连接同步</span>
-      </button>
+      <div style="display:flex;gap:8px;">
+        <button class="sync-indicator" id="recycleBinBtn" type="button" title="回收站">🗑 回收站</button>
+        <button class="sync-indicator" id="syncIndicatorBtn" data-state="disconnected" type="button" title="点击打开同步设置">
+          <span class="dot"></span>
+          <span id="syncText">未连接同步</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -539,6 +590,11 @@
   </div>
 
   <div class="stats" id="statsRow"></div>
+
+  <div class="view-tabs">
+    <button class="view-tab active" id="viewTabBoard" type="button">看板</button>
+    <button class="view-tab" id="viewTabSubmitted" type="button">已提交进度 <span id="submittedTabCount"></span></button>
+  </div>
 
   <div class="toolbar">
     <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
@@ -570,10 +626,10 @@
       <div class="column-head"><h2 class="serif">填报中</h2><span class="count" id="count-inprogress">0</span></div>
       <div class="column-body" id="col-inprogress"></div>
     </div>
-    <div class="column" data-status="submitted">
-      <div class="column-head"><h2 class="serif">已提交</h2><span class="count" id="count-submitted">0</span></div>
-      <div class="column-body" id="col-submitted"></div>
-    </div>
+  </div>
+
+  <div id="submittedView" style="display:none;">
+    <div class="submitted-list" id="submittedList"></div>
   </div>
 </div>
 
@@ -725,6 +781,20 @@
     <button class="btn btn-primary" id="companyDetailAddBtn">+ 给这家公司加岗位</button>
     <div class="right" style="margin-left:auto;">
       <button class="btn btn-ghost" id="companyDetailCloseBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="recycleBinOverlay"></div>
+<div class="drawer" id="recycleBinDrawer">
+  <div class="drawer-head">
+    <h3>回收站</h3>
+    <button class="drawer-close" id="recycleBinClose">&times;</button>
+  </div>
+  <div class="drawer-body" id="recycleBinBody"></div>
+  <div class="drawer-foot">
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="recycleBinCloseBtn">关闭</button>
     </div>
   </div>
 </div>
@@ -1014,7 +1084,7 @@ function renderGroupedCards(list, status, reviewStage){
 }
 
 function renderBoard(){
-  const statuses = ['todo','inprogress','submitted'];
+  const statuses = ['todo','inprogress'];
   statuses.forEach(st=>{
     const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r));
     document.getElementById('count-'+st).textContent = filtered.length;
@@ -1072,6 +1142,86 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// 已提交进度排序用：走得越远排越前面；"结束"不管之前走到哪一步，都沉到最后
+function submittedProgressRank(p){
+  if(p.progress && p.progress.ended) return -100;
+  const order = ['assessment','groupInterview','aiInterview','interview1','interview2','offered'];
+  let idx = -1;
+  order.forEach((k,i)=>{ if(p.progress && p.progress[k]) idx = i; });
+  return idx;
+}
+function renderSubmittedList(){
+  // 序号按创建先后固定编号，不随排序/筛选变化
+  const allSubmitted = positions.filter(p=>!p.deleted && p.status==='submitted')
+    .sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const seqMap = new Map(allSubmitted.map((p,i)=>[p.id, i+1]));
+
+  const filtered = positions.filter(p=>!p.deleted && p.status==='submitted' && matchesFilters(p));
+  const countEl = document.getElementById('submittedTabCount');
+  if(countEl) countEl.textContent = allSubmitted.length ? `(${allSubmitted.length})` : '';
+
+  const list = document.getElementById('submittedList');
+  if(filtered.length===0){
+    list.innerHTML = `<div class="empty-hint">暂无记录</div>`;
+    return;
+  }
+  const sorted = [...filtered].sort((a,b)=> submittedProgressRank(b) - submittedProgressRank(a));
+
+  list.innerHTML = sorted.map(p=>{
+    const company = getCompany(p.companyId);
+    const linkHref = normalizeLink(p.link);
+    const progress = p.progress || {};
+    const progressHtml = PROGRESS_STAGES.map(s=>`
+      <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
+        <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
+        <span>${s.label}</span>
+      </label>
+    `).join('');
+    return `
+      <div class="submitted-row" data-id="${p.id}">
+        <button class="submitted-row-del" type="button" data-id="${p.id}" title="删除这条记录">&times;</button>
+        <span class="seq">${seqMap.get(p.id)}</span>
+        <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+        <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
+        ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 网申链接 ↗</a>` : ''}
+        <div class="submitted-row-progress">${progressHtml}</div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.submitted-row-progress input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const pos = positions.find(x=>x.id===cb.dataset.id);
+      if(!pos) return;
+      const key = cb.dataset.key;
+      if(!pos.progress) pos.progress = {};
+      pos.progress[key] = cb.checked;
+      applyProgressExclusivity(pos.progress, key);
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      renderSubmittedList();
+    });
+  });
+  list.querySelectorAll('.submitted-row-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const pos = positions.find(p=>p.id===id);
+      if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这条已提交记录吗？此操作无法撤销。`})){
+        renderAll();
+      }
+    });
+  });
+  list.querySelectorAll('.submitted-row').forEach(row=>{
+    row.addEventListener('click', (e)=>{
+      if(e.target.closest('.submitted-row-del, .position-link, .submitted-row-progress')) return;
+      openDrawer(row.dataset.id);
+    });
+  });
+}
+
 // 网申链接经常是用户直接粘贴的，可能没带 http(s):// 前缀，点开会被浏览器当成相对路径
 // 处理（跳到 github.io 底下的某个不存在的子路径），这里统一补全协议头。
 function normalizeLink(url){
@@ -1085,6 +1235,7 @@ function renderAll(){
   renderTodayLabel();
   renderStats();
   renderBoard();
+  renderSubmittedList();
   renderCompanyDatalist();
 }
 
@@ -1113,9 +1264,7 @@ function openDrawer(id){
         _jdOpen: !!(r.requirement || (r.requirementImages||[]).length),
       }]
     : [{name:'', requirement:'', images:[], _jdOpen:false}];
-  document.getElementById('positionLabel').textContent = r ? '岗位' : '岗位（可以一次添加多个，每个岗位的要求/图片各自单独填）';
-  document.getElementById('addPositionBtn').style.display = r ? 'none' : 'inline-block';
-  document.getElementById('positionHint').style.display = r ? 'none' : 'block';
+  document.getElementById('positionLabel').textContent = '岗位（可以添加多个，每个岗位的要求/图片各自单独填）';
   renderPositionEditor();
   document.getElementById('f-deadline').value = r ? (r.deadline||'') : '';
   document.getElementById('f-link').value = r ? (r.link||'') : '';
@@ -1200,7 +1349,7 @@ function renderPositionEditor(){
       <div class="position-item-block" data-idx="${idx}">
         <div class="item-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
-          ${positionDraft.length>1 ? '<button class="del" type="button">&times;</button>' : ''}
+          ${(positionDraft.length>1 && !(editingId && idx===0)) ? '<button class="del" type="button">&times;</button>' : ''}
         </div>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
@@ -1273,6 +1422,7 @@ function renderPositionEditor(){
       });
     });
   });
+  document.getElementById('positionHint').style.display = positionDraft.length>1 ? 'block' : 'none';
 }
 document.getElementById('addPositionBtn').addEventListener('click', ()=>{
   positionDraft.push({name:'', requirement:'', images:[], _jdOpen:false});
@@ -1397,6 +1547,30 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     companyTouched = true;
   }
 
+  const deadline = document.getElementById('f-deadline').value;
+  const link = document.getElementById('f-link').value.trim();
+  const note = document.getElementById('f-note').value.trim();
+  function buildNewPosition(entry, idx){
+    return {
+      id: 'r_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,7),
+      companyId: company.id,
+      position: entry.name.trim(),
+      status,
+      deadline,
+      link,
+      note,
+      checklist: JSON.parse(JSON.stringify(cleanChecklist)),
+      requirement: (entry.requirement||'').trim(),
+      requirementImages: (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path),
+      reviewStage: status==='inprogress' ? reviewStageDraft : '',
+      progress: status==='submitted' ? JSON.parse(JSON.stringify(progressDraft)) : {},
+      deleted: false,
+      deletedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
   const touchedPositionIds = [];
   if(editingId){
     const r = positions.find(x=>x.id===editingId);
@@ -1404,9 +1578,9 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     r.companyId = company.id;
     r.position = (entry.name||'').trim();
     r.status = status;
-    r.deadline = document.getElementById('f-deadline').value;
-    r.link = document.getElementById('f-link').value.trim();
-    r.note = document.getElementById('f-note').value.trim();
+    r.deadline = deadline;
+    r.link = link;
+    r.note = note;
     r.checklist = cleanChecklist;
     r.requirement = (entry.requirement||'').trim();
     r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
@@ -1416,33 +1590,20 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     if(status==='submitted') r.progress = JSON.parse(JSON.stringify(progressDraft));
     r.updatedAt = now;
     touchedPositionIds.push(editingId);
+
+    // 编辑的同时用"+ 添加岗位"额外加出来的行，当成给这家公司新增的岗位来处理
+    positionDraft.slice(1).filter(e=>e.name.trim()!=='').forEach((entry, i)=>{
+      const newPos = buildNewPosition(entry, i);
+      positions.push(newPos);
+      touchedPositionIds.push(newPos.id);
+    });
   } else {
-    const deadline = document.getElementById('f-deadline').value;
-    const link = document.getElementById('f-link').value.trim();
-    const note = document.getElementById('f-note').value.trim();
     const validEntries = positionDraft.filter(e=>e.name.trim()!=='');
     const entriesToUse = validEntries.length ? validEntries : [positionDraft[0] || {name:'', requirement:'', images:[]}];
     entriesToUse.forEach((entry, i)=>{
-      const newId = 'r_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,7);
-      positions.push({
-        id: newId,
-        companyId: company.id,
-        position: entry.name.trim(),
-        status,
-        deadline,
-        link,
-        note,
-        checklist: JSON.parse(JSON.stringify(cleanChecklist)),
-        requirement: (entry.requirement||'').trim(),
-        requirementImages: (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path),
-        reviewStage: status==='inprogress' ? reviewStageDraft : '',
-        progress: status==='submitted' ? JSON.parse(JSON.stringify(progressDraft)) : {},
-        deleted: false,
-        deletedAt: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-      touchedPositionIds.push(newId);
+      const newPos = buildNewPosition(entry, i);
+      positions.push(newPos);
+      touchedPositionIds.push(newPos.id);
     });
   }
   saveData();
@@ -1527,14 +1688,32 @@ document.getElementById('deleteBtn').addEventListener('click', ()=>{
   }
 });
 
-document.getElementById('searchInput').addEventListener('input', renderBoard);
-document.getElementById('filterUrgent').addEventListener('change', renderBoard);
-document.getElementById('filterProgress').addEventListener('change', renderBoard);
+function renderFilteredViews(){
+  renderBoard();
+  renderSubmittedList();
+}
+document.getElementById('searchInput').addEventListener('input', renderFilteredViews);
+document.getElementById('filterUrgent').addEventListener('change', renderFilteredViews);
+document.getElementById('filterProgress').addEventListener('change', renderFilteredViews);
 let filterFavoriteOnly = false;
 document.getElementById('filterFavoriteBtn').addEventListener('click', function(){
   filterFavoriteOnly = !filterFavoriteOnly;
   this.classList.toggle('active', filterFavoriteOnly);
-  renderBoard();
+  renderFilteredViews();
+});
+
+/* ---- 页面切换：看板 / 已提交进度 ---- */
+document.getElementById('viewTabBoard').addEventListener('click', ()=>{
+  document.getElementById('viewTabBoard').classList.add('active');
+  document.getElementById('viewTabSubmitted').classList.remove('active');
+  document.getElementById('board').style.display = 'grid';
+  document.getElementById('submittedView').style.display = 'none';
+});
+document.getElementById('viewTabSubmitted').addEventListener('click', ()=>{
+  document.getElementById('viewTabSubmitted').classList.add('active');
+  document.getElementById('viewTabBoard').classList.remove('active');
+  document.getElementById('board').style.display = 'none';
+  document.getElementById('submittedView').style.display = 'block';
 });
 
 /* ---- 公司详情抽屉（点击看板卡片打开） ---- */
@@ -1695,6 +1874,73 @@ function closeCompanyDetail(){
 document.getElementById('companyDetailClose').addEventListener('click', closeCompanyDetail);
 document.getElementById('companyDetailCloseBtn').addEventListener('click', closeCompanyDetail);
 companyDetailOverlay.addEventListener('click', closeCompanyDetail);
+
+/* ---- 回收站：找回被软删除的岗位（连带复活它所属的公司，如果公司也被删了的话） ---- */
+const recycleBinOverlay = document.getElementById('recycleBinOverlay');
+const recycleBinDrawer = document.getElementById('recycleBinDrawer');
+function openRecycleBin(){
+  renderRecycleBin();
+  recycleBinOverlay.classList.add('active');
+  recycleBinDrawer.classList.add('active');
+}
+function closeRecycleBin(){
+  recycleBinOverlay.classList.remove('active');
+  recycleBinDrawer.classList.remove('active');
+}
+function renderRecycleBin(){
+  const deletedPositions = positions.filter(p=>p.deleted)
+    .sort((a,b)=>new Date(b.deletedAt||b.updatedAt) - new Date(a.deletedAt||a.updatedAt));
+  const body = document.getElementById('recycleBinBody');
+  if(deletedPositions.length===0){
+    body.innerHTML = `<div class="empty-hint">回收站是空的</div>`;
+    return;
+  }
+  body.innerHTML = deletedPositions.map(p=>{
+    const company = getCompany(p.companyId);
+    return `
+      <div class="position-detail-item" data-id="${p.id}" style="cursor:default;">
+        <div class="position-detail-head">
+          <span class="position-detail-name">${escapeHtml(company?company.name:'（未知公司）')} · ${escapeHtml(p.position||'（未命名岗位）')}</span>
+        </div>
+        <div class="field-hint">删除于 ${fmtDateTime(p.deletedAt||p.updatedAt)}</div>
+        <div class="position-detail-actions" style="margin-top:8px;">
+          <button class="add-item-btn" data-id="${p.id}" type="button">恢复</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  body.querySelectorAll('.add-item-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      restoreDeletedPosition(btn.dataset.id);
+      renderRecycleBin();
+    });
+  });
+}
+function restoreDeletedPosition(id){
+  const p = positions.find(x=>x.id===id);
+  if(!p || !p.deleted) return;
+  const now = new Date().toISOString();
+  p.deleted = false;
+  p.deletedAt = null;
+  p.updatedAt = now;
+  const touchedCompanyIds = [];
+  const company = getCompany(p.companyId);
+  if(company && company.deleted){
+    company.deleted = false;
+    company.deletedAt = null;
+    company.updatedAt = now;
+    touchedCompanyIds.push(company.id);
+  }
+  saveData();
+  queueUpsert('positions', id);
+  touchedCompanyIds.forEach(cid=>queueUpsert('companies', cid));
+  flushQueue();
+  renderAll();
+}
+document.getElementById('recycleBinBtn').addEventListener('click', openRecycleBin);
+document.getElementById('recycleBinClose').addEventListener('click', closeRecycleBin);
+document.getElementById('recycleBinCloseBtn').addEventListener('click', closeRecycleBin);
+recycleBinOverlay.addEventListener('click', closeRecycleBin);
 
 /* =========================================================
    多设备同步（Supabase）
@@ -2107,6 +2353,7 @@ document.addEventListener('keydown', (e)=>{
   if(drawer.classList.contains('active')) closeDrawer();
   else if(syncDrawer.classList.contains('active')) closeSyncDrawer();
   else if(companyDetailDrawer.classList.contains('active')) closeCompanyDetail();
+  else if(recycleBinDrawer.classList.contains('active')) closeRecycleBin();
 });
 document.getElementById('drawer').addEventListener('keydown', (e)=>{
   if(e.key !== 'Enter') return;
