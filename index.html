@@ -2117,10 +2117,125 @@ document.getElementById('drawer').addEventListener('keydown', (e)=>{
   document.getElementById('saveBtn').click();
 });
 
+/* =========================================================
+   一次性历史数据导入（2026-09-12）
+   ---------------------------------------------------------
+   把导入之前用 Excel 记录的投递台账搬进来，全部按"已提交"状态导入。
+   访问 ?import=history2026 触发一次，会先弹确认框说明要导入多少条，
+   导入过一次后会在 localStorage 记一个标记，不会重复导入。
+   这段代码只是为了这一次性的迁移，用完之后可以整段删掉，不影响其它功能。
+   ========================================================= */
+const HISTORY_IMPORT_KEY = 'wangshen_history_imported_v1';
+const HISTORY_IMPORT_DATA = [
+  {date:'20260812', company:'平安', position:'郑州职能管培', progress:{assessment:true}},
+  {date:'20260812', company:'平安', position:'西安年金基金管培', progress:{assessment:true}},
+  {date:'20260812', company:'平安', position:'郑州管培', progress:{assessment:true, aiInterview:true}},
+  {date:'20260812', company:'紫金矿业', position:'财务专员', progress:{}},
+  {date:'20260824', company:'荣耀', position:'营销创意', progress:{}},
+  {date:'20260902', company:'中国船舶', position:'财务管理专员', progress:{}},
+  {date:'20260902', company:'中交一航局城市建设工程有限公司', position:'财务管理', progress:{}},
+  {date:'20260902', company:'中交石油天然气管道工程有限公司', position:'财务管理(郑州)', progress:{}},
+  {date:'20260902', company:'中交一航局武汉建设投资有限公司', position:'财务管理(郑州)', progress:{}},
+  {date:'20260902', company:'中交一航局生态工程有限公司', position:'财务管理', progress:{}},
+  {date:'20260902', company:'中交一航局总承包分公司', position:'财务管理', progress:{}},
+  {date:'20260902', company:'招商银行', position:'郑州定向培养生', progress:{}},
+  {date:'20260902', company:'招商银行', position:'郑州运营支持岗', progress:{}},
+  {date:'20260902', company:'招商银行', position:'总行定向分行培养生(西安)', progress:{}},
+  {date:'20260902', company:'招商银行', position:'西安定向培养生', progress:{}},
+  {date:'20260902', company:'中国东方资产管理', position:'郑州业务岗', progress:{}},
+  {date:'20260902', company:'中国东方资产管理', position:'西安业务岗', progress:{}},
+  {date:'20260903', company:'超聚变', position:'财务专员(郑州)', progress:{}},
+  {date:'20260903', company:'超聚变', position:'合同商务经理', progress:{}},
+  {date:'20260903', company:'西安航天动力机械有限公司', position:'会计', progress:{}},
+  {date:'20260903', company:'十一所', position:'财务管理', progress:{}},
+  {date:'20260903', company:'西安微电子技术研究所', position:'审计管理', progress:{}},
+  {date:'20260903', company:'中国电建', position:'财务专员', progress:{}},
+  {date:'20260903', company:'中国能源', position:'电力交易员', progress:{}},
+  {date:'20260907', company:'微商银行', position:'成都分行管理培训生', progress:{}},
+  {date:'20260907', company:'微商银行', position:'成都分行客户经理岗', progress:{}},
+  {date:'20260907', company:'中国银行', position:'营业网点业务岗（营销服务）地点：西安', progress:{}},
+  {date:'20260907', company:'中国银行', position:'陕西分行管理培训生，地点：西安', progress:{}},
+  {date:'20260907', company:'中国银行', position:'营业网点业务岗（营销服务），地点：郑州', progress:{}},
+  {date:'20260907', company:'中国银行', position:'河南分行管理培训生，地点：郑州', progress:{}},
+  {date:'20260907', company:'中国银行', position:'审计员-河南分部，地点:郑州', progress:{}},
+  {date:'20260907', company:'民生银行', position:'西安分行', progress:{}},
+  {date:'20260907', company:'民生银行', position:'郑州分行', progress:{}},
+  {date:'20260907', company:'杭州银行', position:'杭州分行管培（公司金融）', progress:{}},
+  {date:'20260907', company:'杭州银行', position:'杭州分行管培（小微金融）', progress:{}},
+  {date:'20260908', company:'中国邮政', position:'郑州—金融业务岗', progress:{}},
+  {date:'20260908', company:'农业银行', position:'西安—数字化运营岗', progress:{}},
+  {date:'20260908', company:'农业银行', position:'郑州—业务管理岗', progress:{}},
+  {date:'20260908', company:'中信银行', position:'郑州—管理培训岗', progress:{}},
+  {date:'20260908', company:'中信银行', position:'西安——管理培训岗', progress:{}},
+  {date:'20260908', company:'中国人保', position:'郑州—省本部财务部—综合内勤岗', progress:{}},
+  {date:'20260908', company:'中国人保', position:'郑州—河南省分公司—反洗钱管理岗', progress:{}},
+  {date:'20260908', company:'建设银行', position:'业务处理中心成都', progress:{}},
+  {date:'20260908', company:'建设银行', position:'河南省分部—管理培训岗', progress:{}},
+  {date:'20260908', company:'工商银行', position:'郑州分行—专业英才', progress:{}},
+  {date:'20260908', company:'工商银行', position:'郑州分行—星辰管培生', progress:{}},
+  {date:'20260908', company:'工商银行', position:'集约运营中心（成都）—专业英才', progress:{}},
+  {date:'20260908', company:'工商银行', position:'国际结算单证中心（成都）—专业英才', progress:{}},
+  {date:'20260908', company:'西北电力设计院', position:'会计岗', progress:{}},
+  {date:'20260908', company:'中国电信', position:'郑州——财务管理', progress:{}},
+  {date:'20260908', company:'中国电信', position:'郑州——财务监督检查', progress:{}},
+  {date:'20260909', company:'中国石油集团宝石管业有限公司（西安市）', position:'财务资产（27010080）', progress:{}},
+  {date:'20260909', company:'共享运营有限公司（西安市）', position:'财务共享（27012619）', progress:{}},
+  {date:'20260910', company:'恒丰银行', position:'郑州-综合柜员岗', progress:{}},
+  {date:'20260910', company:'中国外运', position:'西安-运营管理岗', progress:{}},
+  {date:'20260910', company:'广发银行', position:'西安-营销英才', progress:{}},
+];
+function dateStrToIso(d){
+  const y = d.slice(0,4), m = d.slice(4,6), day = d.slice(6,8);
+  return new Date(`${y}-${m}-${day}T00:00:00`).toISOString();
+}
+function runHistoryImport(){
+  if(localStorage.getItem(HISTORY_IMPORT_KEY)){
+    alert('历史数据已经导入过了，不会重复导入。');
+    return;
+  }
+  if(!confirm(`即将导入 ${HISTORY_IMPORT_DATA.length} 条历史投递记录（都标记为"已提交"状态），确定吗？`)) return;
+  const baseTs = Date.now();
+  const touchedCompanyIds = [];
+  const touchedPositionIds = [];
+  let skipped = 0;
+  HISTORY_IMPORT_DATA.forEach((row, i)=>{
+    const iso = dateStrToIso(row.date);
+    let company = companies.find(c=>c.name.toLowerCase()===row.company.toLowerCase());
+    if(!company){
+      company = {id:'c_import_'+baseTs+'_'+i, name:row.company, createdAt:iso, updatedAt:iso, deleted:false, deletedAt:null, favorite:false};
+      companies.push(company);
+      touchedCompanyIds.push(company.id);
+    }
+    // 就算本机的"已导入"标记不见了（比如换了台设备打开这个链接），只要这家公司名下
+    // 已经有一条同名岗位，就不再重复插入——导入本身要是幂等的，不能只靠上面那个标记挡
+    const alreadyExists = positions.some(p=>!p.deleted && p.companyId===company.id && p.position===row.position);
+    if(alreadyExists){ skipped++; return; }
+    const posId = 'r_import_'+baseTs+'_'+i;
+    positions.push({
+      id: posId, companyId: company.id, position: row.position, status:'submitted',
+      deadline:'', link:'', note:'', checklist:[], requirement:'', requirementImages:[],
+      reviewStage:'', progress: row.progress||{}, deleted:false, deletedAt:null,
+      createdAt: iso, updatedAt: iso,
+    });
+    touchedPositionIds.push(posId);
+  });
+  saveData();
+  touchedCompanyIds.forEach(id=>queueUpsert('companies', id));
+  touchedPositionIds.forEach(id=>queueUpsert('positions', id));
+  flushQueue();
+  renderAll();
+  localStorage.setItem(HISTORY_IMPORT_KEY, '1');
+  alert(`导入完成！新增了 ${touchedCompanyIds.length} 家公司、${touchedPositionIds.length} 条岗位记录${skipped?`，跳过了 ${skipped} 条已经存在的`:''}。`);
+}
+
 /* ---- 初始化 ---- */
 loadData();
 renderAll();
-startSync();
+startSync().then(()=>{
+  if(new URLSearchParams(location.search).get('import') === 'history2026'){
+    runHistoryImport();
+  }
+});
 </script>
 </body>
 </html>
