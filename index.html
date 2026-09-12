@@ -481,12 +481,18 @@
     clip:rect(0,0,0,0);white-space:nowrap;border:0;
   }
   .progress-checkbox-item.checked{color:var(--primary);font-weight:700;}
-  .progress-checkbox-row{
-    display:flex;align-items:center;gap:4px;
+  .progress-dates-list{
+    margin-top:10px;display:flex;flex-direction:column;gap:6px;
   }
+  .progress-date-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;
+  }
+  .progress-date-row-label{font-size:12px;color:var(--ink);}
   .progress-date-input{
-    font-size:11px;color:var(--ink-soft);border:1px solid var(--line);
-    border-radius:6px;padding:1px 4px;background:#fff;
+    font-size:12px;color:var(--ink-soft);border:1px solid var(--line);
+    border-radius:6px;padding:3px 6px;background:#fff;
     font-family:inherit;line-height:1.4;
   }
 
@@ -681,6 +687,7 @@
       <label>招聘进度</label>
       <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
       <div class="field-hint">可以同时勾多个；"结束"和"Offered"是两种流程终点，互斥</div>
+      <div class="progress-dates-list" id="progressDatesList"></div>
     </div>
     <div class="field">
       <label>截止时间</label>
@@ -854,6 +861,18 @@ function todayDateStr(){
   const d = new Date();
   const pad = n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+// 卡片上展示进度日期用的短格式，只要月/日，不带年份，比如 "2026-09-02" -> "9/2"
+function shortDateLabel(dateStr){
+  if(!dateStr) return '';
+  const parts = dateStr.split('-');
+  if(parts.length<3) return dateStr;
+  return `${Number(parts[1])}/${Number(parts[2])}`;
+}
+function progressLabelText(key, progress, dates){
+  const stage = PROGRESS_STAGES.find(s=>s.key===key);
+  const label = stage ? stage.label : key;
+  return (progress[key] && dates[key]) ? `${label}(${shortDateLabel(dates[key])})` : label;
 }
 // 勾选某个招聘进度时顺带维护它的日期：第一次勾上自动记今天，取消勾选就把日期清掉
 // （下次重新勾上会记新的日期，而不是沿用一个"取消过又勾回来"的旧日期）。
@@ -1205,10 +1224,11 @@ function renderSubmittedList(){
     const positionLines = g.list.map(p=>{
       const linkHref = normalizeLink(p.link);
       const progress = p.progress || {};
+      const dates = p.progressDates || {};
       const progressHtml = PROGRESS_STAGES.map(s=>`
         <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
           <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-          <span>${s.label}</span>
+          <span>${progressLabelText(s.key, progress, dates)}</span>
         </label>
       `).join('');
       return `
@@ -1316,9 +1336,11 @@ function renderSubmittedList(){
       // 以及"结束"对应的灰色样式（这一行、以及整张卡是不是要跟着变灰）
       const line = cb.closest('.submitted-position-line');
       line.querySelectorAll('.progress-checkbox-item').forEach(label=>{
-        const checked = !!pos.progress[label.dataset.key];
+        const k = label.dataset.key;
+        const checked = !!pos.progress[k];
         label.classList.toggle('checked', checked);
         label.querySelector('input').checked = checked;
+        label.querySelector('span').textContent = progressLabelText(k, pos.progress, pos.progressDates||{});
       });
       line.classList.toggle('ended', !!pos.progress.ended);
       const card = cb.closest('.card');
@@ -1566,13 +1588,10 @@ function updateReviewStageFieldVisibility(){
 function renderProgressCheckboxes(){
   const box = document.getElementById('progressCheckboxes');
   box.innerHTML = PROGRESS_STAGES.map(s=>`
-    <div class="progress-checkbox-row">
-      <label class="progress-checkbox-item${progressDraft[s.key]?' checked':''}" data-key="${s.key}">
-        <input type="checkbox" data-key="${s.key}" ${progressDraft[s.key]?'checked':''}>
-        <span>${s.label}</span>
-      </label>
-      ${progressDraft[s.key] ? `<input type="date" class="progress-date-input" data-key="${s.key}" value="${progressDatesDraft[s.key]||''}">` : ''}
-    </div>
+    <label class="progress-checkbox-item${progressDraft[s.key]?' checked':''}" data-key="${s.key}">
+      <input type="checkbox" data-key="${s.key}" ${progressDraft[s.key]?'checked':''}>
+      <span>${s.label}</span>
+    </label>
   `).join('');
   box.querySelectorAll('input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
@@ -1580,11 +1599,24 @@ function renderProgressCheckboxes(){
       renderProgressCheckboxes();
     });
   });
-  box.querySelectorAll('.progress-date-input').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
-      progressDatesDraft[inp.dataset.key] = inp.value;
+
+  const checkedStages = PROGRESS_STAGES.filter(s=>progressDraft[s.key]);
+  const datesList = document.getElementById('progressDatesList');
+  if(checkedStages.length===0){
+    datesList.innerHTML = '';
+  } else {
+    datesList.innerHTML = checkedStages.map(s=>`
+      <div class="progress-date-row">
+        <span class="progress-date-row-label">${s.label}</span>
+        <input type="date" class="progress-date-input" data-key="${s.key}" value="${progressDatesDraft[s.key]||''}">
+      </div>
+    `).join('');
+    datesList.querySelectorAll('.progress-date-input').forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        progressDatesDraft[inp.dataset.key] = inp.value;
+      });
     });
-  });
+  }
 }
 function updateProgressFieldVisibility(){
   const active = document.querySelector('#statusToggle button.active');
@@ -1888,12 +1920,13 @@ function openCompanyDetail(companyId, status, reviewStage){
       </label>
     `).join('');
     const progress = p.progress || {};
+    const progressDatesForDetail = p.progressDates || {};
     const progressHtml = status==='submitted' ? `
       <div class="progress-checkboxes">
         ${PROGRESS_STAGES.map(s=>`
           <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
             <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-            <span>${s.label}</span>
+            <span>${progressLabelText(s.key, progress, progressDatesForDetail)}</span>
           </label>
         `).join('')}
       </div>
@@ -1954,6 +1987,7 @@ function openCompanyDetail(companyId, status, reviewStage){
         const checked = !!pos.progress[k];
         label.classList.toggle('checked', checked);
         label.querySelector('input').checked = checked;
+        label.querySelector('span').textContent = progressLabelText(k, pos.progress, pos.progressDates||{});
       });
     });
   });
