@@ -432,6 +432,22 @@
     margin-top:4px;
   }
   .position-link:hover{text-decoration:underline;}
+  .position-status-select{
+    margin-top:8px;
+    padding:5px 7px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--surface);
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .detail-checklist{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+  .detail-checklist-item{
+    display:flex;align-items:center;gap:7px;
+    font-size:13px;cursor:pointer;
+  }
+  .detail-checklist-item input[type=checkbox]{width:15px;height:15px;flex-shrink:0;}
+  .detail-checklist-item.done span{color:var(--ink-soft);text-decoration:line-through;}
   .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
   .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
   .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
@@ -1378,6 +1394,17 @@ function deletePosition(id, {skipConfirm=false, confirmMessage} = {}){
   flushQueue();
   return true;
 }
+function moveSinglePosition(id, toStatus, toReviewStage){
+  const p = positions.find(x=>x.id===id);
+  if(!p) return;
+  p.status = toStatus;
+  p.reviewStage = toStatus==='inprogress' ? (toReviewStage||'pending') : '';
+  p.updatedAt = new Date().toISOString();
+  saveData();
+  queueUpsert('positions', id);
+  flushQueue();
+  renderAll();
+}
 function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toReviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===fromStatus
     && (fromReviewStage===undefined || reviewStageOf(p)===fromReviewStage));
@@ -1449,6 +1476,13 @@ function openCompanyDetail(companyId, status, reviewStage){
       `<a href="${requirementImageUrl(path)}" target="_blank" rel="noopener"><img src="${requirementImageUrl(path)}"></a>`
     ).join('');
     const linkHref = normalizeLink(p.link);
+    const pStage = p.status==='inprogress' ? reviewStageOf(p) : '';
+    const checklistHtml = (p.checklist||[]).map((item, idx)=>`
+      <label class="detail-checklist-item${item.done?' done':''}" data-idx="${idx}">
+        <input type="checkbox" data-id="${p.id}" data-idx="${idx}" ${item.done?'checked':''}>
+        <span>${escapeHtml(item.text)}</span>
+      </label>
+    `).join('');
     return `
       <div class="position-detail-item" data-id="${p.id}">
         <button class="position-detail-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
@@ -1456,8 +1490,15 @@ function openCompanyDetail(companyId, status, reviewStage){
           <span class="position-detail-name">${escapeHtml(p.position||'（未命名岗位）')}</span>
           ${deadlineBadge(p)}
         </div>
-        <div class="field-hint">${checklistText}</div>
+        <div class="field-hint" id="checklist-count-${p.id}">${checklistText}</div>
+        ${checklistHtml ? `<div class="detail-checklist">${checklistHtml}</div>` : ''}
         ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 打开网申链接 ↗</a>` : ''}
+        <select class="position-status-select" data-id="${p.id}">
+          <option value="todo" ${p.status==='todo'?'selected':''}>待填写</option>
+          <option value="inprogress:pending" ${p.status==='inprogress'&&pStage==='pending'?'selected':''}>待审核</option>
+          <option value="inprogress:reviewed" ${p.status==='inprogress'&&pStage==='reviewed'?'selected':''}>已审核</option>
+          <option value="submitted" ${p.status==='submitted'?'selected':''}>已提交</option>
+        </select>
         <div class="position-detail-actions">
           <button class="add-item-btn requirement-toggle-btn" data-id="${p.id}" type="button">${hasReq?'查看岗位要求':'添加岗位要求'} ▾</button>
           <button class="add-item-btn edit-position-btn" data-id="${p.id}" type="button">编辑这个岗位</button>
@@ -1469,6 +1510,36 @@ function openCompanyDetail(companyId, status, reviewStage){
       </div>
     `;
   }).join('');
+
+  document.querySelectorAll('.detail-checklist-item input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const pos = positions.find(x=>x.id===cb.dataset.id);
+      if(!pos) return;
+      const idx = Number(cb.dataset.idx);
+      pos.checklist[idx].done = cb.checked;
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      cb.closest('.detail-checklist-item').classList.toggle('done', cb.checked);
+      const doneCount = pos.checklist.filter(i=>i.done).length;
+      document.getElementById('checklist-count-'+pos.id).textContent = `待办 ${doneCount}/${pos.checklist.length}`;
+      renderBoard();
+    });
+  });
+  document.querySelectorAll('.position-status-select').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const [toStatus, toReviewStage] = sel.value.split(':');
+      moveSinglePosition(sel.dataset.id, toStatus, toReviewStage);
+      const remaining = positions.filter(x=>!x.deleted && x.companyId===companyId && x.status===status
+        && (reviewStage===undefined || reviewStageOf(x)===reviewStage));
+      if(remaining.length===0){
+        closeCompanyDetail();
+      } else {
+        openCompanyDetail(companyId, status, reviewStage);
+      }
+    });
+  });
 
   document.querySelectorAll('.requirement-toggle-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -1921,6 +1992,22 @@ document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState==='visible' && isSyncConfigured() && sb) pullAndMerge();
 });
 setInterval(()=>{ if(isSyncConfigured() && sb) pullAndMerge(); }, 60000);
+
+/* ---- 键盘快捷键：Esc 关闭当前抽屉，单行输入框里回车直接保存 ---- */
+document.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Escape') return;
+  if(drawer.classList.contains('active')) closeDrawer();
+  else if(syncDrawer.classList.contains('active')) closeSyncDrawer();
+  else if(companyDetailDrawer.classList.contains('active')) closeCompanyDetail();
+});
+document.getElementById('drawer').addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  // 文本域（岗位要求、备注）回车是换行，不是"保存"；其它单行输入框回车直接触发保存，
+  // 这样新增时只填公司+岗位两个字段、回车就能秒存，不用把整张表单都填完再去点按钮。
+  if(e.target.tagName === 'TEXTAREA') return;
+  e.preventDefault();
+  document.getElementById('saveBtn').click();
+});
 
 /* ---- 初始化 ---- */
 loadData();
