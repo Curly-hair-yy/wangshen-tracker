@@ -100,6 +100,7 @@
   .btn-primary:hover{background:#16304f;}
   .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
   .btn-ghost:hover{border-color:var(--ink);}
+  .btn-ghost.active{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);font-weight:600;}
 
   .board{
     display:grid;
@@ -163,6 +164,12 @@
     flex-wrap:wrap;
   }
   .card .company{font-size:15px;font-weight:600;}
+  .favorite-star{
+    background:none;border:none;cursor:pointer;padding:0;
+    font-size:15px;line-height:1;color:var(--line);
+    flex-shrink:0;
+  }
+  .favorite-star.active{color:var(--warn);}
   .card .position{font-size:13px;color:var(--ink-soft);}
   .card .other-positions{
     font-size:11px;
@@ -440,6 +447,16 @@
   }
   .detail-checklist-item input[type=checkbox]{width:15px;height:15px;flex-shrink:0;}
   .detail-checklist-item.done span{color:var(--ink-soft);text-decoration:line-through;}
+  .progress-checkboxes{
+    margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
+    display:flex;flex-wrap:wrap;gap:6px 14px;
+  }
+  .progress-checkbox-item{
+    display:flex;align-items:center;gap:5px;
+    font-size:12px;color:var(--ink-soft);cursor:pointer;
+  }
+  .progress-checkbox-item input[type=checkbox]{width:14px;height:14px;flex-shrink:0;}
+  .progress-checkbox-item.checked{color:var(--ink);font-weight:600;}
   .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
   .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
   .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
@@ -530,6 +547,17 @@
       <option value="urgent">3天内截止</option>
       <option value="overdue">已逾期</option>
     </select>
+    <select id="filterProgress">
+      <option value="all">全部招聘进度</option>
+      <option value="assessment">测评</option>
+      <option value="groupInterview">群面</option>
+      <option value="aiInterview">AI面</option>
+      <option value="interview1">一面</option>
+      <option value="interview2">二面</option>
+      <option value="offered">Offered</option>
+      <option value="ended">结束</option>
+    </select>
+    <button class="btn btn-ghost" id="filterFavoriteBtn" type="button">★ 只看收藏</button>
     <button class="btn btn-primary" id="addBtn">+ 新增网申</button>
   </div>
 
@@ -591,6 +619,11 @@
         <button data-v="reviewed" type="button">已审核</button>
       </div>
       <div class="field-hint">待审核：填完了但你还没检查；已审核：检查过没问题，只差投递</div>
+    </div>
+    <div class="field" id="progressField" style="display:none;">
+      <label>招聘进度</label>
+      <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
+      <div class="field-hint">可以同时勾多个；"结束"和"Offered"是两种流程终点，互斥</div>
     </div>
     <div class="field">
       <label>截止时间</label>
@@ -670,7 +703,10 @@
 <div class="drawer" id="companyDetailDrawer">
   <div class="drawer-head">
     <h3 id="companyDetailTitle">公司详情</h3>
-    <button class="drawer-close" id="companyDetailClose">&times;</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="favorite-star" id="companyDetailFavoriteBtn" type="button" title="收藏这家公司">☆</button>
+      <button class="drawer-close" id="companyDetailClose">&times;</button>
+    </div>
   </div>
   <div class="drawer-body">
     <div class="field">
@@ -697,13 +733,17 @@
 <script>
 /*
   数据模型：
-  companies: [{ id, name, createdAt, updatedAt, deleted, deletedAt }]
+  companies: [{ id, name, createdAt, updatedAt, deleted, deletedAt, favorite }]
   positions: [{ id, companyId, position, status, deadline, link, note, checklist,
                 requirement, requirementImages(Supabase Storage 里的路径数组),
                 reviewStage('' | 'pending' | 'reviewed'，只在 status==='inprogress' 时有意义，
                   ''表示这条记录是功能上线前就有的老数据、还没被手动归到待审核/已审核，
                   看板显示时会把它当"待审核"处理，但不会自动写回数据，只有手动编辑保存过才会真正写入),
                 deleted, deletedAt,
+                progress({assessment,groupInterview,aiInterview,interview1,interview2,offered,ended}
+                  各自 true/false，只在 status==='submitted' 时有意义，招聘进入的几个阶段可以
+                  同时打勾——公司可能同时走了测评和群面，不是互斥的单选；只有 ended(结束/被拒或
+                  放弃)和 offered(拿到offer)这两个算"流程终点"，互斥，勾一个会自动取消另一个),
                 createdAt, updatedAt }]
 
   删除用的是"软删除"（tombstone）：deleted=true 只是一个普通字段，不会把记录从
@@ -721,6 +761,21 @@ const STORAGE_KEY = 'wangshen_tracker_v2';
 const LEGACY_KEY = 'wangshen_tracker_v1';
 const REQUIREMENT_BUCKET = 'position-attachments';
 const REVIEW_STAGE_LABEL = {pending:'待审核', reviewed:'已审核'};
+// 招聘进度可选项，顺序就是显示顺序。ended/offered 互斥（见上面数据模型说明），
+// 其余几项可以同时打勾。
+const PROGRESS_STAGES = [
+  {key:'assessment', label:'测评'},
+  {key:'groupInterview', label:'群面'},
+  {key:'aiInterview', label:'AI面'},
+  {key:'interview1', label:'一面'},
+  {key:'interview2', label:'二面'},
+  {key:'offered', label:'Offered'},
+  {key:'ended', label:'结束'},
+];
+function applyProgressExclusivity(progress, changedKey){
+  if(changedKey==='ended' && progress.ended) progress.offered = false;
+  if(changedKey==='offered' && progress.offered) progress.ended = false;
+}
 let companies = [];
 let positions = [];
 let editingId = null;
@@ -729,6 +784,7 @@ let checklistDraft = [];
 // 新增网申时每个岗位一条，各自的岗位要求/图片互不共用；只有编辑单个岗位时数组长度固定为 1
 let positionDraft = [{name:'', requirement:'', images:[], _jdOpen:false}];
 let reviewStageDraft = '';
+let progressDraft = {};
 
 function loadData(){
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -861,6 +917,9 @@ function matchesFilters(r){
     if(urgent==='urgent' && !(d>=0 && d<=3)) return false;
     if(urgent==='overdue' && !(d<0)) return false;
   }
+  const progressFilter = document.getElementById('filterProgress').value;
+  if(progressFilter!=='all' && !(r.progress && r.progress[progressFilter])) return false;
+  if(filterFavoriteOnly && !(company && company.favorite)) return false;
   return true;
 }
 
@@ -936,6 +995,7 @@ function renderGroupedCards(list, status, reviewStage){
         <div class="card" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
           <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}" title="删除这张卡里的所有岗位">&times;</button>
           <div class="company-row">
+            <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
           </div>
           <div class="position-list">${positionLines}</div>
@@ -988,6 +1048,12 @@ function renderBoard(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       deleteCardGroup(btn.dataset.companyId, btn.dataset.status, btn.dataset.reviewStage||undefined);
+    });
+  });
+  document.querySelectorAll('.favorite-star').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(btn.dataset.companyId);
     });
   });
   document.querySelectorAll('.position-line-del').forEach(btn=>{
@@ -1058,6 +1124,9 @@ function openDrawer(id){
   reviewStageDraft = r ? (r.reviewStage||'') : '';
   setReviewStageToggle(reviewStageDraft);
   updateReviewStageFieldVisibility();
+  progressDraft = r ? JSON.parse(JSON.stringify(r.progress||{})) : {};
+  renderProgressCheckboxes();
+  updateProgressFieldVisibility();
   checklistDraft = r ? JSON.parse(JSON.stringify(r.checklist||[])) : [];
   renderChecklistEditor();
   renderOtherPositionsBox();
@@ -1230,6 +1299,26 @@ function updateReviewStageFieldVisibility(){
   const active = document.querySelector('#statusToggle button.active');
   document.getElementById('reviewStageField').style.display = (active && active.dataset.v==='inprogress') ? 'block' : 'none';
 }
+function renderProgressCheckboxes(){
+  const box = document.getElementById('progressCheckboxes');
+  box.innerHTML = PROGRESS_STAGES.map(s=>`
+    <label class="progress-checkbox-item${progressDraft[s.key]?' checked':''}" data-key="${s.key}">
+      <input type="checkbox" data-key="${s.key}" ${progressDraft[s.key]?'checked':''}>
+      <span>${s.label}</span>
+    </label>
+  `).join('');
+  box.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      progressDraft[cb.dataset.key] = cb.checked;
+      applyProgressExclusivity(progressDraft, cb.dataset.key);
+      renderProgressCheckboxes();
+    });
+  });
+}
+function updateProgressFieldVisibility(){
+  const active = document.querySelector('#statusToggle button.active');
+  document.getElementById('progressField').style.display = (active && active.dataset.v==='submitted') ? 'block' : 'none';
+}
 document.getElementById('statusToggle').addEventListener('click', e=>{
   const btn = e.target.closest('button');
   if(!btn) return;
@@ -1241,6 +1330,7 @@ document.getElementById('statusToggle').addEventListener('click', e=>{
     setReviewStageToggle(reviewStageDraft);
   }
   updateReviewStageFieldVisibility();
+  updateProgressFieldVisibility();
 });
 document.getElementById('reviewStageToggle').addEventListener('click', e=>{
   const btn = e.target.closest('button');
@@ -1321,6 +1411,9 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     r.requirement = (entry.requirement||'').trim();
     r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
     r.reviewStage = status==='inprogress' ? reviewStageDraft : '';
+    // 招聘进度只在"已提交"状态下由这里的勾选框决定；状态挪去别处时不清空，
+    // 免得只是手滑切错状态又切回来，就把之前记录的面试进度弄丢了
+    if(status==='submitted') r.progress = JSON.parse(JSON.stringify(progressDraft));
     r.updatedAt = now;
     touchedPositionIds.push(editingId);
   } else {
@@ -1343,6 +1436,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
         requirement: (entry.requirement||'').trim(),
         requirementImages: (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path),
         reviewStage: status==='inprogress' ? reviewStageDraft : '',
+        progress: status==='submitted' ? JSON.parse(JSON.stringify(progressDraft)) : {},
         deleted: false,
         deletedAt: null,
         createdAt: now,
@@ -1386,6 +1480,16 @@ function deletePosition(id, {skipConfirm=false, confirmMessage} = {}){
   flushQueue();
   return true;
 }
+function toggleFavorite(companyId){
+  const company = getCompany(companyId);
+  if(!company) return;
+  company.favorite = !company.favorite;
+  company.updatedAt = new Date().toISOString();
+  saveData();
+  queueUpsert('companies', companyId);
+  flushQueue();
+  renderBoard();
+}
 function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toReviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===fromStatus
     && (fromReviewStage===undefined || reviewStageOf(p)===fromReviewStage));
@@ -1425,6 +1529,13 @@ document.getElementById('deleteBtn').addEventListener('click', ()=>{
 
 document.getElementById('searchInput').addEventListener('input', renderBoard);
 document.getElementById('filterUrgent').addEventListener('change', renderBoard);
+document.getElementById('filterProgress').addEventListener('change', renderBoard);
+let filterFavoriteOnly = false;
+document.getElementById('filterFavoriteBtn').addEventListener('click', function(){
+  filterFavoriteOnly = !filterFavoriteOnly;
+  this.classList.toggle('active', filterFavoriteOnly);
+  renderBoard();
+});
 
 /* ---- 公司详情抽屉（点击看板卡片打开） ---- */
 const companyDetailOverlay = document.getElementById('companyDetailOverlay');
@@ -1438,6 +1549,15 @@ function openCompanyDetail(companyId, status, reviewStage){
   const stageLabel = reviewStage ? ` · ${REVIEW_STAGE_LABEL[reviewStage]}` : '';
   document.getElementById('companyDetailTitle').textContent =
     `${company?company.name:'（未知公司）'} · ${STATUS_LABEL[status]}${stageLabel}`;
+
+  const favBtn = document.getElementById('companyDetailFavoriteBtn');
+  favBtn.classList.toggle('active', !!(company && company.favorite));
+  favBtn.textContent = (company && company.favorite) ? '★' : '☆';
+  favBtn.onclick = ()=>{
+    toggleFavorite(companyId);
+    favBtn.classList.toggle('active', !!getCompany(companyId).favorite);
+    favBtn.textContent = getCompany(companyId).favorite ? '★' : '☆';
+  };
 
   document.querySelectorAll('#companyDetailMoveToggle button').forEach(btn=>{
     const isActive = btn.dataset.status===status && (btn.dataset.reviewStage||undefined)===reviewStage;
@@ -1463,6 +1583,17 @@ function openCompanyDetail(companyId, status, reviewStage){
         <span>${escapeHtml(item.text)}</span>
       </label>
     `).join('');
+    const progress = p.progress || {};
+    const progressHtml = status==='submitted' ? `
+      <div class="progress-checkboxes">
+        ${PROGRESS_STAGES.map(s=>`
+          <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
+            <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
+            <span>${s.label}</span>
+          </label>
+        `).join('')}
+      </div>
+    ` : '';
     return `
       <div class="position-detail-item" data-id="${p.id}">
         <button class="position-detail-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
@@ -1479,6 +1610,7 @@ function openCompanyDetail(companyId, status, reviewStage){
             ${imagesHtml ? `<div class="requirement-images">${imagesHtml}</div>` : ''}
           </div>
         ` : ''}
+        ${progressHtml}
       </div>
     `;
   }).join('');
@@ -1499,10 +1631,32 @@ function openCompanyDetail(companyId, status, reviewStage){
       renderBoard();
     });
   });
+  document.querySelectorAll('.progress-checkbox-item input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const pos = positions.find(x=>x.id===cb.dataset.id);
+      if(!pos) return;
+      const key = cb.dataset.key;
+      if(!pos.progress) pos.progress = {};
+      pos.progress[key] = cb.checked;
+      applyProgressExclusivity(pos.progress, key);
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      // 结束/Offered 互斥，勾一个可能会把另一个的勾选状态也改掉，整组重新画一遍最省事
+      const item = cb.closest('.position-detail-item');
+      item.querySelectorAll('.progress-checkbox-item').forEach(label=>{
+        const k = label.dataset.key;
+        const checked = !!pos.progress[k];
+        label.classList.toggle('checked', checked);
+        label.querySelector('input').checked = checked;
+      });
+    });
+  });
   // 点岗位卡片本身直接进编辑；勾选框、链接、图片自己有各自的动作，点这些不应该顺带触发编辑
   document.querySelectorAll('.position-detail-item').forEach(item=>{
     item.addEventListener('click', (e)=>{
-      if(e.target.closest('.position-detail-del, .detail-checklist-item, .position-link, .requirement-images a')) return;
+      if(e.target.closest('.position-detail-del, .detail-checklist-item, .position-link, .requirement-images a, .progress-checkbox-item')) return;
       closeCompanyDetail();
       openDrawer(item.dataset.id);
     });
@@ -1627,13 +1781,13 @@ function fallbackCopy(text){
 function companyToRemote(c){
   return {
     id:c.id, sync_id:syncId, name:c.name, created_at:c.createdAt, updated_at:c.updatedAt||c.createdAt,
-    deleted:!!c.deleted, deleted_at:c.deletedAt||null,
+    deleted:!!c.deleted, deleted_at:c.deletedAt||null, favorite:!!c.favorite,
   };
 }
 function companyFromRemote(row){
   return {
     id:row.id, name:row.name, createdAt:row.created_at, updatedAt:row.updated_at,
-    deleted:!!row.deleted, deletedAt:row.deleted_at||null,
+    deleted:!!row.deleted, deletedAt:row.deleted_at||null, favorite:!!row.favorite,
   };
 }
 function positionToRemote(p){
@@ -1642,7 +1796,7 @@ function positionToRemote(p){
     status:p.status, deadline:p.deadline || null, link:p.link||'', note:p.note||'',
     checklist:p.checklist||[], requirement:p.requirement||'', requirement_images:p.requirementImages||[],
     review_stage:p.reviewStage||'', deleted:!!p.deleted, deleted_at:p.deletedAt||null,
-    created_at:p.createdAt, updated_at:p.updatedAt,
+    progress:p.progress||{}, created_at:p.createdAt, updated_at:p.updatedAt,
   };
 }
 function positionFromRemote(row){
@@ -1651,7 +1805,7 @@ function positionFromRemote(row){
     deadline:row.deadline||'', link:row.link||'', note:row.note||'',
     checklist:row.checklist||[], requirement:row.requirement||'', requirementImages:row.requirement_images||[],
     reviewStage:row.review_stage||'', deleted:!!row.deleted, deletedAt:row.deleted_at||null,
-    createdAt:row.created_at, updatedAt:row.updated_at,
+    progress:row.progress||{}, createdAt:row.created_at, updatedAt:row.updated_at,
   };
 }
 
