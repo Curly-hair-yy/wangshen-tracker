@@ -6,7 +6,7 @@
 <title>网申追踪台账</title>
 <style>
   :root{
-    --bg:#F3F8FC;
+    --bg:#F8FBFE;
     --surface:#FFFFFF;
     --ink:#1F2C38;
     --ink-soft:#5D7488;
@@ -220,19 +220,29 @@
   .overlay.active{display:block;}
   .drawer{
     position:fixed;
-    top:0;right:0;
-    height:100%;
-    width:420px;
+    top:50%;left:50%;
+    width:460px;
     max-width:92vw;
+    max-height:86vh;
     background:var(--bg);
-    box-shadow:-4px 0 18px rgba(0,0,0,0.15);
-    transform:translateX(100%);
-    transition:transform .25s ease;
+    border-radius:14px;
+    box-shadow:0 16px 48px rgba(31,44,56,0.28);
+    transform:translate(-50%,-50%) scale(.96);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:transform .2s ease, opacity .2s ease;
     z-index:51;
     display:flex;
     flex-direction:column;
+    overflow:hidden;
   }
-  .drawer.active{transform:translateX(0);}
+  .drawer.active{
+    transform:translate(-50%,-50%) scale(1);
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
   .drawer-head{
     padding:18px 20px 14px;
     border-bottom:2px solid var(--ink);
@@ -481,7 +491,7 @@
   }
 
   .submitted-list{display:flex;flex-direction:column;gap:12px;}
-  #submittedList .card{background:#FAFCFE;cursor:default;}
+  #submittedList .card{background:#FFFFFF;cursor:default;}
   .company-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
   .submitted-date{font-size:11px;color:var(--ink-soft);margin-left:auto;}
   .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;}
@@ -1169,7 +1179,7 @@ function renderSubmittedList(){
 
   const filtered = positions.filter(p=>!p.deleted && p.status==='submitted' && matchesFilters(p));
   const countEl = document.getElementById('submittedTabCount');
-  if(countEl) countEl.textContent = allSubmitted.length ? `(${allSubmitted.length})` : '';
+  if(countEl) countEl.textContent = companyIdsInOrder.length ? `(${companyIdsInOrder.length})` : '';
 
   const list = document.getElementById('submittedList');
   if(filtered.length===0){
