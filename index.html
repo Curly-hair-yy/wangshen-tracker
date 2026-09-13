@@ -543,6 +543,7 @@
   .submitted-row-progress .progress-checkbox-item{font-size:11.5px;}
   .submitted-note{
     font-size:12px;color:var(--ink-soft);
+    font-family:Georgia,"Songti SC","STSong",serif;font-style:italic;
     margin:2px 0 4px 0;
     white-space:pre-wrap;word-break:break-word;
   }
@@ -1174,6 +1175,7 @@ function renderGroupedCards(list, status, reviewStage){
         const doneCount = (p.checklist||[]).filter(i=>i.done).length;
         const totalCount = (p.checklist||[]).length;
         const checklistText = totalCount>0 ? `<span class="checklist-mini">待办 ${doneCount}/${totalCount}</span>` : '';
+        const linkHref = normalizeLink(p.link);
         return `
           <div class="position-line-block">
             <div class="position-line">
@@ -1181,6 +1183,7 @@ function renderGroupedCards(list, status, reviewStage){
               <span class="position-line-meta">${checklistText}${deadlineBadge(p)}</span>
               <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
             </div>
+            ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 链接 ↗</a>` : ''}
             ${p.note ? `<div class="submitted-note">${escapeHtml(p.note)}</div>` : ''}
           </div>
         `;
