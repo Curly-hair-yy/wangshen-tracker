@@ -188,6 +188,7 @@
     flex-wrap:wrap;
   }
   .card .company{font-size:15px;font-weight:600;}
+  .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;}
   .favorite-star{
     background:none;border:none;cursor:pointer;padding:0;
     font-size:15px;line-height:1;color:var(--line);
@@ -308,6 +309,9 @@
     gap:8px;
     margin-bottom:6px;
   }
+  .position-link-row{display:flex;align-items:center;gap:8px;}
+  .position-link-row input[type=url]{flex:1;}
+  .position-link-row .position-link-remove{white-space:nowrap;flex-shrink:0;}
   .item-row input[type=checkbox]{width:16px;height:16px;flex-shrink:0;}
   .item-row input[type=text]{flex:1;}
   .item-row .del{
@@ -825,6 +829,7 @@
   <div class="drawer-head">
     <h3 id="companyDetailTitle">公司详情</h3>
     <div style="display:flex;align-items:center;gap:8px;">
+      <a class="position-link" id="companyDetailLink" href="#" target="_blank" rel="noopener" style="display:none;">链接 ↗</a>
       <button class="favorite-star" id="companyDetailFavoriteBtn" type="button" title="收藏这家公司">☆</button>
       <button class="drawer-close" id="companyDetailClose">&times;</button>
     </div>
@@ -1173,11 +1178,13 @@ function renderGroupedCards(list, status, reviewStage){
     const cardsHtml = groups.map(g=>{
       const company = getCompany(g.companyId);
       const crossCount = siblingElsewhereCount(g.companyId, status, reviewStage);
+      const defaultLink = companyLevelLink(g.list);
       const positionLines = g.list.map(p=>{
         const doneCount = (p.checklist||[]).filter(i=>i.done).length;
         const totalCount = (p.checklist||[]).length;
         const checklistText = totalCount>0 ? `<span class="checklist-mini">待办 ${doneCount}/${totalCount}</span>` : '';
-        const linkHref = normalizeLink(p.link);
+        const ownLink = normalizeLink(p.link);
+        const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
         return `
           <div class="position-line-block">
             <div class="position-line">
@@ -1198,6 +1205,7 @@ function renderGroupedCards(list, status, reviewStage){
           <div class="company-row">
             <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
           </div>
           <div class="position-list">${positionLines}</div>
           ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
@@ -1352,8 +1360,10 @@ function renderSubmittedList(){
     const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
     const dateLabel = dayLabel(dateKeyOfGroup(g));
     const seqNum = companySeqMap.get(g.companyId);
+    const defaultLink = companyLevelLink(g.list);
     const positionLines = g.list.map(p=>{
-      const linkHref = normalizeLink(p.link);
+      const ownLink = normalizeLink(p.link);
+      const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
       const progress = p.progress || {};
       const dates = p.progressDates || {};
       const progressHtml = PROGRESS_STAGES.map(s=>`
@@ -1386,6 +1396,7 @@ function renderSubmittedList(){
           <span class="seq">${seqNum}</span>
           <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
           <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+          ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
           ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
         </div>
         <div class="position-list">${positionLines}</div>
@@ -1601,6 +1612,20 @@ function normalizeLink(url){
   if(/^https?:\/\//i.test(trimmed)) return trimmed;
   return 'https://' + trimmed;
 }
+// 一家公司投的岗位通常共用同一个网申门户链接——取出现次数最多的那个，当成"公司
+// 默认链接"在卡片顶部统一显示一次；只有某个岗位自己单独填了不一样的链接（少数
+// 情况），才会在那一行单独再显示一次它自己的。
+function companyLevelLink(list){
+  const counts = new Map();
+  list.forEach(p=>{
+    const l = normalizeLink(p.link);
+    if(!l) return;
+    counts.set(l, (counts.get(l)||0)+1);
+  });
+  let best = '', bestCount = 0;
+  counts.forEach((count, link)=>{ if(count>bestCount){ best = link; bestCount = count; } });
+  return best;
+}
 function renderAll(){
   renderTodayLabel();
   renderStats();
@@ -1626,30 +1651,44 @@ function openDrawer(id){
 
   document.getElementById('drawerTitle').textContent = r ? '编辑网申' : '新增网申';
   document.getElementById('f-company').value = r ? getCompany(r.companyId)?.name || '' : '';
+  // 同一家公司的其他岗位也一起拉进来编辑，不用为了改另一个岗位关掉重开——
+  // 状态/截止时间/网申链接这几个字段是公司层面共用的（保存时会统一套用到
+  // 这里列出的每一个岗位上，除非那个岗位自己单独填了链接），备注、岗位要求
+  // 这些各岗位自己独立。
+  const siblings = r ? positions.filter(p=>!p.deleted && p.companyId===r.companyId && p.id!==r.id)
+    .sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)) : [];
+  // 公司层面的默认链接是根据这家公司所有岗位的链接投票算出来的（跟卡片上
+  // 显示逻辑一致），不能只看当初点开的这一个岗位——不然如果点开的正好是
+  // 那个单独设置过链接的岗位，会反而把它的链接错当成"大家共用的默认值"。
+  // r 放最后：如果只有两个岗位、链接又刚好各不相同（票数打平），优先采信
+  // 别的岗位那边，而不是想当然把当初点开的这一个当成"大家共用的默认值"。
+  const sharedLinkValue = r ? companyLevelLink([...siblings, r]) : '';
   function toDraftEntry(p){
+    // 一个岗位的链接如果跟公司统一那个默认链接不一样，才算是这个岗位自己单独
+    // 设置过的——草稿里记下来、抽屉里默认展开显示；一样的话就当没设置过，
+    // 折叠成"+ 添加链接"，不用每个岗位都占一份看着一样的链接。
+    const ownLink = normalizeLink(p.link);
+    const hasOwnLink = !!(ownLink && ownLink!==normalizeLink(sharedLinkValue));
     return {
       _existingId: p.id,
       name: p.position||'',
       note: p.note||'',
+      link: hasOwnLink ? (p.link||'') : '',
+      _linkOpen: hasOwnLink,
       requirement: p.requirement||'',
       images: (p.requirementImages||[]).map(path=>({path})),
       _jdOpen: !!(p.requirement || (p.requirementImages||[]).length),
     };
   }
   if(r){
-    // 同一家公司的其他岗位也一起拉进来编辑，不用为了改另一个岗位关掉重开——
-    // 状态/截止时间/网申链接这几个字段是公司层面共用的（保存时会统一套用到
-    // 这里列出的每一个岗位上），备注、岗位要求这些各岗位自己独立。
-    const siblings = positions.filter(p=>!p.deleted && p.companyId===r.companyId && p.id!==r.id)
-      .sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
     positionDraft = [toDraftEntry(r), ...siblings.map(toDraftEntry)];
   } else {
-    positionDraft = [{name:'', note:'', requirement:'', images:[], _jdOpen:false}];
+    positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false}];
   }
   document.getElementById('positionLabel').textContent = '岗位（可以添加多个，每个岗位的要求/图片/备注各自单独填）';
   renderPositionEditor();
   document.getElementById('f-deadline').value = r ? (r.deadline||'') : '';
-  document.getElementById('f-link').value = r ? (r.link||'') : '';
+  document.getElementById('f-link').value = r ? sharedLinkValue : '';
   setStatusToggle(r ? r.status : 'todo');
   reviewStageDraft = r ? (r.reviewStage||'') : '';
   setReviewStageToggle(reviewStageDraft);
@@ -1738,6 +1777,12 @@ function renderPositionEditor(){
           ${(positionDraft.length>1 && !item._existingId) ? '<button class="del" type="button">&times;</button>' : ''}
         </div>
         <textarea class="position-note-input" data-idx="${idx}" placeholder="这个岗位的备注：笔试时间、内推码、联系人…">${escapeHtml(item.note||'')}</textarea>
+        ${item._linkOpen ? `
+          <div class="position-link-row">
+            <input type="url" class="position-link-input" data-idx="${idx}" value="${escapeHtml(item.link||'')}" placeholder="这个岗位单独的网申链接（跟公司统一那个不一样时才填）">
+            <button class="add-item-btn position-link-remove" type="button" data-idx="${idx}">不用了</button>
+          </div>
+        ` : `<button class="add-item-btn position-link-add" type="button" data-idx="${idx}">+ 添加链接（跟公司统一那个不一样时才用）</button>`}
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
           <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
@@ -1758,6 +1803,27 @@ function renderPositionEditor(){
     block.querySelector('.position-note-input').addEventListener('input', e=>{
       positionDraft[idx].note = e.target.value;
     });
+    const linkAddBtn = block.querySelector('.position-link-add');
+    if(linkAddBtn){
+      linkAddBtn.addEventListener('click', ()=>{
+        positionDraft[idx]._linkOpen = true;
+        renderPositionEditor();
+      });
+    }
+    const linkInput = block.querySelector('.position-link-input');
+    if(linkInput){
+      linkInput.addEventListener('input', e=>{
+        positionDraft[idx].link = e.target.value;
+      });
+    }
+    const linkRemoveBtn = block.querySelector('.position-link-remove');
+    if(linkRemoveBtn){
+      linkRemoveBtn.addEventListener('click', ()=>{
+        positionDraft[idx].link = '';
+        positionDraft[idx]._linkOpen = false;
+        renderPositionEditor();
+      });
+    }
     const delBtn = block.querySelector('.del');
     if(delBtn){
       delBtn.addEventListener('click', ()=>{
@@ -1815,7 +1881,7 @@ function renderPositionEditor(){
   document.getElementById('positionHint').style.display = positionDraft.length>1 ? 'block' : 'none';
 }
 document.getElementById('addPositionBtn').addEventListener('click', ()=>{
-  positionDraft.push({name:'', note:'', requirement:'', images:[], _jdOpen:false});
+  positionDraft.push({name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false});
   renderPositionEditor();
 });
 
@@ -1963,7 +2029,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       position: entry.name.trim(),
       status,
       deadline,
-      link,
+      link: (entry.link && entry.link.trim()) ? entry.link.trim() : link,
       note: (entry.note||'').trim(),
       checklist: JSON.parse(JSON.stringify(cleanChecklist)),
       requirement: (entry.requirement||'').trim(),
@@ -2000,7 +2066,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
         r.position = (entry.name||'').trim();
         r.status = status;
         r.deadline = deadline;
-        r.link = link;
+        r.link = (entry.link && entry.link.trim()) ? entry.link.trim() : link;
         r.note = (entry.note||'').trim();
         r.requirement = (entry.requirement||'').trim();
         r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
@@ -2162,6 +2228,15 @@ function openCompanyDetail(companyId, status, reviewStage){
   document.getElementById('companyDetailTitle').textContent =
     `${company?company.name:'（未知公司）'} · ${STATUS_LABEL[status]}${stageLabel}`;
 
+  const defaultLink = companyLevelLink(list);
+  const companyLinkEl = document.getElementById('companyDetailLink');
+  if(defaultLink){
+    companyLinkEl.href = defaultLink;
+    companyLinkEl.style.display = '';
+  }else{
+    companyLinkEl.style.display = 'none';
+  }
+
   const favBtn = document.getElementById('companyDetailFavoriteBtn');
   favBtn.classList.toggle('active', !!(company && company.favorite));
   favBtn.textContent = (company && company.favorite) ? '★' : '☆';
@@ -2188,7 +2263,8 @@ function openCompanyDetail(companyId, status, reviewStage){
     const imagesHtml = (p.requirementImages||[]).map(path=>
       `<a href="${requirementImageUrl(path)}" target="_blank" rel="noopener"><img src="${requirementImageUrl(path)}"></a>`
     ).join('');
-    const linkHref = normalizeLink(p.link);
+    const ownLink = normalizeLink(p.link);
+    const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
     const checklistHtml = (p.checklist||[]).map((item, idx)=>`
       <label class="detail-checklist-item${item.done?' done':''}" data-idx="${idx}">
         <input type="checkbox" data-id="${p.id}" data-idx="${idx}" ${item.done?'checked':''}>
