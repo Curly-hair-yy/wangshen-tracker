@@ -717,7 +717,7 @@
       <label id="positionLabel">岗位</label>
       <div id="positionItems"></div>
       <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
-      <div class="field-hint" id="positionHint" style="display:none;">下面填的状态、截止时间、备注、待办清单会应用到每一个岗位上；岗位要求和图片每个岗位单独填写</div>
+      <div class="field-hint" id="positionHint" style="display:none;">状态、截止时间、网申链接对这里列出的每个岗位统一生效；备注、岗位要求和图片各自独立；待办清单和招聘进度只对最初打开编辑的那个岗位生效，不会动其他岗位自己记的清单/进度</div>
     </div>
     <div class="field">
       <label>状态</label>
@@ -753,10 +753,6 @@
       <label>还差什么没填 / 待办清单</label>
       <div id="checklistItems"></div>
       <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
-    </div>
-    <div class="field">
-      <label>备注</label>
-      <textarea id="f-note" placeholder="任何需要记的：笔试时间、内推码、联系人…"></textarea>
     </div>
   </div>
   <div class="drawer-foot">
@@ -1644,19 +1640,30 @@ function openDrawer(id){
 
   document.getElementById('drawerTitle').textContent = r ? '编辑网申' : '新增网申';
   document.getElementById('f-company').value = r ? getCompany(r.companyId)?.name || '' : '';
-  positionDraft = r
-    ? [{
-        name: r.position||'',
-        requirement: r.requirement||'',
-        images: (r.requirementImages||[]).map(path=>({path})),
-        _jdOpen: !!(r.requirement || (r.requirementImages||[]).length),
-      }]
-    : [{name:'', requirement:'', images:[], _jdOpen:false}];
-  document.getElementById('positionLabel').textContent = '岗位（可以添加多个，每个岗位的要求/图片各自单独填）';
+  function toDraftEntry(p){
+    return {
+      _existingId: p.id,
+      name: p.position||'',
+      note: p.note||'',
+      requirement: p.requirement||'',
+      images: (p.requirementImages||[]).map(path=>({path})),
+      _jdOpen: !!(p.requirement || (p.requirementImages||[]).length),
+    };
+  }
+  if(r){
+    // 同一家公司的其他岗位也一起拉进来编辑，不用为了改另一个岗位关掉重开——
+    // 状态/截止时间/网申链接这几个字段是公司层面共用的（保存时会统一套用到
+    // 这里列出的每一个岗位上），备注、岗位要求这些各岗位自己独立。
+    const siblings = positions.filter(p=>!p.deleted && p.companyId===r.companyId && p.id!==r.id)
+      .sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    positionDraft = [toDraftEntry(r), ...siblings.map(toDraftEntry)];
+  } else {
+    positionDraft = [{name:'', note:'', requirement:'', images:[], _jdOpen:false}];
+  }
+  document.getElementById('positionLabel').textContent = '岗位（可以添加多个，每个岗位的要求/图片/备注各自单独填）';
   renderPositionEditor();
   document.getElementById('f-deadline').value = r ? (r.deadline||'') : '';
   document.getElementById('f-link').value = r ? (r.link||'') : '';
-  document.getElementById('f-note').value = r ? (r.note||'') : '';
   setStatusToggle(r ? r.status : 'todo');
   reviewStageDraft = r ? (r.reviewStage||'') : '';
   setReviewStageToggle(reviewStageDraft);
@@ -1667,7 +1674,11 @@ function openDrawer(id){
   updateProgressFieldVisibility();
   checklistDraft = r ? JSON.parse(JSON.stringify(r.checklist||[])) : [];
   renderChecklistEditor();
-  renderOtherPositionsBox();
+  if(r){
+    document.getElementById('otherPositionsBox').style.display = 'none';
+  } else {
+    renderOtherPositionsBox();
+  }
 
   const metaBox = document.getElementById('metaReadonly');
   if(r){
@@ -1738,8 +1749,9 @@ function renderPositionEditor(){
       <div class="position-item-block" data-idx="${idx}">
         <div class="item-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
-          ${(positionDraft.length>1 && !(editingId && idx===0)) ? '<button class="del" type="button">&times;</button>' : ''}
+          ${(positionDraft.length>1 && !item._existingId) ? '<button class="del" type="button">&times;</button>' : ''}
         </div>
+        <textarea class="position-note-input" data-idx="${idx}" placeholder="这个岗位的备注：笔试时间、内推码、联系人…">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
           <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
@@ -1756,6 +1768,9 @@ function renderPositionEditor(){
     const idx = Number(block.dataset.idx);
     block.querySelector('.position-name-input').addEventListener('input', e=>{
       positionDraft[idx].name = e.target.value;
+    });
+    block.querySelector('.position-note-input').addEventListener('input', e=>{
+      positionDraft[idx].note = e.target.value;
     });
     const delBtn = block.querySelector('.del');
     if(delBtn){
@@ -1814,7 +1829,7 @@ function renderPositionEditor(){
   document.getElementById('positionHint').style.display = positionDraft.length>1 ? 'block' : 'none';
 }
 document.getElementById('addPositionBtn').addEventListener('click', ()=>{
-  positionDraft.push({name:'', requirement:'', images:[], _jdOpen:false});
+  positionDraft.push({name:'', note:'', requirement:'', images:[], _jdOpen:false});
   renderPositionEditor();
 });
 
@@ -1955,7 +1970,6 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
 
   const deadline = document.getElementById('f-deadline').value;
   const link = document.getElementById('f-link').value.trim();
-  const note = document.getElementById('f-note').value.trim();
   function buildNewPosition(entry, idx){
     return {
       id: 'r_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,7),
@@ -1964,7 +1978,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       status,
       deadline,
       link,
-      note,
+      note: (entry.note||'').trim(),
       checklist: JSON.parse(JSON.stringify(cleanChecklist)),
       requirement: (entry.requirement||'').trim(),
       requirementImages: (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path),
@@ -1984,36 +1998,44 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
 
   const touchedPositionIds = [];
   if(editingId){
-    const r = positions.find(x=>x.id===editingId);
-    const prevStatus = r.status;
-    const entry = positionDraft[0];
-    r.companyId = company.id;
-    r.position = (entry.name||'').trim();
-    r.status = status;
-    r.deadline = deadline;
-    r.link = link;
-    r.note = note;
-    r.checklist = cleanChecklist;
-    r.requirement = (entry.requirement||'').trim();
-    r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
-    r.reviewStage = status==='inprogress' ? reviewStageDraft : '';
-    // 招聘进度只在"已提交"状态下由这里的勾选框决定；状态挪去别处时不清空，
-    // 免得只是手滑切错状态又切回来，就把之前记录的面试进度弄丢了
-    if(status==='submitted'){
-      r.progress = JSON.parse(JSON.stringify(progressDraft));
-      r.progressDates = JSON.parse(JSON.stringify(progressDatesDraft));
-      // 只在"第一次从别的状态变成已提交"那一刻记录时间；已经是已提交、这次只是改改
-      // 别的字段，不重新记时间，免得日期跟着每次编辑到处跑
-      if(prevStatus!=='submitted') r.submittedAt = now;
-    }
-    r.updatedAt = now;
-    touchedPositionIds.push(editingId);
-
-    // 编辑的同时用"+ 添加岗位"额外加出来的行，当成给这家公司新增的岗位来处理
-    positionDraft.slice(1).filter(e=>e.name.trim()!=='').forEach((entry, i)=>{
-      const newPos = buildNewPosition(entry, i);
-      positions.push(newPos);
-      touchedPositionIds.push(newPos.id);
+    // positionDraft 里带 _existingId 的，是编辑时一起拉进来的已有岗位（可能不止
+    // 当初点开的那一个）——状态/截止时间/网申链接这几个公司层面共用的字段，统一
+    // 套到每一个上；岗位名/备注/岗位要求各自独立。但"待办清单"和"招聘进度"只
+    // 认真对待最初点开、正在编辑的那一个，其他捎带手编辑的岗位不动它们各自原来
+    // 记的清单/进度，避免顺手把兄弟岗位自己攒的进度记录覆盖掉。没有 _existingId
+    // 的是这次顺手新增的岗位，按新增处理。
+    positionDraft.forEach((entry, i)=>{
+      if(entry._existingId){
+        const r = positions.find(x=>x.id===entry._existingId);
+        if(!r) return;
+        const prevStatus = r.status;
+        const isPrimary = entry._existingId===editingId;
+        r.companyId = company.id;
+        r.position = (entry.name||'').trim();
+        r.status = status;
+        r.deadline = deadline;
+        r.link = link;
+        r.note = (entry.note||'').trim();
+        r.requirement = (entry.requirement||'').trim();
+        r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
+        r.reviewStage = status==='inprogress' ? reviewStageDraft : '';
+        if(isPrimary){
+          r.checklist = cleanChecklist;
+          if(status==='submitted'){
+            r.progress = JSON.parse(JSON.stringify(progressDraft));
+            r.progressDates = JSON.parse(JSON.stringify(progressDatesDraft));
+          }
+        }
+        // 只在"第一次从别的状态变成已提交"那一刻记录时间；已经是已提交、这次只是
+        // 改改别的字段，不重新记时间，免得日期跟着每次编辑到处跑
+        if(status==='submitted' && prevStatus!=='submitted') r.submittedAt = now;
+        r.updatedAt = now;
+        touchedPositionIds.push(r.id);
+      } else if(entry.name.trim()!==''){
+        const newPos = buildNewPosition(entry, i);
+        positions.push(newPos);
+        touchedPositionIds.push(newPos.id);
+      }
     });
   } else {
     const validEntries = positionDraft.filter(e=>e.name.trim()!=='');
