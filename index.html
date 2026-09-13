@@ -363,6 +363,10 @@
   }
   .day-group .card{margin-bottom:10px;}
   .day-group .card:last-child{margin-bottom:0;}
+  .fav-label{
+    cursor:pointer;display:flex;align-items:center;gap:5px;user-select:none;
+  }
+  .fav-collapse-arrow{font-size:10px;color:var(--ink-soft);width:10px;display:inline-block;}
   .review-stage-group{margin-bottom:14px;}
   .review-stage-group:last-child{margin-bottom:0;}
   .review-stage-label{
@@ -498,7 +502,17 @@
   }
 
   .submitted-list{display:flex;flex-direction:column;gap:12px;}
-  #submittedList .card{background:#FFFFFF;cursor:default;}
+  #submittedList .card{background:#FFFFFF;cursor:default;padding-left:28px;}
+  .drag-handle{
+    position:absolute;left:6px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);font-size:14px;line-height:1;cursor:grab;
+    opacity:0;transition:opacity .15s ease;user-select:none;
+  }
+  .card:hover .drag-handle{opacity:1;}
+  #submittedList .card.dragging{opacity:.4;}
+  #submittedList .card.drag-over-top{box-shadow:inset 0 3px 0 0 var(--primary);}
+  #submittedList .card.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--primary);}
   .company-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
   .submitted-date{font-size:11px;color:var(--ink-soft);margin-left:auto;}
   .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;}
@@ -812,7 +826,20 @@
 <script>
 /*
   数据模型：
-  companies: [{ id, name, createdAt, updatedAt, deleted, deletedAt, favorite }]
+  companies: [{ id, name, createdAt, updatedAt, deleted, deletedAt, favorite,
+                sortIndex(已提交进度"下面按日期分组"那个区域拖拽排序用的整数，这个区域现在
+                  会显示所有已提交的公司——包括收藏了的——收藏只是在上面额外多显示一份"快捷
+                  入口"，不会把公司从下面这个完整列表里挪走。null 表示还没手动拖过、按提交
+                  时间的默认顺序显示；一旦拖过一次，这个区域所有公司都会重新按 sortIndex
+                  编号 1..N——但收藏的公司编号永远不变，见下面 dateOverride 的说明),
+                favSortIndex(收藏区那个"快捷入口"自己的拖拽顺序，只对 favorite===true 的
+                  公司有意义，跟上面的 sortIndex 是两套完全独立的顺序——同一家公司在两个
+                  地方的先后位置互不影响，拖其中一个不会打乱另一个),
+                dateOverride('YYYY-MM-DD' | null，只有在"下面按日期分组"那个区域把卡片从一个
+                  日期拖到另一个日期时才会写，表示"显示归在哪一天底下"，不影响真正的
+                  submittedAt，也不影响编号——编号（不管收藏与否）永远只看创建时间/提交时间
+                  算出来的原始顺序，拖拽只改显示顺序/分组，收藏卡片的编号从来不会因为
+                  拖拽而变) }]
   positions: [{ id, companyId, position, status, deadline, link, note, checklist,
                 requirement, requirementImages(Supabase Storage 里的路径数组),
                 reviewStage('' | 'pending' | 'reviewed'，只在 status==='inprogress' 时有意义，
@@ -826,6 +853,10 @@
                 progressDates(同样以 stage key 为键，值是 'YYYY-MM-DD'——第一次把某个
                   progress 阶段勾上的那天自动记一次，取消勾选就删掉，不用手动填；只在
                   编辑抽屉里显示/可以手动改，方便补录或者纠正日期),
+                submittedAt(status 第一次变成 'submitted' 那一刻自动记的时间戳，之后哪怕再编辑
+                  这条记录也不会重新记；已提交进度列表的日期显示、按日分组、拖拽排序，用的都是
+                  这个字段，不是 createdAt——createdAt 是这条记录最早被新增时的时间，可能是很久
+                  以前先存了草稿，跟真正点"提交"的时间不是一回事),
                 createdAt, updatedAt }]
 
   删除用的是"软删除"（tombstone）：deleted=true 只是一个普通字段，不会把记录从
@@ -1186,6 +1217,83 @@ function escapeHtml(s){
 function allProgressEnded(list){
   return list.length>0 && list.every(p=>p.progress && p.progress.ended);
 }
+// 已提交进度：分组/排序/编号的计算逻辑单独抽出来，因为拖拽的 drop 处理器（只绑定一次，
+// 不跟着每次 render 重新挂载）需要在拖拽发生的那一刻，重新按最新数据算一遍分组，
+// 不能依赖某一次 render 时留下的旧闭包变量（旧闭包会在多次 render 后互相打架，
+// 导致同一次拖拽被处理好几遍、把不相关的公司也带着改了日期/顺序）。
+// 已提交进度用的"这家公司是哪天提交的"，取它旗下这些岗位里最早的 submittedAt
+// （老数据没有 submittedAt 就退回用 createdAt，不然日期会空着）。
+function groupSubmittedTime(g){
+  const times = g.list.map(p=>new Date(p.submittedAt || p.createdAt).getTime());
+  return times.length ? Math.min(...times) : 0;
+}
+function dateKeyOfGroup(g){
+  const company = getCompany(g.companyId);
+  if(company && company.dateOverride) return company.dateOverride;
+  return dayKeyOf(new Date(groupSubmittedTime(g)).toISOString());
+}
+function computeSubmittedGroups(){
+  const filtered = positions.filter(p=>!p.deleted && p.status==='submitted' && matchesFilters(p));
+  const companyMap = new Map();
+  filtered.forEach(p=>{
+    if(!companyMap.has(p.companyId)) companyMap.set(p.companyId, []);
+    companyMap.get(p.companyId).push(p);
+  });
+  const groups = [...companyMap.entries()].map(([companyId, list])=>({companyId, list}));
+
+  // 收藏区只是个"快捷入口"，不会把公司从下面搬走——listGroups 是全部已提交的公司
+  // （收藏了的也在内），下面按日期分组的区域显示的就是这个完整列表。
+  const favGroups = groups.filter(g=>{ const c = getCompany(g.companyId); return c && c.favorite; });
+  const listGroups = groups;
+  const bySubmittedDesc = (a,b)=> groupSubmittedTime(b) - groupSubmittedTime(a);
+  const bySortKeyThenSubmitted = (sortKeyOf)=> (a,b)=>{
+    const ca = getCompany(a.companyId), cb = getCompany(b.companyId);
+    const sa = ca && sortKeyOf(ca)!=null ? sortKeyOf(ca) : Infinity;
+    const sb = cb && sortKeyOf(cb)!=null ? sortKeyOf(cb) : Infinity;
+    if(sa!==sb) return sa-sb;
+    return bySubmittedDesc(a,b);
+  };
+
+  // 收藏这个快捷入口：拖拽只调整它自己内部的先后顺序（favSortIndex），编号永远看
+  // companySeqMap（按创建时间算出来的原始编号），不受拖拽、不受"下面"那份列表影响。
+  const favUseManualOrder = favGroups.some(g=>{ const c=getCompany(g.companyId); return c && c.favSortIndex!=null; });
+  const orderedFavGroups = [...favGroups].sort(
+    favUseManualOrder ? bySortKeyThenSubmitted(c=>c.favSortIndex) : bySubmittedDesc);
+
+  // 下面按日期分组的区域（全部已提交公司）：一旦在这个区域拖拽过一次，就全部改用
+  // sortIndex 排序 + 重新编号（1..M，收藏的公司除外——它们的编号永远不变），不再要求
+  // 按日期倒序；没拖拽过就还是原来的样子（按提交日期分组、组内按提交时间新的在前）。
+  const listUseManualOrder = listGroups.some(g=>{ const c=getCompany(g.companyId); return c && c.sortIndex!=null; });
+  let dayMap, dayKeys, orderedListGroups, listSeqOverride;
+  if(listUseManualOrder){
+    orderedListGroups = [...listGroups].sort(bySortKeyThenSubmitted(c=>c.sortIndex));
+    // 收藏的公司不占这个重新编号的计数——它们一直显示自己那个固定不变的编号，
+    // 不然可能跟旁边刚好撞到同一个号，看着很怪。
+    listSeqOverride = new Map();
+    let seq = 0;
+    orderedListGroups.forEach(g=>{
+      const c = getCompany(g.companyId);
+      if(c && c.favorite) return;
+      seq++;
+      listSeqOverride.set(g.companyId, seq);
+    });
+  } else {
+    dayMap = new Map();
+    listGroups.forEach(g=>{
+      const key = dateKeyOfGroup(g);
+      if(!dayMap.has(key)) dayMap.set(key, []);
+      dayMap.get(key).push(g);
+    });
+    dayKeys = [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
+    dayKeys.forEach(key=>dayMap.get(key).sort(bySubmittedDesc));
+    orderedListGroups = dayKeys.flatMap(key=>dayMap.get(key));
+    listSeqOverride = null;
+  }
+
+  return { filtered, groups, favGroups, listGroups, orderedFavGroups, listUseManualOrder,
+    favUseManualOrder, dayMap, dayKeys, orderedListGroups, listSeqOverride };
+}
+
 function renderSubmittedList(){
   const allSubmitted = positions.filter(p=>!p.deleted && p.status==='submitted');
 
@@ -1197,7 +1305,8 @@ function renderSubmittedList(){
     .map(c=>c.id);
   const companySeqMap = new Map(companyIdsInOrder.map((id,i)=>[id, i+1]));
 
-  const filtered = positions.filter(p=>!p.deleted && p.status==='submitted' && matchesFilters(p));
+  const { filtered, orderedFavGroups, listUseManualOrder, dayMap, dayKeys,
+    orderedListGroups, listSeqOverride } = computeSubmittedGroups();
   const countEl = document.getElementById('submittedTabCount');
   if(countEl) countEl.textContent = companyIdsInOrder.length ? `(${companyIdsInOrder.length})` : '';
 
@@ -1207,21 +1316,13 @@ function renderSubmittedList(){
     return;
   }
 
-  // 同一家公司合并成一张卡——提交这个动作是整家公司一起发生的，同一公司的岗位之间
-  // 不该因为"已提交/待审核"这类状态产生差异（只有面试进度才可能不一样，那部分保留在
-  // 每个岗位自己身上）。收藏的公司固定置顶（单独一组，卡片上自带日期，因为组内日期不一），
-  // 剩下的按公司创建日期分组显示，日期只在组标题露一次，跟"待填写/填报中"的分组样式一致。
-  const companyMap = new Map();
-  filtered.forEach(p=>{
-    if(!companyMap.has(p.companyId)) companyMap.set(p.companyId, []);
-    companyMap.get(p.companyId).push(p);
-  });
-  const groups = [...companyMap.entries()].map(([companyId, list])=>({companyId, list}));
-
   function renderSubmittedCard(g, showDate){
     const company = getCompany(g.companyId);
     const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
-    const dateLabel = company ? dayLabel(dayKeyOf(company.createdAt)) : '';
+    const dateLabel = dayLabel(dateKeyOfGroup(g));
+    const seqNum = (company && company.favorite)
+      ? companySeqMap.get(g.companyId)
+      : (listSeqOverride ? listSeqOverride.get(g.companyId) : companySeqMap.get(g.companyId));
     const positionLines = g.list.map(p=>{
       const linkHref = normalizeLink(p.link);
       const progress = p.progress || {};
@@ -1249,9 +1350,10 @@ function renderSubmittedList(){
     }).join('');
     return `
       <div class="card${allProgressEnded(g.list)?' all-ended':''}" data-company-id="${g.companyId}">
+        <span class="drag-handle" draggable="true" title="拖动调整顺序">⠿</span>
         <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="submitted" data-review-stage="" title="删除这张卡里的所有岗位">&times;</button>
         <div class="company-row">
-          <span class="seq">${companySeqMap.get(g.companyId)}</span>
+          <span class="seq">${seqNum}</span>
           <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
           <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
           ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
@@ -1262,42 +1364,74 @@ function renderSubmittedList(){
     `;
   }
 
-  const favGroups = groups.filter(g=>{ const c = getCompany(g.companyId); return c && c.favorite; });
-  const normalGroups = groups.filter(g=>{ const c = getCompany(g.companyId); return !(c && c.favorite); });
-  const byCreatedDesc = (a,b)=>{
-    const ca = getCompany(a.companyId), cb = getCompany(b.companyId);
-    const ta = ca ? new Date(ca.createdAt).getTime() : 0;
-    const tb = cb ? new Date(cb.createdAt).getTime() : 0;
-    return tb - ta;
-  };
-  favGroups.sort(byCreatedDesc);
-
-  const dayMap = new Map();
-  normalGroups.forEach(g=>{
-    const company = getCompany(g.companyId);
-    const key = company ? dayKeyOf(company.createdAt) : 'unknown';
-    if(!dayMap.has(key)) dayMap.set(key, []);
-    dayMap.get(key).push(g);
-  });
-  const dayKeys = [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
-  dayKeys.forEach(key=>dayMap.get(key).sort(byCreatedDesc));
-
   let html = '';
-  if(favGroups.length){
+  if(orderedFavGroups.length){
     html += `
-      <div class="day-group">
-        <div class="day-group-label">★ 收藏</div>
-        ${favGroups.map(g=>renderSubmittedCard(g, true)).join('')}
+      <div class="day-group" data-section="fav">
+        <div class="day-group-label fav-label" id="favSectionToggle">
+          <span class="fav-collapse-arrow">${favSectionCollapsed?'▸':'▾'}</span>
+          <span>★ 收藏</span>
+        </div>
+        <div class="fav-section-body"${favSectionCollapsed?' style="display:none;"':''}>
+          ${orderedFavGroups.map(g=>renderSubmittedCard(g, true)).join('')}
+        </div>
       </div>
     `;
   }
-  html += dayKeys.map(key=>`
-    <div class="day-group">
-      <div class="day-group-label">${dayLabel(key)}</div>
-      ${dayMap.get(key).map(g=>renderSubmittedCard(g, false)).join('')}
-    </div>
-  `).join('');
+  if(listUseManualOrder){
+    let i = 0;
+    while(i < orderedListGroups.length){
+      const key = dateKeyOfGroup(orderedListGroups[i]);
+      const segment = [];
+      while(i < orderedListGroups.length && dateKeyOfGroup(orderedListGroups[i]) === key){
+        segment.push(orderedListGroups[i]);
+        i++;
+      }
+      html += `
+        <div class="day-group" data-section="date" data-day-key="${key}">
+          <div class="day-group-label">${dayLabel(key)}</div>
+          ${segment.map(g=>renderSubmittedCard(g, false)).join('')}
+        </div>
+      `;
+    }
+  } else {
+    html += dayKeys.map(key=>`
+      <div class="day-group" data-section="date" data-day-key="${key}">
+        <div class="day-group-label">${dayLabel(key)}</div>
+        ${dayMap.get(key).map(g=>renderSubmittedCard(g, false)).join('')}
+      </div>
+    `).join('');
+  }
   list.innerHTML = html;
+
+  const favToggle = document.getElementById('favSectionToggle');
+  if(favToggle){
+    favToggle.addEventListener('click', ()=>{
+      favSectionCollapsed = !favSectionCollapsed;
+      renderSubmittedList();
+    });
+  }
+
+  // 拖拽排序：句柄在卡片最左边，悬停才显示。dragstart/dragend 挂在句柄上，每次
+  // render 都要重新挂（因为卡片是新生成的 DOM）；dragover/drop 挂在 #submittedList
+  // 容器本身、只在脚本加载时绑定一次（见 setupSubmittedListDragDrop），避免每次
+  // render 都往同一个常驻容器上新增一份监听器、越攒越多导致一次拖拽被处理好几遍。
+  list.querySelectorAll('.drag-handle').forEach(handle=>{
+    handle.addEventListener('dragstart', (e)=>{
+      const card = handle.closest('.card');
+      submittedDragState.companyId = card.dataset.companyId;
+      const groupEl = card.closest('.day-group');
+      submittedDragState.section = groupEl ? groupEl.dataset.section : null;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', submittedDragState.companyId);
+    });
+    handle.addEventListener('dragend', ()=>{
+      list.querySelectorAll('.card.dragging').forEach(el=>el.classList.remove('dragging'));
+      list.querySelectorAll('.card.drag-over-top,.card.drag-over-bottom').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom'));
+      submittedDragState.companyId = null; submittedDragState.section = null;
+    });
+  });
 
   list.querySelectorAll('.card-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
@@ -1357,6 +1491,91 @@ function renderSubmittedList(){
     });
   });
 }
+
+// 拖拽状态 + dragover/drop 只绑定这一次，绑在 #submittedList 容器本身（容器不会被
+// innerHTML 替换掉，如果每次 renderSubmittedList 都重新 addEventListener，监听器会
+// 越叠越多，同一次拖拽会被处理很多遍）。真正的分组/顺序在每次 drop 时用
+// computeSubmittedGroups() 现算最新的，不依赖某一次 render 留下的旧数据。
+const submittedDragState = { companyId: null, section: null };
+// 收藏区折叠状态：只在这个页面停留期间记着，刷新页面会恢复展开——只是个显示开关，
+// 不用跟着同步到别的设备上。
+let favSectionCollapsed = false;
+function reorderIds(ids, draggedId, targetId, before){
+  const fromIdx = ids.indexOf(draggedId);
+  if(fromIdx===-1) return;
+  ids.splice(fromIdx,1);
+  let toIdx = ids.indexOf(targetId);
+  if(toIdx===-1) toIdx = ids.length;
+  if(!before) toIdx += 1;
+  ids.splice(toIdx,0,draggedId);
+}
+function persistReorderedCompanies(ids){
+  const now = new Date().toISOString();
+  ids.forEach(id=>{
+    const c = getCompany(id);
+    if(!c) return;
+    c.updatedAt = now;
+  });
+  saveData();
+  ids.forEach(id=>queueUpsert('companies', id));
+  flushQueue();
+}
+function applySubmittedReorder(section, draggedId, targetId, before, targetDayKey){
+  if(draggedId===targetId) return;
+  const { orderedFavGroups, orderedListGroups, listGroups } = computeSubmittedGroups();
+  if(section==='fav'){
+    const ids = orderedFavGroups.map(g=>g.companyId);
+    reorderIds(ids, draggedId, targetId, before);
+    ids.forEach((id,i)=>{ const c=getCompany(id); if(c) c.favSortIndex = i; });
+    persistReorderedCompanies(ids);
+  } else {
+    const ids = orderedListGroups.map(g=>g.companyId);
+    reorderIds(ids, draggedId, targetId, before);
+    ids.forEach((id,i)=>{ const c=getCompany(id); if(c) c.sortIndex = i; });
+    const draggedCompany = getCompany(draggedId);
+    const draggedGroup = listGroups.find(g=>g.companyId===draggedId);
+    if(draggedCompany && draggedGroup && targetDayKey){
+      const naturalKey = dayKeyOf(new Date(groupSubmittedTime(draggedGroup)).toISOString());
+      draggedCompany.dateOverride = (targetDayKey===naturalKey) ? null : targetDayKey;
+    }
+    persistReorderedCompanies(ids);
+  }
+  renderSubmittedList();
+}
+function setupSubmittedListDragDrop(){
+  const list = document.getElementById('submittedList');
+  list.addEventListener('dragover', (e)=>{
+    if(!submittedDragState.companyId) return;
+    e.preventDefault();
+    const overCard = e.target.closest('.card');
+    list.querySelectorAll('.card.drag-over-top,.card.drag-over-bottom').forEach(el=>{
+      if(el!==overCard) el.classList.remove('drag-over-top','drag-over-bottom');
+    });
+    if(!overCard) return;
+    const rect = overCard.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height/2;
+    overCard.classList.toggle('drag-over-top', before);
+    overCard.classList.toggle('drag-over-bottom', !before);
+  });
+  list.addEventListener('drop', (e)=>{
+    if(!submittedDragState.companyId) return;
+    e.preventDefault();
+    const overCard = e.target.closest('.card');
+    list.querySelectorAll('.card.drag-over-top,.card.drag-over-bottom').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom'));
+    const draggedId = submittedDragState.companyId, dragSection = submittedDragState.section;
+    submittedDragState.companyId = null; submittedDragState.section = null;
+    if(!overCard) return;
+    const targetCompanyId = overCard.dataset.companyId;
+    const targetGroupEl = overCard.closest('.day-group');
+    const targetSection = targetGroupEl ? targetGroupEl.dataset.section : null;
+    if(!targetSection || targetSection!==dragSection || targetCompanyId===draggedId) return;
+    const rect = overCard.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height/2;
+    const targetDayKey = targetGroupEl.dataset.dayKey || null;
+    applySubmittedReorder(dragSection, draggedId, targetCompanyId, before, targetDayKey);
+  });
+}
+setupSubmittedListDragDrop();
 
 // 网申链接经常是用户直接粘贴的，可能没带 http(s):// 前缀，点开会被浏览器当成相对路径
 // 处理（跳到 github.io 底下的某个不存在的子路径），这里统一补全协议头。
@@ -1719,6 +1938,10 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       reviewStage: status==='inprogress' ? reviewStageDraft : '',
       progress: status==='submitted' ? JSON.parse(JSON.stringify(progressDraft)) : {},
       progressDates: status==='submitted' ? JSON.parse(JSON.stringify(progressDatesDraft)) : {},
+      // 变成"已提交"那一刻自动记一次时间——已提交进度列表的日期/分组用的是这个，
+      // 不是 createdAt（createdAt 是这条记录最早被新增时的时间，跟真正提交的时间
+      // 可能差好几天，比如先存草稿、后来才点击提交）。
+      submittedAt: status==='submitted' ? now : null,
       deleted: false,
       deletedAt: null,
       createdAt: now,
@@ -1729,6 +1952,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   const touchedPositionIds = [];
   if(editingId){
     const r = positions.find(x=>x.id===editingId);
+    const prevStatus = r.status;
     const entry = positionDraft[0];
     r.companyId = company.id;
     r.position = (entry.name||'').trim();
@@ -1745,6 +1969,9 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     if(status==='submitted'){
       r.progress = JSON.parse(JSON.stringify(progressDraft));
       r.progressDates = JSON.parse(JSON.stringify(progressDatesDraft));
+      // 只在"第一次从别的状态变成已提交"那一刻记录时间；已经是已提交、这次只是改改
+      // 别的字段，不重新记时间，免得日期跟着每次编辑到处跑
+      if(prevStatus!=='submitted') r.submittedAt = now;
     }
     r.updatedAt = now;
     touchedPositionIds.push(editingId);
@@ -1816,6 +2043,7 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   const now = new Date().toISOString();
   const finalReviewStage = toStatus==='inprogress' ? (toReviewStage || 'pending') : '';
   list.forEach(p=>{
+    if(toStatus==='submitted' && p.status!=='submitted') p.submittedAt = now;
     p.status = toStatus;
     p.reviewStage = finalReviewStage;
     p.updatedAt = now;
@@ -2188,12 +2416,16 @@ function companyToRemote(c){
   return {
     id:c.id, sync_id:syncId, name:c.name, created_at:c.createdAt, updated_at:c.updatedAt||c.createdAt,
     deleted:!!c.deleted, deleted_at:c.deletedAt||null, favorite:!!c.favorite,
+    sort_index:(c.sortIndex===undefined?null:c.sortIndex), date_override:c.dateOverride||null,
+    fav_sort_index:(c.favSortIndex===undefined?null:c.favSortIndex),
   };
 }
 function companyFromRemote(row){
   return {
     id:row.id, name:row.name, createdAt:row.created_at, updatedAt:row.updated_at,
     deleted:!!row.deleted, deletedAt:row.deleted_at||null, favorite:!!row.favorite,
+    sortIndex:(row.sort_index===undefined?null:row.sort_index), dateOverride:row.date_override||null,
+    favSortIndex:(row.fav_sort_index===undefined?null:row.fav_sort_index),
   };
 }
 function positionToRemote(p){
@@ -2203,6 +2435,7 @@ function positionToRemote(p){
     checklist:p.checklist||[], requirement:p.requirement||'', requirement_images:p.requirementImages||[],
     review_stage:p.reviewStage||'', deleted:!!p.deleted, deleted_at:p.deletedAt||null,
     progress:p.progress||{}, progress_dates:p.progressDates||{}, created_at:p.createdAt, updated_at:p.updatedAt,
+    submitted_at:p.submittedAt||null,
   };
 }
 function positionFromRemote(row){
@@ -2212,6 +2445,7 @@ function positionFromRemote(row){
     checklist:row.checklist||[], requirement:row.requirement||'', requirementImages:row.requirement_images||[],
     reviewStage:row.review_stage||'', deleted:!!row.deleted, deletedAt:row.deleted_at||null,
     progress:row.progress||{}, progressDates:row.progress_dates||{}, createdAt:row.created_at, updatedAt:row.updated_at,
+    submittedAt:row.submitted_at||null,
   };
 }
 
