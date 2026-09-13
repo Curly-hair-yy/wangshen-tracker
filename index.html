@@ -190,6 +190,8 @@
   }
   .card .company{font-size:15px;font-weight:600;}
   .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;}
+  .company-row-right{margin-left:auto;display:flex;align-items:baseline;gap:6px;}
+  .company-row-right .company-link{margin-left:0;margin-top:0;font-size:12px;}
   .favorite-star{
     background:none;border:none;cursor:pointer;padding:0;
     font-size:15px;line-height:1;color:var(--line);
@@ -1397,8 +1399,10 @@ function renderSubmittedList(){
           <span class="seq">${seqNum}</span>
           <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
           <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-          ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
-          ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
+          <span class="company-row-right">
+            ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
+            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
+          </span>
         </div>
         <div class="position-list">${positionLines}</div>
         ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
