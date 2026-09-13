@@ -398,6 +398,8 @@
     background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 6px;
   }
   .position-list{margin-top:6px;display:flex;flex-direction:column;}
+  .position-line-block{border-bottom:1px dashed var(--line);padding-bottom:5px;}
+  .position-line-block:last-child{border-bottom:none;padding-bottom:0;}
   .position-line{
     position:relative;
     display:flex;
@@ -406,9 +408,7 @@
     gap:8px;
     font-size:13px;
     padding:5px 22px 5px 0;
-    border-bottom:1px dashed var(--line);
   }
-  .position-line:last-child{border-bottom:none;}
   .position-line-meta{
     display:flex;align-items:center;gap:6px;flex-shrink:0;
     font-size:11px;color:var(--ink-soft);
@@ -529,7 +529,8 @@
   .company-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
   .submitted-date{font-size:11px;color:var(--ink-soft);margin-left:auto;}
   .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;}
-  .submitted-position-line{cursor:pointer;}
+  .submitted-position-line{cursor:pointer;border-bottom:1px dashed var(--line);padding-bottom:5px;}
+  .submitted-position-line:last-child{border-bottom:none;padding-bottom:0;}
   .submitted-position-line.ended .position,
   .submitted-position-line.ended .position-link{color:var(--ink-soft);}
   .submitted-position-line.ended{opacity:.55;}
@@ -1174,10 +1175,13 @@ function renderGroupedCards(list, status, reviewStage){
         const totalCount = (p.checklist||[]).length;
         const checklistText = totalCount>0 ? `<span class="checklist-mini">待办 ${doneCount}/${totalCount}</span>` : '';
         return `
-          <div class="position-line">
-            <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
-            <span class="position-line-meta">${checklistText}${deadlineBadge(p)}</span>
-            <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
+          <div class="position-line-block">
+            <div class="position-line">
+              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
+              <span class="position-line-meta">${checklistText}${deadlineBadge(p)}</span>
+              <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
+            </div>
+            ${p.note ? `<div class="submitted-note">${escapeHtml(p.note)}</div>` : ''}
           </div>
         `;
       }).join('');
