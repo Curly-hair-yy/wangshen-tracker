@@ -479,6 +479,7 @@
   }
   .position-link:hover{text-decoration:underline;}
   .position-line-meta .position-link{margin-top:0;}
+  .company-row .position-link{margin-top:0;font-size:12px;}
   .detail-checklist{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
   .detail-checklist-item{
     display:flex;align-items:center;gap:7px;
@@ -529,7 +530,12 @@
   #submittedList .card.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--primary);}
   .company-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
   .submitted-date{font-size:11px;color:var(--ink-soft);margin-left:auto;}
-  .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;}
+  .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;flex:1;}
+  .position-line-main .position{flex-shrink:0;}
+  .position-line-main .submitted-note{
+    margin:0;flex-shrink:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
   .submitted-position-line{cursor:pointer;border-bottom:1px dashed var(--line);padding-bottom:5px;}
   .submitted-position-line:last-child{border-bottom:none;padding-bottom:0;}
   .submitted-position-line.ended .position,
@@ -1172,11 +1178,12 @@ function renderGroupedCards(list, status, reviewStage){
     const cardsHtml = groups.map(g=>{
       const company = getCompany(g.companyId);
       const crossCount = siblingElsewhereCount(g.companyId, status, reviewStage);
+      const sharedLink = commonPositionLink(g.list);
       const positionLines = g.list.map(p=>{
         const doneCount = (p.checklist||[]).filter(i=>i.done).length;
         const totalCount = (p.checklist||[]).length;
         const checklistText = totalCount>0 ? `<span class="checklist-mini">待办 ${doneCount}/${totalCount}</span>` : '';
-        const linkHref = normalizeLink(p.link);
+        const linkHref = sharedLink ? '' : normalizeLink(p.link);
         return `
           <div class="position-line-block">
             <div class="position-line">
@@ -1197,6 +1204,7 @@ function renderGroupedCards(list, status, reviewStage){
           <div class="company-row">
             <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+            ${sharedLink ? `<a class="position-link" href="${escapeHtml(sharedLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
           </div>
           <div class="position-list">${positionLines}</div>
           ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
@@ -1351,8 +1359,9 @@ function renderSubmittedList(){
     const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
     const dateLabel = dayLabel(dateKeyOfGroup(g));
     const seqNum = companySeqMap.get(g.companyId);
+    const sharedLink = commonPositionLink(g.list);
     const positionLines = g.list.map(p=>{
-      const linkHref = normalizeLink(p.link);
+      const linkHref = sharedLink ? '' : normalizeLink(p.link);
       const progress = p.progress || {};
       const dates = p.progressDates || {};
       const progressHtml = PROGRESS_STAGES.map(s=>`
@@ -1366,13 +1375,13 @@ function renderSubmittedList(){
           <div class="position-line">
             <span class="position-line-main">
               <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
+              ${p.note ? `<span class="submitted-note">${escapeHtml(p.note)}</span>` : ''}
             </span>
             <span class="position-line-meta">
-              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 链接 ↗</a>` : ''}
+              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
             </span>
             <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
           </div>
-          ${p.note ? `<div class="submitted-note">${escapeHtml(p.note)}</div>` : ''}
           <div class="submitted-row-progress">${progressHtml}</div>
         </div>
       `;
@@ -1385,6 +1394,7 @@ function renderSubmittedList(){
           <span class="seq">${seqNum}</span>
           <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
           <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+          ${sharedLink ? `<a class="position-link" href="${escapeHtml(sharedLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
           ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
         </div>
         <div class="position-list">${positionLines}</div>
@@ -1599,6 +1609,14 @@ function normalizeLink(url){
   if(!trimmed) return '';
   if(/^https?:\/\//i.test(trimmed)) return trimmed;
   return 'https://' + trimmed;
+}
+// 同一家公司一次投好几个岗位，网申链接经常是同一个门户地址——如果这张卡里所有
+// 填了链接的岗位链接都一样，就在卡片顶部（公司名旁边）统一显示一次，不用每个
+// 岗位都重复放一条；只要有任何一个不一样，就还是各自显示各自的。
+function commonPositionLink(list){
+  const links = list.map(p=>normalizeLink(p.link)).filter(Boolean);
+  if(links.length===0) return '';
+  return links.every(l=>l===links[0]) ? links[0] : '';
 }
 
 function renderAll(){
