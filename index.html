@@ -764,6 +764,16 @@
     </div>
 
     <div class="field">
+      <label>本地备份</label>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" id="backupExportBtn" type="button">导出备份</button>
+        <button class="btn btn-ghost" id="backupImportBtn" type="button">导入备份</button>
+        <input type="file" id="backupImportInput" accept="application/json" style="display:none;">
+      </div>
+      <div class="field-hint">导出是把当前所有网申记录存成一个 JSON 文件，方便自己留一份、或者搬到别的设备。导入会<b>完全覆盖</b>当前设备上的所有记录（包括已经连接的同步空间），导入前会再确认一次。</div>
+    </div>
+
+    <div class="field">
       <label>Supabase 项目配置</label>
       <input type="text" id="syncUrlInput" placeholder="Project URL" style="margin-bottom:8px;">
       <input type="text" id="syncKeyInput" placeholder="anon public key">
@@ -2728,6 +2738,67 @@ document.getElementById('syncSaveConfigBtn').addEventListener('click', ()=>{
   const key = document.getElementById('syncKeyInput').value.trim();
   saveSyncConfig({ url, key });
   startSync();
+});
+
+/* ---- 本地备份：导出成 JSON 文件 / 从 JSON 文件导入 ---- */
+document.getElementById('backupExportBtn').addEventListener('click', ()=>{
+  const payload = {
+    app: 'wangshen-tracker', version: 2,
+    exportedAt: new Date().toISOString(),
+    companies, positions,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const pad = n=>String(n).padStart(2,'0');
+  const d = new Date();
+  a.href = url;
+  a.download = `网申追踪台账备份_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('backupImportBtn').addEventListener('click', ()=>{
+  document.getElementById('backupImportInput').click();
+});
+document.getElementById('backupImportInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let data;
+    try{ data = JSON.parse(reader.result); }
+    catch(err){ alert('这个文件不是有效的备份文件（JSON 解析失败）。'); return; }
+    if(!data || !Array.isArray(data.companies) || !Array.isArray(data.positions)){
+      alert('这个文件看起来不是本工具导出的备份（缺少 companies / positions）。');
+      return;
+    }
+    const ok = confirm(
+      `确定要导入这份备份吗？\n\n`+
+      `备份时间：${data.exportedAt ? fmtDateTime(data.exportedAt) : '未知'}\n`+
+      `包含 ${data.companies.length} 家公司、${data.positions.length} 条岗位记录\n\n`+
+      `导入会完全覆盖当前设备上的所有记录，这一步无法撤销。`
+    );
+    if(!ok) return;
+    // 导入等于"以这份备份为准，覆盖现在的一切"——把所有记录的 updatedAt 都刷新成现在，
+    // 这样如果已经连接了同步，推上去的时候能按"最后修改时间更新"的规则真正盖过云端数据，
+    // 而不是因为备份本身的时间戳更早、被云端"更新"的旧数据顶回来。
+    const now = new Date().toISOString();
+    companies = data.companies.map(c=>({...c, updatedAt: now}));
+    positions = data.positions.map(p=>({...p, updatedAt: now}));
+    saveData();
+    if(isSyncConfigured() && sb){
+      companies.forEach(c=>queueUpsert('companies', c.id));
+      positions.forEach(p=>queueUpsert('positions', p.id));
+      flushQueue();
+    }
+    renderAll();
+    closeSyncDrawer();
+    alert('导入完成。');
+  };
+  reader.readAsText(file);
 });
 
 window.addEventListener('online', flushQueue);
