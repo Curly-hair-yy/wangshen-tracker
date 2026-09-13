@@ -1180,10 +1180,12 @@ function renderGroupedCards(list, status, reviewStage){
           <div class="position-line-block">
             <div class="position-line">
               <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
-              <span class="position-line-meta">${checklistText}${deadlineBadge(p)}</span>
+              <span class="position-line-meta">
+                ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
+                ${checklistText}${deadlineBadge(p)}
+              </span>
               <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
             </div>
-            ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 链接 ↗</a>` : ''}
             ${p.note ? `<div class="submitted-note">${escapeHtml(p.note)}</div>` : ''}
           </div>
         `;
@@ -2064,7 +2066,8 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   list.forEach(p=>queueUpsert('positions', p.id));
   flushQueue();
   renderAll();
-  openCompanyDetail(companyId, toStatus, toStatus==='inprogress' ? finalReviewStage : undefined);
+  // 打开这个弹窗基本就是为了改状态，不是来编辑内容的——选完直接关掉，不用自己再点一次关闭
+  closeCompanyDetail();
 }
 function deleteCardGroup(companyId, status, reviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
