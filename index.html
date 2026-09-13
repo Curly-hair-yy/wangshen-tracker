@@ -88,6 +88,18 @@
     font-size:14px;
     color:var(--ink);
   }
+  .date-filter-group{
+    display:flex;align-items:center;gap:6px;
+  }
+  .date-filter-group input[type=date]{
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--surface);
+    font-size:13px;
+    color:var(--ink);
+  }
+  .date-filter-sep{font-size:13px;color:var(--ink-soft);}
   .btn{
     border:none;
     border-radius:4px;
@@ -636,6 +648,16 @@
       <option value="ended">结束</option>
     </select>
     <button class="btn btn-ghost" id="filterFavoriteBtn" type="button">★ 只看收藏</button>
+    <div id="dateFilterGroup" class="date-filter-group" style="display:none;">
+      <select id="filterDateField">
+        <option value="none">不按日期筛选</option>
+        <option value="submittedAt">按提交日期</option>
+        <option value="createdAt">按新增日期</option>
+      </select>
+      <input type="date" id="filterDateStart">
+      <span class="date-filter-sep">至</span>
+      <input type="date" id="filterDateEnd">
+    </div>
     <button class="btn btn-primary" id="addBtn">+ 新增网申</button>
   </div>
 
@@ -1055,7 +1077,7 @@ function deadlineBadge(r){
   return `<span class="deadline-badge ${cls}">${text}</span>`;
 }
 
-function matchesFilters(r){
+function matchesFilters(r, opts){
   const company = getCompany(r.companyId);
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   if(q){
@@ -1072,6 +1094,19 @@ function matchesFilters(r){
   const progressFilter = document.getElementById('filterProgress').value;
   if(progressFilter!=='all' && !(r.progress && r.progress[progressFilter])) return false;
   if(filterFavoriteOnly && !(company && company.favorite)) return false;
+  // 日期区间筛选只在"已提交进度"页面生效——看板那边调用时会传 ignoreDateFilter，
+  // 不受这个筛选影响（哪怕已提交进度那边设置了日期区间也不会牵连看板）。
+  if(!(opts && opts.ignoreDateFilter)){
+    const field = document.getElementById('filterDateField').value;
+    if(field!=='none'){
+      const raw = field==='submittedAt' ? (r.submittedAt || r.createdAt) : r.createdAt;
+      const key = dayKeyOf(raw);
+      const start = document.getElementById('filterDateStart').value;
+      const end = document.getElementById('filterDateEnd').value;
+      if(start && key<start) return false;
+      if(end && key>end) return false;
+    }
+  }
   return true;
 }
 
@@ -1168,7 +1203,7 @@ function renderGroupedCards(list, status, reviewStage){
 function renderBoard(){
   const statuses = ['todo','inprogress'];
   statuses.forEach(st=>{
-    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r));
+    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r, {ignoreDateFilter:true}));
     document.getElementById('count-'+st).textContent = filtered.length;
     const col = document.getElementById('col-'+st);
     if(filtered.length===0){
@@ -2104,13 +2139,18 @@ document.getElementById('viewTabBoard').addEventListener('click', ()=>{
   document.getElementById('viewTabSubmitted').classList.remove('active');
   document.getElementById('board').style.display = 'grid';
   document.getElementById('submittedView').style.display = 'none';
+  document.getElementById('dateFilterGroup').style.display = 'none';
 });
 document.getElementById('viewTabSubmitted').addEventListener('click', ()=>{
   document.getElementById('viewTabSubmitted').classList.add('active');
   document.getElementById('viewTabBoard').classList.remove('active');
   document.getElementById('board').style.display = 'none';
   document.getElementById('submittedView').style.display = 'block';
+  document.getElementById('dateFilterGroup').style.display = 'flex';
 });
+document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
+document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
+document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
 
 /* ---- 公司详情抽屉（点击看板卡片打开） ---- */
 const companyDetailOverlay = document.getElementById('companyDetailOverlay');
