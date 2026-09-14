@@ -1960,22 +1960,21 @@ function openReminderDrawerForEdit(positionId, stageKey){
   if(!pos) return;
   const company = getCompany(pos.companyId);
   const entry = stageDeadlineEntry(pos.stageDeadlines||{}, stageKey) || {date:'', note:''};
-  const stage = PROGRESS_STAGES.find(s=>s.key===stageKey);
+  // 记住"这条提醒原来在哪"，保存时如果公司/岗位/环节被改成别的，就把原来那个位置上
+  // 的提醒删掉，相当于把这条提醒搬过去，而不是两边各留一份。
   reminderEditTarget = {positionId, stageKey};
   document.getElementById('reminderDrawerTitle').textContent = '编辑提醒';
   reminderDeleteBtn.style.display = '';
   reminderEmptyHint.style.display = 'none';
   populateReminderCompanyList();
   reminderCompanyInput.value = company ? company.name : '';
-  reminderCompanyInput.disabled = true;
-  reminderPositionSelect.innerHTML = `<option value="${pos.id}">${escapeHtml(pos.position||'（未命名岗位）')}</option>`;
-  reminderPositionSelect.disabled = true;
-  reminderStageSelect.innerHTML = `<option value="${stageKey}">${stage?stage.label:stageKey}</option>`;
-  reminderStageSelect.disabled = true;
-  reminderDateInput.disabled = false;
+  reminderCompanyInput.disabled = false;
+  reminderRefreshPositions();
+  reminderPositionSelect.value = positionId;
+  reminderRefreshStages();
+  reminderStageSelect.value = stageKey;
   reminderDateInput.value = entry.date;
   reminderNoteInput.value = entry.note;
-  reminderSaveBtn.disabled = false;
   reminderOverlay.classList.add('active');
   reminderDrawer.classList.add('active');
 }
@@ -2006,11 +2005,24 @@ reminderDeleteBtn.addEventListener('click', ()=>{
 reminderSaveBtn.addEventListener('click', ()=>{
   const date = reminderDateInput.value;
   const note = reminderNoteInput.value.trim();
-  const pos = reminderEditTarget
-    ? positions.find(p=>p.id===reminderEditTarget.positionId)
-    : positions.find(p=>p.id===reminderPositionSelect.value);
-  const key = reminderEditTarget ? reminderEditTarget.stageKey : reminderStageSelect.value;
+  const pos = positions.find(p=>p.id===reminderPositionSelect.value);
+  const key = reminderStageSelect.value;
   if(!pos || !key || !date){ alert('请把公司、岗位、环节、日期都选好'); return; }
+  // 编辑时公司/岗位/环节都能改；如果改成了跟原来不一样的位置，就把原来那个位置上的
+  // 提醒删掉，相当于把这条提醒搬过去，不会两边各留一份。
+  if(reminderEditTarget){
+    const {positionId: oldPositionId, stageKey: oldStageKey} = reminderEditTarget;
+    if(oldPositionId!==pos.id || oldStageKey!==key){
+      const oldPos = positions.find(p=>p.id===oldPositionId);
+      if(oldPos && oldPos.stageDeadlines){
+        delete oldPos.stageDeadlines[oldStageKey];
+        oldPos.updatedAt = new Date().toISOString();
+        saveData();
+        queueUpsert('positions', oldPos.id);
+        flushQueue();
+      }
+    }
+  }
   setStageDeadline(pos, key, date, note);
   pos.updatedAt = new Date().toISOString();
   saveData();
