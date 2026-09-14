@@ -980,7 +980,7 @@
   <div class="drawer-foot">
     <div class="right" style="margin-left:auto;">
       <button class="btn btn-ghost" id="pasteImportCancelBtn">取消</button>
-      <button class="btn btn-primary" id="pasteImportConfirmBtn" disabled>确认导入</button>
+      <button class="btn btn-primary" id="pasteImportConfirmBtn">确认导入</button>
     </div>
   </div>
 </div>
@@ -2331,8 +2331,7 @@ function parsePasteText(text){
 }
 function renderPasteImportResults(items){
   const box = document.getElementById('pasteImportResults');
-  const confirmBtn = document.getElementById('pasteImportConfirmBtn');
-  if(items.length===0){ box.innerHTML=''; confirmBtn.disabled=true; return; }
+  if(items.length===0){ box.innerHTML=''; return; }
   box.innerHTML = items.map((item,idx)=>{
     if(!item.ok){
       return `<div class="paste-import-row unrecognized">${escapeHtml(item.raw)}<div class="paste-import-row-note">没识别出来，格式对不上，跳过这行</div></div>`;
@@ -2347,8 +2346,6 @@ function renderPasteImportResults(items){
       </label>
     `;
   }).join('');
-  const importable = items.some(i=>i.ok && i.matchedCompany);
-  confirmBtn.disabled = !importable;
 }
 let pasteImportParsed = [];
 function openPasteImportDrawer(){
@@ -2371,7 +2368,19 @@ document.getElementById('pasteImportParseBtn').addEventListener('click', ()=>{
   renderPasteImportResults(pasteImportParsed);
 });
 document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
+  const text = document.getElementById('pasteImportInput').value;
+  if(!text.trim()){ alert('先把文字粘贴进来，再点确认导入'); return; }
+  // 没点过"识别"就直接点"确认导入"，这里顺手先识别一遍，不然按钮跟没反应似的，
+  // 用户搞不清楚是没识别还是真的没东西能导。
+  if(pasteImportParsed.length===0){
+    pasteImportParsed = parsePasteText(text);
+    renderPasteImportResults(pasteImportParsed);
+  }
   const checkedIdxs = [...document.querySelectorAll('.paste-import-check:checked')].map(cb=>Number(cb.dataset.idx));
+  if(checkedIdxs.length===0){
+    alert('没有能导入的内容——看看下面列出来的提示，可能是格式没对上，或者这家公司在台账里还没有已提交的岗位。');
+    return;
+  }
   let count = 0;
   checkedIdxs.forEach(idx=>{
     const item = pasteImportParsed[idx];
