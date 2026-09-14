@@ -536,7 +536,17 @@
   }
 
   .submitted-list{display:flex;flex-direction:column;gap:12px;}
-  .reminders-toolbar{display:flex;justify-content:flex-end;margin-bottom:16px;}
+  .reminders-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;}
+  .paste-import-row{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 10px;border:1px solid var(--line);border-radius:6px;margin-top:8px;
+    font-size:13px;cursor:pointer;
+  }
+  .paste-import-row.unmatched{border-color:var(--warn);background:var(--warn-soft);cursor:default;}
+  .paste-import-row.unrecognized{border-color:var(--line);background:var(--surface);color:var(--ink-soft);cursor:default;}
+  .paste-import-row-main{flex:1;min-width:0;}
+  .paste-import-row-note{font-size:11px;color:var(--warn);margin-left:8px;}
+  .paste-import-row.unrecognized .paste-import-row-note{color:var(--ink-soft);}
   .reminders-list{display:flex;flex-direction:column;gap:10px;}
   .reminder-row{
     display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -745,6 +755,7 @@
 
   <div id="remindersView" style="display:none;">
     <div class="reminders-toolbar">
+      <button class="btn btn-ghost" id="pasteImportBtn" type="button">粘贴导入</button>
       <button class="btn btn-primary" id="addReminderBtn" type="button">+ 添加提醒</button>
     </div>
     <div class="reminders-list" id="remindersList"></div>
@@ -947,6 +958,29 @@
     <div class="right" style="margin-left:auto;">
       <button class="btn btn-ghost" id="reminderCancelBtn">取消</button>
       <button class="btn btn-primary" id="reminderSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="pasteImportOverlay"></div>
+<div class="drawer" id="pasteImportDrawer">
+  <div class="drawer-head">
+    <h3>粘贴导入提醒</h3>
+    <button class="drawer-close" id="pasteImportClose">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field">
+      <label>把每天的总结文字贴在这里</label>
+      <textarea id="pasteImportInput" rows="8" placeholder="比如：&#10;杭州银行（全部岗位）测评 截止 2026-09-18 08:48&#10;阳光保险（全部岗位）测评 截止 2026-09-28 20:32"></textarea>
+      <div class="field-hint">按"公司名 环节 日期 时间"这样的格式逐行识别，都会按"整个公司通用"导入；识别之后可以在下面挑要导入哪几条，导入后也可以再改成挂到具体某个岗位上。</div>
+    </div>
+    <button class="add-item-btn" id="pasteImportParseBtn" type="button">识别</button>
+    <div id="pasteImportResults"></div>
+  </div>
+  <div class="drawer-foot">
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="pasteImportCancelBtn">取消</button>
+      <button class="btn btn-primary" id="pasteImportConfirmBtn" disabled>确认导入</button>
     </div>
   </div>
 </div>
@@ -2262,6 +2296,96 @@ reminderSaveBtn.addEventListener('click', ()=>{
   }
   closeReminderDrawer();
   renderAll();
+});
+
+/* ---- 粘贴导入：把每天总结的文字贴进来，按行识别成"公司+环节+日期时间"，全部按
+   "整个公司通用"导入（不猜是哪个具体岗位，猜错了反而麻烦；导入后想挂到具体岗位，
+   自己再点开这条提醒改就行）。走的是本地这套正常的保存/同步流程，不直接碰数据库，
+   不会有本地浏览器和外部写入互相冲突的问题。 ---- */
+const STAGE_TEXT_MAP = [
+  ['在线测评','assessment'], ['综合能力测试','assessment'], ['测评','assessment'], ['笔试','assessment'],
+  ['无领导小组','groupInterview'], ['群面','groupInterview'],
+  ['AI面试','aiInterview'], ['AI面','aiInterview'],
+  ['初面','interview1'], ['一面','interview1'],
+  ['终面','interview2'], ['二面','interview2'],
+  ['Offered','offered'], ['offered','offered'],
+  ['结束','ended'],
+];
+const PASTE_LINE_RE = /^[\s•\-\*]*([一-鿿A-Za-z0-9()（）·&.,\/]+?)\s*(?:[（(]全部岗位[)）])?\s*(在线测评|综合能力测试|测评|笔试|无领导小组|群面|AI面试|AI面|初面|一面|终面|二面|Offered|offered|结束)\s*(?:截止)?\s*[:：]?\s*(\d{4}-\d{2}-\d{2})[T\s]+(\d{1,2}:\d{2})/;
+function parsePasteText(text){
+  return text.split('\n').map(l=>l.trim()).filter(l=>l).map(line=>{
+    const m = line.match(PASTE_LINE_RE);
+    if(!m) return {raw:line, ok:false};
+    const companyText = m[1].trim().replace(/[·:：\-]+$/, '');
+    const stageKey = (STAGE_TEXT_MAP.find(([text])=>text===m[2])||[])[1];
+    const timePart = m[4].length===4 ? '0'+m[4] : m[4];
+    const dateTime = `${m[3]}T${timePart}`;
+    const candidates = companies.filter(c=>!c.deleted && (c.name===companyText || c.name.includes(companyText) || companyText.includes(c.name)));
+    const matchedCompany = candidates.length===1 ? candidates[0] : (candidates.find(c=>c.name===companyText) || null);
+    const stage = PROGRESS_STAGES.find(s=>s.key===stageKey);
+    return {
+      raw:line, ok:true, companyText, stageKey, stageLabel: stage?stage.label:m[2], dateTime,
+      matchedCompany, ambiguous: candidates.length>1 && !matchedCompany,
+    };
+  });
+}
+function renderPasteImportResults(items){
+  const box = document.getElementById('pasteImportResults');
+  const confirmBtn = document.getElementById('pasteImportConfirmBtn');
+  if(items.length===0){ box.innerHTML=''; confirmBtn.disabled=true; return; }
+  box.innerHTML = items.map((item,idx)=>{
+    if(!item.ok){
+      return `<div class="paste-import-row unrecognized">${escapeHtml(item.raw)}<div class="paste-import-row-note">没识别出来，格式对不上，跳过这行</div></div>`;
+    }
+    if(!item.matchedCompany){
+      return `<div class="paste-import-row unmatched">${escapeHtml(item.companyText)} ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}<div class="paste-import-row-note">${item.ambiguous?'台账里有好几家公司名字都对得上，认不准':'台账里找不到这家公司'}，跳过这行</div></div>`;
+    }
+    return `
+      <label class="paste-import-row">
+        <input type="checkbox" class="paste-import-check" data-idx="${idx}" checked>
+        <span class="paste-import-row-main">${escapeHtml(item.matchedCompany.name)}（全部岗位） ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}</span>
+      </label>
+    `;
+  }).join('');
+  const importable = items.some(i=>i.ok && i.matchedCompany);
+  confirmBtn.disabled = !importable;
+}
+let pasteImportParsed = [];
+function openPasteImportDrawer(){
+  document.getElementById('pasteImportInput').value = '';
+  pasteImportParsed = [];
+  renderPasteImportResults([]);
+  document.getElementById('pasteImportOverlay').classList.add('active');
+  document.getElementById('pasteImportDrawer').classList.add('active');
+}
+function closePasteImportDrawer(){
+  document.getElementById('pasteImportOverlay').classList.remove('active');
+  document.getElementById('pasteImportDrawer').classList.remove('active');
+}
+document.getElementById('pasteImportBtn').addEventListener('click', openPasteImportDrawer);
+document.getElementById('pasteImportClose').addEventListener('click', closePasteImportDrawer);
+document.getElementById('pasteImportCancelBtn').addEventListener('click', closePasteImportDrawer);
+document.getElementById('pasteImportOverlay').addEventListener('click', closePasteImportDrawer);
+document.getElementById('pasteImportParseBtn').addEventListener('click', ()=>{
+  pasteImportParsed = parsePasteText(document.getElementById('pasteImportInput').value);
+  renderPasteImportResults(pasteImportParsed);
+});
+document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
+  const checkedIdxs = [...document.querySelectorAll('.paste-import-check:checked')].map(cb=>Number(cb.dataset.idx));
+  let count = 0;
+  checkedIdxs.forEach(idx=>{
+    const item = pasteImportParsed[idx];
+    if(!item || !item.ok || !item.matchedCompany) return;
+    setCompanyStageDeadline(item.matchedCompany, item.stageKey, item.dateTime, '');
+    item.matchedCompany.updatedAt = new Date().toISOString();
+    saveData();
+    queueUpsert('companies', item.matchedCompany.id);
+    count++;
+  });
+  flushQueue();
+  closePasteImportDrawer();
+  renderAll();
+  if(count>0) alert(`导入完成，加了 ${count} 条提醒。`);
 });
 
 /* ---- 抽屉表单 ---- */
