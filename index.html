@@ -506,6 +506,14 @@
     clip:rect(0,0,0,0);white-space:nowrap;border:0;
   }
   .progress-checkbox-item.checked{color:var(--primary);font-weight:700;}
+  .stage-label{cursor:pointer;}
+  .stage-label:hover{text-decoration:underline dotted;}
+  .stage-date-pending{color:var(--warn);font-weight:600;}
+  .stage-date-overdue{color:var(--danger);font-weight:700;}
+  .stage-deadline-input{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    opacity:0;pointer-events:none;border:0;
+  }
   .progress-dates-list{
     margin-top:10px;display:flex;flex-direction:column;gap:6px;
   }
@@ -523,6 +531,28 @@
   }
 
   .submitted-list{display:flex;flex-direction:column;gap:12px;}
+  .reminders-toolbar{display:flex;justify-content:flex-end;margin-bottom:16px;}
+  .reminders-list{display:flex;flex-direction:column;gap:10px;}
+  .reminder-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:12px 14px;
+  }
+  .reminder-row.overdue{border-color:var(--danger);}
+  .reminder-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;}
+  .reminder-company{font-weight:600;font-size:14px;}
+  .reminder-position{font-size:13px;color:var(--ink-soft);}
+  .reminder-stage{
+    font-size:12px;padding:2px 8px;border-radius:10px;
+    background:var(--primary-soft);color:var(--primary);
+  }
+  .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .reminder-done-btn,.reminder-clear-btn{
+    border:1px solid var(--line);background:var(--surface);border-radius:4px;
+    font-size:12px;padding:4px 9px;cursor:pointer;color:var(--ink-soft);
+  }
+  .reminder-done-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .reminder-clear-btn:hover{background:var(--danger);border-color:var(--danger);color:#fff;}
   #submittedList .card{background:#FFFFFF;cursor:default;padding-left:28px;}
   .drag-handle{
     position:absolute;left:6px;top:50%;transform:translateY(-50%);
@@ -649,6 +679,7 @@
   <div class="view-tabs">
     <button class="view-tab active" id="viewTabBoard" type="button">看板</button>
     <button class="view-tab" id="viewTabSubmitted" type="button">已提交进度 <span id="submittedTabCount"></span></button>
+    <button class="view-tab" id="viewTabReminders" type="button">提醒事项 <span id="remindersTabCount"></span></button>
   </div>
 
   <div class="toolbar">
@@ -695,6 +726,13 @@
 
   <div id="submittedView" style="display:none;">
     <div class="submitted-list" id="submittedList"></div>
+  </div>
+
+  <div id="remindersView" style="display:none;">
+    <div class="reminders-toolbar">
+      <button class="btn btn-primary" id="addReminderBtn" type="button">+ 添加提醒</button>
+    </div>
+    <div class="reminders-list" id="remindersList"></div>
   </div>
 </div>
 
@@ -858,6 +896,39 @@
   </div>
 </div>
 
+<div class="overlay" id="reminderOverlay"></div>
+<div class="drawer" id="reminderDrawer">
+  <div class="drawer-head">
+    <h3>添加提醒</h3>
+    <button class="drawer-close" id="reminderDrawerClose">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field">
+      <label>公司</label>
+      <select id="reminderCompanySelect"></select>
+    </div>
+    <div class="field">
+      <label>岗位</label>
+      <select id="reminderPositionSelect"></select>
+    </div>
+    <div class="field">
+      <label>环节</label>
+      <select id="reminderStageSelect"></select>
+    </div>
+    <div class="field">
+      <label>提醒截止日期</label>
+      <input type="date" id="reminderDateInput">
+    </div>
+    <div class="field-hint" id="reminderEmptyHint" style="display:none;">还没有已提交的岗位，或者这个岗位的环节都已经完成了，没法加提醒。</div>
+  </div>
+  <div class="drawer-foot">
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="reminderCancelBtn">取消</button>
+      <button class="btn btn-primary" id="reminderSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="recycleBinOverlay"></div>
 <div class="drawer" id="recycleBinDrawer">
   <div class="drawer-head">
@@ -948,10 +1019,19 @@ function shortDateLabel(dateStr){
   if(parts.length<3) return dateStr;
   return `${Number(parts[1])}/${Number(parts[2])}`;
 }
-function progressLabelText(key, progress, dates){
+// stageDeadlines 是"这个环节的提醒截止时间"，跟 dates（真正完成的时间）是两码事——
+// 已经打勾完成的，看 dates，颜色跟原来一样（靠 .checked 的样式）；没完成但设了提醒
+// 时间的，括号里显示提醒时间，颜色用醒目的橙色/红色（过期变红）跟完成时间区分开。
+function progressLabelText(key, progress, dates, stageDeadlines){
   const stage = PROGRESS_STAGES.find(s=>s.key===key);
   const label = stage ? stage.label : key;
-  return (progress[key] && dates[key]) ? `${label}(${shortDateLabel(dates[key])})` : label;
+  if(progress[key] && dates[key]) return `${label}(${shortDateLabel(dates[key])})`;
+  const deadline = stageDeadlines && stageDeadlines[key];
+  if(!progress[key] && deadline){
+    const overdue = deadline < todayDateStr();
+    return `${label}<span class="stage-date-${overdue?'overdue':'pending'}">(${shortDateLabel(deadline)})</span>`;
+  }
+  return label;
 }
 // 勾选某个招聘进度时顺带维护它的日期：第一次勾上自动记今天，取消勾选就把日期清掉
 // （下次重新勾上会记新的日期，而不是沿用一个"取消过又勾回来"的旧日期）。
@@ -1369,10 +1449,12 @@ function renderSubmittedList(){
       const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
       const progress = p.progress || {};
       const dates = p.progressDates || {};
+      const deadlines = p.stageDeadlines || {};
       const progressHtml = PROGRESS_STAGES.map(s=>`
         <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
           <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-          <span>${progressLabelText(s.key, progress, dates)}</span>
+          <span class="stage-label" data-id="${p.id}" data-key="${s.key}">${progressLabelText(s.key, progress, dates, deadlines)}</span>
+          <input type="date" class="stage-deadline-input" data-id="${p.id}" data-key="${s.key}" value="${deadlines[s.key]||''}" tabindex="-1">
         </label>
       `).join('');
       return `
@@ -1514,14 +1596,46 @@ function renderSubmittedList(){
         const k = label.dataset.key;
         const checked = !!pos.progress[k];
         label.classList.toggle('checked', checked);
-        label.querySelector('input').checked = checked;
-        label.querySelector('span').textContent = progressLabelText(k, pos.progress, pos.progressDates||{});
+        label.querySelector('input[type=checkbox]').checked = checked;
+        label.querySelector('.stage-label').innerHTML = progressLabelText(k, pos.progress, pos.progressDates||{}, pos.stageDeadlines||{});
       });
       line.classList.toggle('ended', !!pos.progress.ended);
       const card = cb.closest('.card');
       const companyId = card.dataset.companyId;
       const siblingPositions = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status==='submitted' && matchesFilters(p));
       card.classList.toggle('all-ended', allProgressEnded(siblingPositions));
+      renderRemindersTabCount();
+    });
+  });
+  // 点环节文字（不是勾选框）弹出这个环节自己的日期选择框，用来单独设置/修改这个
+  // 环节的提醒截止时间——跟勾选框本身的"标记完成"是两回事，e.preventDefault() 是
+  // 为了不让这次点击顺带把 label 关联的勾选框也切换了。
+  list.querySelectorAll('.stage-label').forEach(span=>{
+    span.addEventListener('click', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const input = span.parentElement.querySelector('.stage-deadline-input');
+      if(!input) return;
+      if(input.showPicker){
+        try{ input.showPicker(); }catch(err){ input.focus(); }
+      } else {
+        input.focus();
+      }
+    });
+  });
+  list.querySelectorAll('.stage-deadline-input').forEach(inp=>{
+    inp.addEventListener('click', e=>e.stopPropagation());
+    inp.addEventListener('change', ()=>{
+      const pos = positions.find(x=>x.id===inp.dataset.id);
+      if(!pos) return;
+      if(!pos.stageDeadlines) pos.stageDeadlines = {};
+      const key = inp.dataset.key;
+      if(inp.value){ pos.stageDeadlines[key] = inp.value; } else { delete pos.stageDeadlines[key]; }
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      renderAll();
     });
   });
   list.querySelectorAll('.submitted-position-line').forEach(row=>{
@@ -1637,12 +1751,170 @@ function renderAll(){
   renderBoard();
   renderSubmittedList();
   renderCompanyDatalist();
+  renderRemindersTabCount();
+  if(document.getElementById('remindersView').style.display!=='none') renderRemindersList();
 }
 
 function renderCompanyDatalist(){
   const dl = document.getElementById('companyList');
   dl.innerHTML = companies.filter(c=>!c.deleted).map(c=>`<option value="${escapeHtml(c.name)}">`).join('');
 }
+
+/* ---- 提醒事项：汇总所有"已提交岗位、环节还没完成、但设了提醒截止时间"的记录 ---- */
+// 只看已提交状态的岗位——测评/群面/AI面这些招聘环节本来就只在已提交之后才有意义。
+// 已经打勾完成的环节不再算提醒（完成时间会直接显示在卡片上，不需要再提醒）。
+function getActiveReminders(){
+  const items = [];
+  positions.filter(p=>!p.deleted && p.status==='submitted').forEach(p=>{
+    const progress = p.progress || {};
+    const deadlines = p.stageDeadlines || {};
+    PROGRESS_STAGES.forEach(s=>{
+      const d = deadlines[s.key];
+      if(d && !progress[s.key]) items.push({position:p, stage:s, date:d});
+    });
+  });
+  items.sort((a,b)=> a.date<b.date ? -1 : a.date>b.date ? 1 : 0);
+  return items;
+}
+function renderRemindersTabCount(){
+  const n = getActiveReminders().length;
+  document.getElementById('remindersTabCount').textContent = n>0 ? `(${n})` : '';
+}
+function renderRemindersList(){
+  renderRemindersTabCount();
+  const list = document.getElementById('remindersList');
+  const items = getActiveReminders();
+  if(items.length===0){
+    list.innerHTML = `<div class="empty-hint">暂无提醒事项</div>`;
+    return;
+  }
+  const today = todayDateStr();
+  list.innerHTML = items.map(item=>{
+    const company = getCompany(item.position.companyId);
+    const overdue = item.date < today;
+    const d = daysUntil(item.date);
+    let dateText;
+    if(overdue) dateText = `已逾期 ${Math.abs(d)} 天`;
+    else if(d===0) dateText = '今天截止';
+    else dateText = `${d}天后截止`;
+    return `
+      <div class="reminder-row${overdue?' overdue':''}" data-id="${item.position.id}" data-key="${item.stage.key}">
+        <div class="reminder-main">
+          <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+          <span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>
+          <span class="reminder-stage">${item.stage.label}</span>
+        </div>
+        <div class="reminder-meta">
+          <span class="deadline-badge ${overdue?'danger':'warn'}">${fmtDate(item.date)} · ${dateText}</span>
+          <button class="reminder-done-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}">✓ 标记完成</button>
+          <button class="reminder-clear-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成">×</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.reminder-done-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const pos = positions.find(x=>x.id===btn.dataset.id);
+      if(!pos) return;
+      if(!pos.progress) pos.progress = {};
+      if(!pos.progressDates) pos.progressDates = {};
+      setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, true);
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      renderAll();
+    });
+  });
+  list.querySelectorAll('.reminder-clear-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const pos = positions.find(x=>x.id===btn.dataset.id);
+      if(!pos || !pos.stageDeadlines) return;
+      delete pos.stageDeadlines[btn.dataset.key];
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      renderAll();
+    });
+  });
+}
+
+/* ---- 添加提醒抽屉：选公司 -> 选岗位(已提交的) -> 选还没完成的环节 -> 选日期 ---- */
+const reminderOverlay = document.getElementById('reminderOverlay');
+const reminderDrawer = document.getElementById('reminderDrawer');
+const reminderCompanySelect = document.getElementById('reminderCompanySelect');
+const reminderPositionSelect = document.getElementById('reminderPositionSelect');
+const reminderStageSelect = document.getElementById('reminderStageSelect');
+const reminderDateInput = document.getElementById('reminderDateInput');
+const reminderEmptyHint = document.getElementById('reminderEmptyHint');
+const reminderSaveBtn = document.getElementById('reminderSaveBtn');
+
+function submittedCompanies(){
+  const ids = new Set(positions.filter(p=>!p.deleted && p.status==='submitted').map(p=>p.companyId));
+  return companies.filter(c=>!c.deleted && ids.has(c.id));
+}
+function reminderRefreshPositions(){
+  const companyId = reminderCompanySelect.value;
+  const list = positions.filter(p=>!p.deleted && p.status==='submitted' && p.companyId===companyId);
+  reminderPositionSelect.innerHTML = list.map(p=>`<option value="${p.id}">${escapeHtml(p.position||'（未命名岗位）')}</option>`).join('');
+  reminderRefreshStages();
+}
+function reminderRefreshStages(){
+  const pos = positions.find(p=>p.id===reminderPositionSelect.value);
+  const progress = pos ? (pos.progress||{}) : {};
+  const stages = PROGRESS_STAGES.filter(s=>!progress[s.key]);
+  reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
+  const noStages = !pos || stages.length===0;
+  reminderEmptyHint.style.display = noStages ? 'block' : 'none';
+  reminderStageSelect.disabled = noStages;
+  reminderDateInput.disabled = noStages;
+  reminderSaveBtn.disabled = noStages;
+}
+function openReminderDrawer(){
+  const companyList = submittedCompanies();
+  reminderCompanySelect.innerHTML = companyList.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const noCompanies = companyList.length===0;
+  reminderEmptyHint.style.display = noCompanies ? 'block' : 'none';
+  reminderCompanySelect.disabled = noCompanies;
+  reminderPositionSelect.disabled = noCompanies;
+  if(noCompanies){
+    reminderPositionSelect.innerHTML = '';
+    reminderStageSelect.innerHTML = '';
+    reminderStageSelect.disabled = true;
+    reminderDateInput.disabled = true;
+    reminderSaveBtn.disabled = true;
+  } else {
+    reminderRefreshPositions();
+  }
+  reminderDateInput.value = '';
+  reminderOverlay.classList.add('active');
+  reminderDrawer.classList.add('active');
+}
+function closeReminderDrawer(){
+  reminderOverlay.classList.remove('active');
+  reminderDrawer.classList.remove('active');
+}
+document.getElementById('addReminderBtn').addEventListener('click', openReminderDrawer);
+document.getElementById('reminderDrawerClose').addEventListener('click', closeReminderDrawer);
+document.getElementById('reminderCancelBtn').addEventListener('click', closeReminderDrawer);
+reminderOverlay.addEventListener('click', closeReminderDrawer);
+reminderCompanySelect.addEventListener('change', reminderRefreshPositions);
+reminderPositionSelect.addEventListener('change', reminderRefreshStages);
+reminderSaveBtn.addEventListener('click', ()=>{
+  const pos = positions.find(p=>p.id===reminderPositionSelect.value);
+  const key = reminderStageSelect.value;
+  const date = reminderDateInput.value;
+  if(!pos || !key || !date){ alert('请把公司、岗位、环节、日期都选好'); return; }
+  if(!pos.stageDeadlines) pos.stageDeadlines = {};
+  pos.stageDeadlines[key] = date;
+  pos.updatedAt = new Date().toISOString();
+  saveData();
+  queueUpsert('positions', pos.id);
+  flushQueue();
+  closeReminderDrawer();
+  renderAll();
+});
 
 /* ---- 抽屉表单 ---- */
 const overlay = document.getElementById('overlay');
@@ -2042,6 +2314,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       reviewStage: status==='inprogress' ? reviewStageDraft : '',
       progress: status==='submitted' ? JSON.parse(JSON.stringify(progressDraft)) : {},
       progressDates: status==='submitted' ? JSON.parse(JSON.stringify(progressDatesDraft)) : {},
+      stageDeadlines: {},
       // 变成"已提交"那一刻自动记一次时间——已提交进度列表的日期/分组用的是这个，
       // 不是 createdAt（createdAt 是这条记录最早被新增时的时间，跟真正提交的时间
       // 可能差好几天，比如先存草稿、后来才点击提交）。
@@ -2201,21 +2474,21 @@ document.getElementById('filterFavoriteBtn').addEventListener('click', function(
   renderFilteredViews();
 });
 
-/* ---- 页面切换：看板 / 已提交进度 ---- */
-document.getElementById('viewTabBoard').addEventListener('click', ()=>{
-  document.getElementById('viewTabBoard').classList.add('active');
-  document.getElementById('viewTabSubmitted').classList.remove('active');
-  document.getElementById('board').style.display = 'grid';
-  document.getElementById('submittedView').style.display = 'none';
-  document.getElementById('dateFilterGroup').style.display = 'none';
-});
-document.getElementById('viewTabSubmitted').addEventListener('click', ()=>{
-  document.getElementById('viewTabSubmitted').classList.add('active');
-  document.getElementById('viewTabBoard').classList.remove('active');
-  document.getElementById('board').style.display = 'none';
-  document.getElementById('submittedView').style.display = 'block';
-  document.getElementById('dateFilterGroup').style.display = 'flex';
-});
+/* ---- 页面切换：看板 / 已提交进度 / 提醒事项 ---- */
+function setActiveView(view){
+  document.getElementById('viewTabBoard').classList.toggle('active', view==='board');
+  document.getElementById('viewTabSubmitted').classList.toggle('active', view==='submitted');
+  document.getElementById('viewTabReminders').classList.toggle('active', view==='reminders');
+  document.getElementById('board').style.display = view==='board' ? 'grid' : 'none';
+  document.getElementById('submittedView').style.display = view==='submitted' ? 'block' : 'none';
+  document.getElementById('remindersView').style.display = view==='reminders' ? 'block' : 'none';
+  document.getElementById('dateFilterGroup').style.display = view==='submitted' ? 'flex' : 'none';
+  document.querySelector('.toolbar').style.display = view==='reminders' ? 'none' : 'flex';
+  if(view==='reminders') renderRemindersList();
+}
+document.getElementById('viewTabBoard').addEventListener('click', ()=>setActiveView('board'));
+document.getElementById('viewTabSubmitted').addEventListener('click', ()=>setActiveView('submitted'));
+document.getElementById('viewTabReminders').addEventListener('click', ()=>setActiveView('reminders'));
 document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
@@ -2278,12 +2551,13 @@ function openCompanyDetail(companyId, status, reviewStage){
     `).join('');
     const progress = p.progress || {};
     const progressDatesForDetail = p.progressDates || {};
+    const deadlinesForDetail = p.stageDeadlines || {};
     const progressHtml = status==='submitted' ? `
       <div class="progress-checkboxes">
         ${PROGRESS_STAGES.map(s=>`
           <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
             <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-            <span>${progressLabelText(s.key, progress, progressDatesForDetail)}</span>
+            <span>${progressLabelText(s.key, progress, progressDatesForDetail, deadlinesForDetail)}</span>
           </label>
         `).join('')}
       </div>
@@ -2344,7 +2618,7 @@ function openCompanyDetail(companyId, status, reviewStage){
         const checked = !!pos.progress[k];
         label.classList.toggle('checked', checked);
         label.querySelector('input').checked = checked;
-        label.querySelector('span').textContent = progressLabelText(k, pos.progress, pos.progressDates||{});
+        label.querySelector('span').innerHTML = progressLabelText(k, pos.progress, pos.progressDates||{}, pos.stageDeadlines||{});
       });
     });
   });
@@ -2561,7 +2835,7 @@ function positionToRemote(p){
     checklist:p.checklist||[], requirement:p.requirement||'', requirement_images:p.requirementImages||[],
     review_stage:p.reviewStage||'', deleted:!!p.deleted, deleted_at:p.deletedAt||null,
     progress:p.progress||{}, progress_dates:p.progressDates||{}, created_at:p.createdAt, updated_at:p.updatedAt,
-    submitted_at:p.submittedAt||null,
+    submitted_at:p.submittedAt||null, stage_deadlines:p.stageDeadlines||{},
   };
 }
 function positionFromRemote(row){
@@ -2571,7 +2845,7 @@ function positionFromRemote(row){
     checklist:row.checklist||[], requirement:row.requirement||'', requirementImages:row.requirement_images||[],
     reviewStage:row.review_stage||'', deleted:!!row.deleted, deletedAt:row.deleted_at||null,
     progress:row.progress||{}, progressDates:row.progress_dates||{}, createdAt:row.created_at, updatedAt:row.updated_at,
-    submittedAt:row.submitted_at||null,
+    submittedAt:row.submitted_at||null, stageDeadlines:row.stage_deadlines||{},
   };
 }
 
