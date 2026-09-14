@@ -789,7 +789,6 @@
       <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
       <div class="field-hint">可以同时勾多个；"结束"和"Offered"是两种流程终点，互斥</div>
       <div class="progress-dates-list" id="progressDatesList"></div>
-      <div class="progress-dates-list" id="stageDeadlinesDraftList"></div>
     </div>
     <div class="field">
       <label>截止时间</label>
@@ -803,6 +802,11 @@
       <label>还差什么没填 / 待办清单</label>
       <div id="checklistItems"></div>
       <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
+    </div>
+    <div class="field" id="stageDeadlinesField" style="display:none;">
+      <label>招聘环节提醒</label>
+      <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
+      <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
     </div>
   </div>
   <div class="drawer-foot">
@@ -1080,6 +1084,7 @@ let reviewStageDraft = '';
 let progressDraft = {};
 let progressDatesDraft = {};
 let stageDeadlinesDraft = {};
+let stageDeadlinesSectionOpen = false;
 
 function loadData(){
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -2076,6 +2081,7 @@ function openDrawer(id){
   progressDraft = r ? JSON.parse(JSON.stringify(r.progress||{})) : {};
   progressDatesDraft = r ? JSON.parse(JSON.stringify(r.progressDates||{})) : {};
   stageDeadlinesDraft = r ? JSON.parse(JSON.stringify(r.stageDeadlines||{})) : {};
+  stageDeadlinesSectionOpen = Object.keys(stageDeadlinesDraft).length>0;
   renderProgressCheckboxes();
   updateProgressFieldVisibility();
   checklistDraft = r ? JSON.parse(JSON.stringify(r.checklist||[])) : [];
@@ -2319,34 +2325,50 @@ function renderProgressCheckboxes(){
     });
   }
 
-  // 还没完成的环节，这里可以顺手给它设个提醒截止时间（在"提醒事项"标签页会汇总列出）；
-  // 备注要去"提醒事项"里点开那条提醒单独填，这里只管日期，图个快。
-  const uncheckedStages = PROGRESS_STAGES.filter(s=>!progressDraft[s.key]);
-  const deadlinesList = document.getElementById('stageDeadlinesDraftList');
-  if(uncheckedStages.length===0){
-    deadlinesList.innerHTML = '';
-  } else {
-    deadlinesList.innerHTML = uncheckedStages.map(s=>{
-      const entry = stageDeadlineEntry(stageDeadlinesDraft, s.key);
-      return `
-        <div class="progress-date-row">
-          <span class="progress-date-row-label">${s.label}提醒</span>
-          <input type="date" class="stage-deadline-draft-input" data-key="${s.key}" value="${entry?entry.date:''}">
-        </div>
-      `;
-    }).join('');
-    deadlinesList.querySelectorAll('.stage-deadline-draft-input').forEach(inp=>{
-      inp.addEventListener('change', ()=>{
-        const existing = stageDeadlineEntry(stageDeadlinesDraft, inp.dataset.key);
-        if(inp.value){ stageDeadlinesDraft[inp.dataset.key] = {date: inp.value, note: existing?existing.note:''}; }
-        else { delete stageDeadlinesDraft[inp.dataset.key]; }
-      });
-    });
-  }
+  renderStageDeadlinesDraft();
 }
+// 还没完成的环节，这里可以顺手给它设个提醒截止时间（在"提醒事项"标签页会汇总列出）；
+// 备注要去"提醒事项"里点开那条提醒单独填，这里只管日期，图个快。放在表单最后、默认
+// 折叠——不是每次编辑都要用，摆在前面反而占地方；已经设过提醒的话就自动展开，不藏着。
+function renderStageDeadlinesDraft(){
+  const active = document.querySelector('#statusToggle button.active');
+  const isSubmitted = active && active.dataset.v==='submitted';
+  const uncheckedStages = PROGRESS_STAGES.filter(s=>!progressDraft[s.key]);
+  const field = document.getElementById('stageDeadlinesField');
+  const list = document.getElementById('stageDeadlinesDraftList');
+  const toggleBtn = document.getElementById('stageDeadlinesToggleBtn');
+  if(!isSubmitted || uncheckedStages.length===0){
+    field.style.display = 'none';
+    return;
+  }
+  field.style.display = 'block';
+  toggleBtn.textContent = stageDeadlinesSectionOpen ? '收起环节提醒' : '+ 设置环节提醒';
+  list.style.display = stageDeadlinesSectionOpen ? 'flex' : 'none';
+  list.innerHTML = uncheckedStages.map(s=>{
+    const entry = stageDeadlineEntry(stageDeadlinesDraft, s.key);
+    return `
+      <div class="progress-date-row">
+        <span class="progress-date-row-label">${s.label}提醒</span>
+        <input type="date" class="stage-deadline-draft-input" data-key="${s.key}" value="${entry?entry.date:''}">
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.stage-deadline-draft-input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const existing = stageDeadlineEntry(stageDeadlinesDraft, inp.dataset.key);
+      if(inp.value){ stageDeadlinesDraft[inp.dataset.key] = {date: inp.value, note: existing?existing.note:''}; }
+      else { delete stageDeadlinesDraft[inp.dataset.key]; }
+    });
+  });
+}
+document.getElementById('stageDeadlinesToggleBtn').addEventListener('click', ()=>{
+  stageDeadlinesSectionOpen = !stageDeadlinesSectionOpen;
+  renderStageDeadlinesDraft();
+});
 function updateProgressFieldVisibility(){
   const active = document.querySelector('#statusToggle button.active');
   document.getElementById('progressField').style.display = (active && active.dataset.v==='submitted') ? 'block' : 'none';
+  renderStageDeadlinesDraft();
 }
 document.getElementById('statusToggle').addEventListener('click', e=>{
   const btn = e.target.closest('button');
