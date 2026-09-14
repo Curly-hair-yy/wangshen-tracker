@@ -754,7 +754,6 @@
       <label>公司</label>
       <input type="text" id="f-company" placeholder="例如：中国工商银行" list="companyList">
       <datalist id="companyList"></datalist>
-      <div class="field-hint">同一家公司填多次会自动归到一起，切换看这家公司还申了哪些岗位</div>
     </div>
 
     <div class="other-positions-box" id="otherPositionsBox" style="display:none;">
@@ -766,7 +765,6 @@
       <label id="positionLabel">岗位</label>
       <div id="positionItems"></div>
       <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
-      <div class="field-hint" id="positionHint" style="display:none;">状态、截止时间、网申链接对这里列出的每个岗位统一生效；备注、岗位要求和图片各自独立；待办清单和招聘进度只对最初打开编辑的那个岗位生效，不会动其他岗位自己记的清单/进度</div>
     </div>
     <div class="field">
       <label>状态</label>
@@ -787,7 +785,6 @@
     <div class="field" id="progressField" style="display:none;">
       <label>招聘进度</label>
       <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
-      <div class="field-hint">可以同时勾多个；"结束"和"Offered"是两种流程终点，互斥</div>
       <div class="progress-dates-list" id="progressDatesList"></div>
     </div>
     <div class="field">
@@ -799,12 +796,11 @@
       <input type="url" id="f-link" placeholder="https://…">
     </div>
     <div class="field checklist-editor">
-      <label>还差什么没填 / 待办清单</label>
+      <label>待办清单</label>
       <div id="checklistItems"></div>
       <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
     </div>
     <div class="field" id="stageDeadlinesField" style="display:none;">
-      <label>招聘环节提醒</label>
       <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
       <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
     </div>
@@ -2070,7 +2066,6 @@ function openDrawer(id){
   } else {
     positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false}];
   }
-  document.getElementById('positionLabel').textContent = '岗位（可以添加多个，每个岗位的要求/图片/备注各自单独填）';
   renderPositionEditor();
   document.getElementById('f-deadline').value = r ? (r.deadline||'') : '';
   document.getElementById('f-link').value = r ? sharedLinkValue : '';
@@ -2169,7 +2164,7 @@ function renderPositionEditor(){
             <input type="url" class="position-link-input" data-idx="${idx}" value="${escapeHtml(item.link||'')}" placeholder="这个岗位单独的网申链接（跟公司统一那个不一样时才填）">
             <button class="add-item-btn position-link-remove" type="button" data-idx="${idx}">不用了</button>
           </div>
-        ` : `<button class="add-item-btn position-link-add" type="button" data-idx="${idx}">+ 添加链接（跟公司统一那个不一样时才用）</button>`}
+        ` : `<button class="add-item-btn position-link-add" type="button" data-idx="${idx}">+ 添加链接</button>`}
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
           <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
@@ -2265,7 +2260,6 @@ function renderPositionEditor(){
       });
     });
   });
-  document.getElementById('positionHint').style.display = positionDraft.length>1 ? 'block' : 'none';
 }
 document.getElementById('addPositionBtn').addEventListener('click', ()=>{
   positionDraft.push({name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false});
