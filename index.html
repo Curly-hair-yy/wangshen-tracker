@@ -277,7 +277,7 @@
   .field label{
     display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;
   }
-  .field input[type=text],.field input[type=date],.field input[type=url],.field textarea,.field select{
+  .field input[type=text],.field input[type=date],.field input[type="datetime-local"],.field input[type=url],.field textarea,.field select{
     width:100%;
     padding:9px 10px;
     border:1px solid var(--line);
@@ -927,8 +927,8 @@
       <select id="reminderStageSelect"></select>
     </div>
     <div class="field">
-      <label>提醒截止日期</label>
-      <input type="date" id="reminderDateInput">
+      <label>提醒截止时间</label>
+      <input type="datetime-local" id="reminderDateInput">
     </div>
     <div class="field">
       <label>备注（选填）</label>
@@ -1035,6 +1035,27 @@ function shortDateLabel(dateStr){
   if(parts.length<3) return dateStr;
   return `${Number(parts[1])}/${Number(parts[2])}`;
 }
+// 提醒时间精确到分钟，存的是 datetime-local 格式 "YYYY-MM-DDTHH:mm"；老数据可能只有
+// "YYYY-MM-DD"（没有时间），这几个 helper 统一处理这两种格式，不用每处都自己判断。
+function shortDateTimeLabel(dateTimeStr){
+  if(!dateTimeStr) return '';
+  const [datePart, timePart] = dateTimeStr.split('T');
+  const short = shortDateLabel(datePart);
+  return timePart ? `${short} ${timePart}` : short;
+}
+function fmtDeadlineDateTime(dateTimeStr){
+  if(!dateTimeStr) return '';
+  const [datePart, timePart] = dateTimeStr.split('T');
+  return timePart ? `${fmtDate(datePart)} ${timePart}` : fmtDate(datePart);
+}
+function isOverdue(dateTimeStr){
+  if(!dateTimeStr) return false;
+  if(dateTimeStr.includes('T')) return new Date(dateTimeStr) < new Date();
+  return dateTimeStr < todayDateStr();
+}
+function minutesUntil(dateTimeStr){
+  return Math.round((new Date(dateTimeStr) - new Date())/60000);
+}
 // stageDeadlines[key] 存的是 {date, note}（老数据可能还是纯字符串日期，兼容一下）。
 // 用这两个 helper 统一读写，不用每处都自己判断格式。
 function stageDeadlineEntry(stageDeadlines, key){
@@ -1057,8 +1078,8 @@ function progressLabelText(key, progress, dates, stageDeadlines){
   if(progress[key] && dates[key]) return `${label}(${shortDateLabel(dates[key])})`;
   const entry = stageDeadlineEntry(stageDeadlines, key);
   if(!progress[key] && entry && entry.date){
-    const overdue = entry.date < todayDateStr();
-    return `${label}<span class="stage-date-${overdue?'overdue':'pending'}">(${shortDateLabel(entry.date)})</span>`;
+    const overdue = isOverdue(entry.date);
+    return `${label}<span class="stage-date-${overdue?'overdue':'pending'}">(${shortDateTimeLabel(entry.date)})</span>`;
   }
   return label;
 }
@@ -1485,7 +1506,7 @@ function renderSubmittedList(){
         <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
           <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
           <span class="stage-label" data-id="${p.id}" data-key="${s.key}">${progressLabelText(s.key, progress, dates, deadlines)}</span>
-          <input type="date" class="stage-deadline-input" data-id="${p.id}" data-key="${s.key}" value="${(stageDeadlineEntry(deadlines, s.key)||{}).date||''}" tabindex="-1">
+          <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${s.key}" value="${(stageDeadlineEntry(deadlines, s.key)||{}).date||''}" tabindex="-1">
         </label>
       `).join('');
       return `
@@ -1816,6 +1837,23 @@ function getActiveReminders(){
   });
   return items;
 }
+// 提醒截止时间精确到分钟——离得远的还是按天算大概齐就行，但今天以内的要显示还剩
+// 几小时/几分钟，不然明明只剩 20 分钟了却只写"今天截止"，看不出紧不紧急。
+function reminderCountdownText(dateTimeStr){
+  const hasTime = dateTimeStr.includes('T');
+  const datePart = hasTime ? dateTimeStr.split('T')[0] : dateTimeStr;
+  const d = daysUntil(datePart);
+  if(d>0) return `${d}天后截止`;
+  if(d<0) return `已逾期 ${Math.abs(d)} 天`;
+  if(!hasTime) return '今天截止';
+  const mins = minutesUntil(dateTimeStr);
+  if(mins<0){
+    const absMin = Math.abs(mins);
+    return absMin<60 ? `已逾期 ${absMin} 分钟` : `已逾期 ${Math.floor(absMin/60)} 小时`;
+  }
+  if(mins<60) return `${mins}分钟后截止`;
+  return `${Math.floor(mins/60)}小时${mins%60}分钟后截止`;
+}
 function renderRemindersTabCount(){
   const n = getActiveReminders().filter(i=>!i.done).length;
   document.getElementById('remindersTabCount').textContent = n>0 ? `(${n})` : '';
@@ -1828,7 +1866,6 @@ function renderRemindersList(){
     list.innerHTML = `<div class="empty-hint">暂无提醒事项</div>`;
     return;
   }
-  const today = todayDateStr();
   list.innerHTML = items.map(item=>{
     const company = getCompany(item.position.companyId);
     const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
@@ -1849,12 +1886,8 @@ function renderRemindersList(){
         </div>
       `;
     }
-    const overdue = item.date < today;
-    const d = daysUntil(item.date);
-    let dateText;
-    if(overdue) dateText = `已逾期 ${Math.abs(d)} 天`;
-    else if(d===0) dateText = '今天截止';
-    else dateText = `${d}天后截止`;
+    const overdue = isOverdue(item.date);
+    const dateText = reminderCountdownText(item.date);
     return `
       <div class="reminder-row${overdue?' overdue':''}" data-id="${item.position.id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
         <div class="reminder-main">
@@ -1864,7 +1897,7 @@ function renderRemindersList(){
           ${noteHtml}
         </div>
         <div class="reminder-meta">
-          <span class="deadline-badge ${overdue?'danger':'warn'}">${fmtDate(item.date)} · ${dateText}</span>
+          <span class="deadline-badge ${overdue?'danger':'warn'}">${fmtDeadlineDateTime(item.date)} · ${dateText}</span>
           <button class="reminder-done-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}">✓ 标记完成</button>
           <button class="reminder-clear-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成">×</button>
         </div>
@@ -2402,7 +2435,7 @@ function renderStageDeadlinesDraft(){
     return `
       <div class="progress-date-row">
         <span class="progress-date-row-label">${s.label}提醒</span>
-        <input type="date" class="stage-deadline-draft-input" data-key="${s.key}" value="${entry?entry.date:''}">
+        <input type="datetime-local" class="stage-deadline-draft-input" data-key="${s.key}" value="${entry?entry.date:''}">
       </div>
     `;
   }).join('');
