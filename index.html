@@ -555,12 +555,13 @@
   .reminder-row.done .reminder-stage{background:var(--line);color:var(--ink-soft);}
   .reminder-done-label{font-size:12px;color:var(--ink-soft);}
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-  .reminder-done-btn,.reminder-clear-btn{
+  .reminder-done-btn,.reminder-clear-btn,.reminder-undo-btn{
     border:1px solid var(--line);background:var(--surface);border-radius:4px;
     font-size:12px;padding:4px 9px;cursor:pointer;color:var(--ink-soft);
   }
   .reminder-done-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
   .reminder-clear-btn:hover{background:var(--danger);border-color:var(--danger);color:#fff;}
+  .reminder-undo-btn:hover{background:var(--warn);border-color:var(--warn);color:#fff;}
   #submittedList .card{background:#FFFFFF;cursor:default;padding-left:28px;}
   .drag-handle{
     position:absolute;left:6px;top:50%;transform:translateY(-50%);
@@ -1842,6 +1843,7 @@ function renderRemindersList(){
           </div>
           <div class="reminder-meta">
             <span class="reminder-done-label">已完成${item.doneDate ? ' · '+fmtDate(item.doneDate) : ''}</span>
+            <button class="reminder-undo-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}">撤销完成</button>
             <button class="reminder-clear-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}" title="清掉这条提醒记录">×</button>
           </div>
         </div>
@@ -1871,7 +1873,7 @@ function renderRemindersList(){
   }).join('');
   list.querySelectorAll('.reminder-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.reminder-done-btn, .reminder-clear-btn')) return;
+      if(e.target.closest('.reminder-done-btn, .reminder-clear-btn, .reminder-undo-btn')) return;
       openReminderDrawerForEdit(row.dataset.id, row.dataset.key);
     });
   });
@@ -1882,6 +1884,20 @@ function renderRemindersList(){
       if(!pos.progress) pos.progress = {};
       if(!pos.progressDates) pos.progressDates = {};
       setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, true);
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+      renderAll();
+    });
+  });
+  list.querySelectorAll('.reminder-undo-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const pos = positions.find(x=>x.id===btn.dataset.id);
+      if(!pos) return;
+      if(!pos.progress) pos.progress = {};
+      if(!pos.progressDates) pos.progressDates = {};
+      setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, false);
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
