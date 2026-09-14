@@ -510,6 +510,11 @@
   .stage-label:hover{text-decoration:underline dotted;}
   .stage-date-pending{color:var(--warn);font-weight:600;}
   .stage-date-overdue{color:var(--danger);font-weight:700;}
+  .company-stage-reminders{display:flex;flex-wrap:wrap;gap:8px 12px;font-size:12px;margin:2px 0 8px 0;}
+  .company-stage-reminder{cursor:pointer;}
+  .company-stage-reminder:hover{text-decoration:underline dotted;}
+  .company-stage-reminder.stage-date-pending{color:var(--warn);}
+  .company-stage-reminder.stage-date-overdue{color:var(--danger);}
   .stage-deadline-input{
     position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
     opacity:0;pointer-events:none;border:0;
@@ -543,6 +548,7 @@
   .reminder-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;}
   .reminder-company{font-weight:600;font-size:14px;}
   .reminder-position{font-size:13px;color:var(--ink-soft);}
+  .reminder-company-wide{font-style:italic;}
   .reminder-stage{
     font-size:12px;padding:2px 8px;border-radius:10px;
     background:var(--primary-soft);color:var(--primary);
@@ -1069,6 +1075,27 @@ function setStageDeadline(pos, key, date, note){
   if(!date){ delete pos.stageDeadlines[key]; return; }
   pos.stageDeadlines[key] = {date, note: note||''};
 }
+// 公司级提醒：有些环节（比如测评）是整个公司通用的，投的好几个岗位共用同一个链接/
+// 同一场面试，不用挂在某一个具体岗位上。跟岗位级提醒的区别是这里没有 progress 可以
+// 借用来判断"完成没完成"，所以 done/doneDate 直接存在这条记录自己身上。
+function companyStageDeadlineEntry(company, key){
+  const v = company && company.stageDeadlines && company.stageDeadlines[key];
+  if(!v) return null;
+  if(typeof v === 'string') return {date: v, note:'', done:false, doneDate:''};
+  return {date: v.date||'', note: v.note||'', done: !!v.done, doneDate: v.doneDate||''};
+}
+function setCompanyStageDeadline(company, key, date, note){
+  if(!company.stageDeadlines) company.stageDeadlines = {};
+  if(!date){ delete company.stageDeadlines[key]; return; }
+  const existing = companyStageDeadlineEntry(company, key);
+  company.stageDeadlines[key] = {date, note: note||'', done: existing?existing.done:false, doneDate: existing?existing.doneDate:''};
+}
+function setCompanyStageDone(company, key, done){
+  if(!company.stageDeadlines) return;
+  const existing = companyStageDeadlineEntry(company, key);
+  if(!existing) return;
+  company.stageDeadlines[key] = {date: existing.date, note: existing.note, done, doneDate: done ? todayDateStr() : ''};
+}
 // stageDeadlines 是"这个环节的提醒截止时间"，跟 dates（真正完成的时间）是两码事——
 // 已经打勾完成的，看 dates，颜色跟原来一样（靠 .checked 的样式）；没完成但设了提醒
 // 时间的，括号里显示提醒时间，颜色用醒目的橙色/红色（过期变红）跟完成时间区分开。
@@ -1496,6 +1523,13 @@ function renderSubmittedList(){
     const dateLabel = dayLabel(dateKeyOfGroup(g));
     const seqNum = companySeqMap.get(g.companyId);
     const defaultLink = companyLevelLink(g.list);
+    // 公司级提醒（比如整个公司统一测评）不挂在具体岗位上，已经完成的就不用再占地方显示了。
+    const companyReminderHtml = company ? PROGRESS_STAGES.map(s=>{
+      const entry = companyStageDeadlineEntry(company, s.key);
+      if(!entry || !entry.date || entry.done) return '';
+      const overdue = isOverdue(entry.date);
+      return `<span class="company-stage-reminder stage-date-${overdue?'overdue':'pending'}" data-company-id="${company.id}" data-key="${s.key}">${s.label}(${shortDateTimeLabel(entry.date)})</span>`;
+    }).join('') : '';
     const positionLines = g.list.map(p=>{
       const ownLink = normalizeLink(p.link);
       const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
@@ -1538,6 +1572,7 @@ function renderSubmittedList(){
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
           </span>
         </div>
+        ${companyReminderHtml ? `<div class="company-stage-reminders">${companyReminderHtml}</div>` : ''}
         <div class="position-list">${positionLines}</div>
         ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
       </div>
@@ -1673,6 +1708,14 @@ function renderSubmittedList(){
       } else {
         input.focus();
       }
+    });
+  });
+  // 公司级提醒直接点开完整的编辑提醒弹窗（能顺带改备注），不用像岗位级那样在卡片上
+  // 现挂一个隐藏的日期框。
+  list.querySelectorAll('.company-stage-reminder').forEach(span=>{
+    span.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openReminderDrawerForEdit('company', span.dataset.companyId, span.dataset.key);
     });
   });
   list.querySelectorAll('.stage-deadline-input').forEach(inp=>{
@@ -1827,7 +1870,17 @@ function getActiveReminders(){
     PROGRESS_STAGES.forEach(s=>{
       const entry = stageDeadlineEntry(deadlines, s.key);
       if(entry && entry.date){
-        items.push({position:p, stage:s, date:entry.date, note:entry.note, done:!!progress[s.key], doneDate: dates[s.key]||''});
+        items.push({scope:'position', position:p, stage:s, date:entry.date, note:entry.note, done:!!progress[s.key], doneDate: dates[s.key]||''});
+      }
+    });
+  });
+  // 公司级提醒：不挂在具体某个岗位上，同一家公司投的所有岗位共用（比如统一测评/统一
+  // 群面），只要这家公司名下还有已提交的岗位就检查。
+  submittedCompanies().forEach(c=>{
+    PROGRESS_STAGES.forEach(s=>{
+      const entry = companyStageDeadlineEntry(c, s.key);
+      if(entry && entry.date){
+        items.push({scope:'company', company:c, stage:s, date:entry.date, note:entry.note, done:entry.done, doneDate:entry.doneDate});
       }
     });
   });
@@ -1867,21 +1920,26 @@ function renderRemindersList(){
     return;
   }
   list.innerHTML = items.map(item=>{
-    const company = getCompany(item.position.companyId);
+    const isCompanyScope = item.scope==='company';
+    const company = isCompanyScope ? item.company : getCompany(item.position.companyId);
+    const id = isCompanyScope ? item.company.id : item.position.id;
+    const positionHtml = isCompanyScope
+      ? `<span class="reminder-position reminder-company-wide">全部岗位通用</span>`
+      : `<span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>`;
     const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
     if(item.done){
       return `
-        <div class="reminder-row done" data-id="${item.position.id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
+        <div class="reminder-row done" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
           <div class="reminder-main">
             <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-            <span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>
+            ${positionHtml}
             <span class="reminder-stage">${item.stage.label}</span>
             ${noteHtml}
           </div>
           <div class="reminder-meta">
             <span class="reminder-done-label">已完成${item.doneDate ? ' · '+fmtDate(item.doneDate) : ''}</span>
-            <button class="reminder-undo-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}">撤销完成</button>
-            <button class="reminder-clear-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}" title="清掉这条提醒记录">×</button>
+            <button class="reminder-undo-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}">撤销完成</button>
+            <button class="reminder-clear-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="清掉这条提醒记录">×</button>
           </div>
         </div>
       `;
@@ -1889,17 +1947,17 @@ function renderRemindersList(){
     const overdue = isOverdue(item.date);
     const dateText = reminderCountdownText(item.date);
     return `
-      <div class="reminder-row${overdue?' overdue':''}" data-id="${item.position.id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
+      <div class="reminder-row${overdue?' overdue':''}" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
         <div class="reminder-main">
           <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-          <span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>
+          ${positionHtml}
           <span class="reminder-stage">${item.stage.label}</span>
           ${noteHtml}
         </div>
         <div class="reminder-meta">
           <span class="deadline-badge ${overdue?'danger':'warn'}">${fmtDeadlineDateTime(item.date)} · ${dateText}</span>
-          <button class="reminder-done-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}">✓ 标记完成</button>
-          <button class="reminder-clear-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成">×</button>
+          <button class="reminder-done-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}">✓ 标记完成</button>
+          <button class="reminder-clear-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成">×</button>
         </div>
       </div>
     `;
@@ -1907,11 +1965,22 @@ function renderRemindersList(){
   list.querySelectorAll('.reminder-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
       if(e.target.closest('.reminder-done-btn, .reminder-clear-btn, .reminder-undo-btn')) return;
-      openReminderDrawerForEdit(row.dataset.id, row.dataset.key);
+      openReminderDrawerForEdit(row.dataset.scope, row.dataset.id, row.dataset.key);
     });
   });
   list.querySelectorAll('.reminder-done-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(btn.dataset.scope==='company'){
+        const c = getCompany(btn.dataset.id);
+        if(!c) return;
+        setCompanyStageDone(c, btn.dataset.key, true);
+        c.updatedAt = new Date().toISOString();
+        saveData();
+        queueUpsert('companies', c.id);
+        flushQueue();
+        renderAll();
+        return;
+      }
       const pos = positions.find(x=>x.id===btn.dataset.id);
       if(!pos) return;
       if(!pos.progress) pos.progress = {};
@@ -1926,6 +1995,17 @@ function renderRemindersList(){
   });
   list.querySelectorAll('.reminder-undo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(btn.dataset.scope==='company'){
+        const c = getCompany(btn.dataset.id);
+        if(!c) return;
+        setCompanyStageDone(c, btn.dataset.key, false);
+        c.updatedAt = new Date().toISOString();
+        saveData();
+        queueUpsert('companies', c.id);
+        flushQueue();
+        renderAll();
+        return;
+      }
       const pos = positions.find(x=>x.id===btn.dataset.id);
       if(!pos) return;
       if(!pos.progress) pos.progress = {};
@@ -1940,6 +2020,17 @@ function renderRemindersList(){
   });
   list.querySelectorAll('.reminder-clear-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(btn.dataset.scope==='company'){
+        const c = getCompany(btn.dataset.id);
+        if(!c || !c.stageDeadlines) return;
+        delete c.stageDeadlines[btn.dataset.key];
+        c.updatedAt = new Date().toISOString();
+        saveData();
+        queueUpsert('companies', c.id);
+        flushQueue();
+        renderAll();
+        return;
+      }
       const pos = positions.find(x=>x.id===btn.dataset.id);
       if(!pos || !pos.stageDeadlines) return;
       delete pos.stageDeadlines[btn.dataset.key];
@@ -1996,16 +2087,35 @@ function reminderRefreshPositions(){
     return;
   }
   reminderPositionSelect.disabled = false;
+  // 有些环节（比如测评）是整个公司通用的，同一家公司投的所有岗位共用一个链接/一场
+  // 面试，不用非得挂在某一个具体岗位上——所以岗位下拉最前面留一个"不选"的选项。
   const list = positions.filter(p=>!p.deleted && p.status==='submitted' && p.companyId===companyId);
-  reminderPositionSelect.innerHTML = list.map(p=>`<option value="${p.id}">${escapeHtml(p.position||'（未命名岗位）')}</option>`).join('');
+  const positionOptions = list.map(p=>`<option value="${p.id}">${escapeHtml(p.position||'（未命名岗位）')}</option>`).join('');
+  reminderPositionSelect.innerHTML = `<option value="">不选具体岗位（整个公司通用）</option>${positionOptions}`;
   reminderRefreshStages();
 }
 function reminderRefreshStages(){
+  const isCompanyWide = reminderPositionSelect.value==='';
+  if(isCompanyWide){
+    const companyId = reminderResolveCompanyId();
+    const c = companyId ? getCompany(companyId) : null;
+    const keepKey = (reminderEditTarget && reminderEditTarget.scope==='company' && c && reminderEditTarget.companyId===c.id) ? reminderEditTarget.stageKey : null;
+    const stages = PROGRESS_STAGES.filter(s=>{
+      const entry = c ? companyStageDeadlineEntry(c, s.key) : null;
+      return !(entry && entry.done) || s.key===keepKey;
+    });
+    reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
+    const noStages = !c || stages.length===0;
+    reminderStageSelect.disabled = noStages;
+    reminderDateInput.disabled = noStages;
+    reminderSaveBtn.disabled = noStages;
+    return;
+  }
   const pos = positions.find(p=>p.id===reminderPositionSelect.value);
   const progress = pos ? (pos.progress||{}) : {};
   // 编辑一条"环节已经完成"的老提醒时，那个环节本来就该留在选项里（不然选不中它自己），
   // 只是不能拿它去挑别的已经完成的环节——所以只保留正在编辑的这一条自己的 key。
-  const keepKey = (reminderEditTarget && pos && reminderEditTarget.positionId===pos.id) ? reminderEditTarget.stageKey : null;
+  const keepKey = (reminderEditTarget && reminderEditTarget.scope==='position' && pos && reminderEditTarget.positionId===pos.id) ? reminderEditTarget.stageKey : null;
   const stages = PROGRESS_STAGES.filter(s=>!progress[s.key] || s.key===keepKey);
   reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   const noStages = !pos || stages.length===0;
@@ -2035,22 +2145,24 @@ function openReminderDrawerForAdd(){
   reminderOverlay.classList.add('active');
   reminderDrawer.classList.add('active');
 }
-function openReminderDrawerForEdit(positionId, stageKey){
-  const pos = positions.find(p=>p.id===positionId);
-  if(!pos) return;
-  const company = getCompany(pos.companyId);
-  const entry = stageDeadlineEntry(pos.stageDeadlines||{}, stageKey) || {date:'', note:''};
+function openReminderDrawerForEdit(scope, id, stageKey){
+  const company = scope==='company' ? getCompany(id) : getCompany(positions.find(p=>p.id===id)?.companyId);
+  if(!company) return;
+  if(scope==='position' && !positions.find(p=>p.id===id)) return;
+  const entry = scope==='company'
+    ? (companyStageDeadlineEntry(company, stageKey) || {date:'', note:''})
+    : (stageDeadlineEntry(positions.find(p=>p.id===id).stageDeadlines||{}, stageKey) || {date:'', note:''});
   // 记住"这条提醒原来在哪"，保存时如果公司/岗位/环节被改成别的，就把原来那个位置上
   // 的提醒删掉，相当于把这条提醒搬过去，而不是两边各留一份。
-  reminderEditTarget = {positionId, stageKey};
+  reminderEditTarget = scope==='company' ? {scope:'company', companyId:id, stageKey} : {scope:'position', positionId:id, stageKey};
   document.getElementById('reminderDrawerTitle').textContent = '编辑提醒';
   reminderDeleteBtn.style.display = '';
   reminderEmptyHint.style.display = 'none';
   populateReminderCompanyList();
-  reminderCompanyInput.value = company ? company.name : '';
+  reminderCompanyInput.value = company.name;
   reminderCompanyInput.disabled = false;
   reminderRefreshPositions();
-  reminderPositionSelect.value = positionId;
+  reminderPositionSelect.value = scope==='company' ? '' : id;
   reminderRefreshStages();
   reminderStageSelect.value = stageKey;
   reminderDateInput.value = entry.date;
@@ -2071,13 +2183,24 @@ reminderCompanyInput.addEventListener('input', reminderRefreshPositions);
 reminderPositionSelect.addEventListener('change', reminderRefreshStages);
 reminderDeleteBtn.addEventListener('click', ()=>{
   if(!reminderEditTarget) return;
-  const pos = positions.find(p=>p.id===reminderEditTarget.positionId);
-  if(pos && pos.stageDeadlines){
-    delete pos.stageDeadlines[reminderEditTarget.stageKey];
-    pos.updatedAt = new Date().toISOString();
-    saveData();
-    queueUpsert('positions', pos.id);
-    flushQueue();
+  if(reminderEditTarget.scope==='company'){
+    const c = getCompany(reminderEditTarget.companyId);
+    if(c && c.stageDeadlines){
+      delete c.stageDeadlines[reminderEditTarget.stageKey];
+      c.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('companies', c.id);
+      flushQueue();
+    }
+  } else {
+    const pos = positions.find(p=>p.id===reminderEditTarget.positionId);
+    if(pos && pos.stageDeadlines){
+      delete pos.stageDeadlines[reminderEditTarget.stageKey];
+      pos.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert('positions', pos.id);
+      flushQueue();
+    }
   }
   closeReminderDrawer();
   renderAll();
@@ -2085,29 +2208,58 @@ reminderDeleteBtn.addEventListener('click', ()=>{
 reminderSaveBtn.addEventListener('click', ()=>{
   const date = reminderDateInput.value;
   const note = reminderNoteInput.value.trim();
-  const pos = positions.find(p=>p.id===reminderPositionSelect.value);
   const key = reminderStageSelect.value;
-  if(!pos || !key || !date){ alert('请把公司、岗位、环节、日期都选好'); return; }
-  // 编辑时公司/岗位/环节都能改；如果改成了跟原来不一样的位置，就把原来那个位置上的
-  // 提醒删掉，相当于把这条提醒搬过去，不会两边各留一份。
+  const isCompanyWide = reminderPositionSelect.value==='';
+  const companyId = reminderResolveCompanyId();
+  if(!companyId || !key || !date){ alert('请把公司、环节、日期都选好'); return; }
+  if(!isCompanyWide && !reminderPositionSelect.value){ alert('请把公司、岗位、环节、日期都选好'); return; }
+
+  const newTarget = isCompanyWide
+    ? {scope:'company', companyId, stageKey:key}
+    : {scope:'position', positionId:reminderPositionSelect.value, stageKey:key};
+
+  // 编辑时公司/岗位（或"整个公司通用"）/环节都能改；如果归属变了，就把原来那个位置
+  // 上的提醒删掉，相当于把这条提醒搬过去，不会两边各留一份。
   if(reminderEditTarget){
-    const {positionId: oldPositionId, stageKey: oldStageKey} = reminderEditTarget;
-    if(oldPositionId!==pos.id || oldStageKey!==key){
-      const oldPos = positions.find(p=>p.id===oldPositionId);
-      if(oldPos && oldPos.stageDeadlines){
-        delete oldPos.stageDeadlines[oldStageKey];
-        oldPos.updatedAt = new Date().toISOString();
-        saveData();
-        queueUpsert('positions', oldPos.id);
-        flushQueue();
+    const same = reminderEditTarget.scope===newTarget.scope
+      && reminderEditTarget.stageKey===newTarget.stageKey
+      && (reminderEditTarget.scope==='company' ? reminderEditTarget.companyId===newTarget.companyId : reminderEditTarget.positionId===newTarget.positionId);
+    if(!same){
+      if(reminderEditTarget.scope==='company'){
+        const oldC = getCompany(reminderEditTarget.companyId);
+        if(oldC && oldC.stageDeadlines){
+          delete oldC.stageDeadlines[reminderEditTarget.stageKey];
+          oldC.updatedAt = new Date().toISOString();
+          saveData(); queueUpsert('companies', oldC.id); flushQueue();
+        }
+      } else {
+        const oldPos = positions.find(p=>p.id===reminderEditTarget.positionId);
+        if(oldPos && oldPos.stageDeadlines){
+          delete oldPos.stageDeadlines[reminderEditTarget.stageKey];
+          oldPos.updatedAt = new Date().toISOString();
+          saveData(); queueUpsert('positions', oldPos.id); flushQueue();
+        }
       }
     }
   }
-  setStageDeadline(pos, key, date, note);
-  pos.updatedAt = new Date().toISOString();
-  saveData();
-  queueUpsert('positions', pos.id);
-  flushQueue();
+
+  if(isCompanyWide){
+    const c = getCompany(companyId);
+    if(!c) return;
+    setCompanyStageDeadline(c, key, date, note);
+    c.updatedAt = new Date().toISOString();
+    saveData();
+    queueUpsert('companies', c.id);
+    flushQueue();
+  } else {
+    const pos = positions.find(p=>p.id===reminderPositionSelect.value);
+    if(!pos) return;
+    setStageDeadline(pos, key, date, note);
+    pos.updatedAt = new Date().toISOString();
+    saveData();
+    queueUpsert('positions', pos.id);
+    flushQueue();
+  }
   closeReminderDrawer();
   renderAll();
 });
@@ -3057,6 +3209,7 @@ function companyToRemote(c){
     id:c.id, sync_id:syncId, name:c.name, created_at:c.createdAt, updated_at:c.updatedAt||c.createdAt,
     deleted:!!c.deleted, deleted_at:c.deletedAt||null, favorite:!!c.favorite,
     sort_index:(c.sortIndex===undefined?null:c.sortIndex), date_override:c.dateOverride||null,
+    stage_deadlines:c.stageDeadlines||{},
   };
 }
 function companyFromRemote(row){
@@ -3064,6 +3217,7 @@ function companyFromRemote(row){
     id:row.id, name:row.name, createdAt:row.created_at, updatedAt:row.updated_at,
     deleted:!!row.deleted, deletedAt:row.deleted_at||null, favorite:!!row.favorite,
     sortIndex:(row.sort_index===undefined?null:row.sort_index), dateOverride:row.date_override||null,
+    stageDeadlines:row.stage_deadlines||{},
   };
 }
 function positionToRemote(p){
