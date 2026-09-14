@@ -551,6 +551,9 @@
     flex-basis:100%;font-size:12px;color:var(--ink-soft);
     font-family:"Kaiti SC","STKaiti","KaiTi",serif;
   }
+  .reminder-row.done{opacity:.55;}
+  .reminder-row.done .reminder-stage{background:var(--line);color:var(--ink-soft);}
+  .reminder-done-label{font-size:12px;color:var(--ink-soft);}
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;}
   .reminder-done-btn,.reminder-clear-btn{
     border:1px solid var(--line);background:var(--surface);border-radius:4px;
@@ -1791,21 +1794,29 @@ function renderCompanyDatalist(){
 /* ---- 提醒事项：汇总所有"已提交岗位、环节还没完成、但设了提醒截止时间"的记录 ---- */
 // 只看已提交状态的岗位——测评/群面/AI面这些招聘环节本来就只在已提交之后才有意义。
 // 已经打勾完成的环节不再算提醒（完成时间会直接显示在卡片上，不需要再提醒）。
+// 已经标记完成的提醒不再从列表里消失——保留在这里、排到最后、变灰显示，只是不再算
+// "还需要处理"的提醒了（标签页上的数字只统计没完成的）。
 function getActiveReminders(){
   const items = [];
   positions.filter(p=>!p.deleted && p.status==='submitted').forEach(p=>{
     const progress = p.progress || {};
+    const dates = p.progressDates || {};
     const deadlines = p.stageDeadlines || {};
     PROGRESS_STAGES.forEach(s=>{
       const entry = stageDeadlineEntry(deadlines, s.key);
-      if(entry && entry.date && !progress[s.key]) items.push({position:p, stage:s, date:entry.date, note:entry.note});
+      if(entry && entry.date){
+        items.push({position:p, stage:s, date:entry.date, note:entry.note, done:!!progress[s.key], doneDate: dates[s.key]||''});
+      }
     });
   });
-  items.sort((a,b)=> a.date<b.date ? -1 : a.date>b.date ? 1 : 0);
+  items.sort((a,b)=>{
+    if(a.done!==b.done) return a.done ? 1 : -1;
+    return a.date<b.date ? -1 : a.date>b.date ? 1 : 0;
+  });
   return items;
 }
 function renderRemindersTabCount(){
-  const n = getActiveReminders().length;
+  const n = getActiveReminders().filter(i=>!i.done).length;
   document.getElementById('remindersTabCount').textContent = n>0 ? `(${n})` : '';
 }
 function renderRemindersList(){
@@ -1819,6 +1830,23 @@ function renderRemindersList(){
   const today = todayDateStr();
   list.innerHTML = items.map(item=>{
     const company = getCompany(item.position.companyId);
+    const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
+    if(item.done){
+      return `
+        <div class="reminder-row done" data-id="${item.position.id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
+          <div class="reminder-main">
+            <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+            <span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>
+            <span class="reminder-stage">${item.stage.label}</span>
+            ${noteHtml}
+          </div>
+          <div class="reminder-meta">
+            <span class="reminder-done-label">已完成${item.doneDate ? ' · '+fmtDate(item.doneDate) : ''}</span>
+            <button class="reminder-clear-btn" type="button" data-id="${item.position.id}" data-key="${item.stage.key}" title="清掉这条提醒记录">×</button>
+          </div>
+        </div>
+      `;
+    }
     const overdue = item.date < today;
     const d = daysUntil(item.date);
     let dateText;
@@ -1831,7 +1859,7 @@ function renderRemindersList(){
           <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
           <span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>
           <span class="reminder-stage">${item.stage.label}</span>
-          ${item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : ''}
+          ${noteHtml}
         </div>
         <div class="reminder-meta">
           <span class="deadline-badge ${overdue?'danger':'warn'}">${fmtDate(item.date)} · ${dateText}</span>
@@ -1926,7 +1954,10 @@ function reminderRefreshPositions(){
 function reminderRefreshStages(){
   const pos = positions.find(p=>p.id===reminderPositionSelect.value);
   const progress = pos ? (pos.progress||{}) : {};
-  const stages = PROGRESS_STAGES.filter(s=>!progress[s.key]);
+  // 编辑一条"环节已经完成"的老提醒时，那个环节本来就该留在选项里（不然选不中它自己），
+  // 只是不能拿它去挑别的已经完成的环节——所以只保留正在编辑的这一条自己的 key。
+  const keepKey = (reminderEditTarget && pos && reminderEditTarget.positionId===pos.id) ? reminderEditTarget.stageKey : null;
+  const stages = PROGRESS_STAGES.filter(s=>!progress[s.key] || s.key===keepKey);
   reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
   const noStages = !pos || stages.length===0;
   reminderStageSelect.disabled = noStages;
