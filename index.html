@@ -1086,7 +1086,9 @@ function shortDateTimeLabel(dateTimeStr){
 function fmtDeadlineDateTime(dateTimeStr){
   if(!dateTimeStr) return '';
   const [datePart, timePart] = dateTimeStr.split('T');
-  return timePart ? `${fmtDate(datePart)} ${timePart}` : fmtDate(datePart);
+  const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+  const weekday = weekdays[new Date(datePart+'T00:00:00').getDay()];
+  return timePart ? `${fmtDate(datePart)} ${weekday} ${timePart}` : `${fmtDate(datePart)} ${weekday}`;
 }
 function isOverdue(dateTimeStr){
   if(!dateTimeStr) return false;
