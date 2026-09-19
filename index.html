@@ -148,26 +148,23 @@
   .stats{
     display:grid;
     grid-template-columns:repeat(4,1fr);
-    gap:0;
+    gap:16px;
     margin-bottom:24px;
+  }
+  .stat-card{
+    padding:25px 28px;
     background:var(--glass);
     border:1px solid var(--glass-border);
     border-radius:var(--radius-panel);
     box-shadow:var(--shadow);
     backdrop-filter:blur(22px);
     -webkit-backdrop-filter:blur(22px);
-    overflow:hidden;
   }
-  .stat-card{
-    padding:25px 28px;
-    border-left:1px solid var(--line);
-  }
-  .stat-card:first-child{border-left:none;}
   .stat-card .num{display:block;font-size:34px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--ink);margin-bottom:10px;}
   .stat-card .label{font-size:14px;color:#506984;font-weight:850;}
   .stat-card.warn .num{color:var(--orange-ink);}
+  .stat-card.blue .num{color:var(--blue);}
   .stat-card.danger .num{color:var(--red-ink);}
-  .stat-card.danger.zero .num{color:var(--text-3);}
 
   .toolbar{
     display:flex;
@@ -255,7 +252,6 @@
   @media(max-width:860px){
     .board{grid-template-columns:1fr;}
     .stats{grid-template-columns:repeat(2,1fr);}
-    .stat-card:nth-child(2){border-left:none;}
   }
   /* 分段控件（标签页）+ 右侧汇总行，一行放下，两端对齐（参考稿 .nav-row）。
      滑块位置由 JS 量出当前项的 offsetLeft/offsetWidth 后写到 .view-tab-slider
@@ -676,11 +672,7 @@
   }
 
   .day-group{margin-bottom:4px;}
-  /* 吸顶时背景要跟它实际所在的容器保持一致，不然悬浮起来的时候会露出一块颜色
-     对不上的方块（看板页的列是 --surface-2 浅灰底；已提交进度页那边直接铺在
-     页面底色 --bg 上）。用一个可以被外层覆盖的变量，而不是哪个用得多就写死哪个。 */
   .day-group-label{
-    --group-label-bg:var(--bg);
     font-size:12px;
     font-weight:500;
     letter-spacing:.02em;
@@ -689,10 +681,9 @@
     margin-bottom:2px;
     position:sticky;
     top:0;
-    background:var(--group-label-bg);
+    background:transparent;
     z-index:2;
   }
-  .column .day-group-label{--group-label-bg:var(--surface-2);}
   .day-group .card{margin-bottom:10px;}
   .day-group .card:last-child{margin-bottom:0;}
   .fav-label{
@@ -1151,21 +1142,21 @@
   <div class="nav-row">
     <div class="view-tabs" id="viewTabs" role="tablist">
       <div class="view-tab-slider" id="viewTabSlider"></div>
-      <button class="view-tab active" id="viewTabBoard" type="button" role="tab" aria-selected="true">看板</button>
-      <button class="view-tab" id="viewTabSubmitted" type="button" role="tab" aria-selected="false">已提交进度 <span class="tab-count" id="submittedTabCount"></span></button>
-      <button class="view-tab" id="viewTabReminders" type="button" role="tab" aria-selected="false">提醒事项 <span class="tab-count" id="remindersTabCount"></span></button>
+      <button class="view-tab active" id="viewTabBoard" type="button" role="tab" aria-selected="true">待提交</button>
+      <button class="view-tab" id="viewTabSubmitted" type="button" role="tab" aria-selected="false">已提交</button>
+      <button class="view-tab" id="viewTabReminders" type="button" role="tab" aria-selected="false">提醒事项</button>
     </div>
     <div class="nav-summary" id="navSummary"></div>
   </div>
 
   <div class="toolbar" id="toolbar">
     <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
-    <select id="filterUrgent">
+    <select id="filterUrgent" style="display:none;">
       <option value="all">全部截止情况</option>
       <option value="urgent">3天内截止</option>
       <option value="overdue">已逾期</option>
     </select>
-    <select id="filterProgress">
+    <select id="filterProgress" style="display:none;">
       <option value="all">全部招聘进度</option>
       <option value="assessment">测评</option>
       <option value="groupInterview">群面</option>
@@ -1175,7 +1166,7 @@
       <option value="offered">Offered</option>
       <option value="ended">结束</option>
     </select>
-    <button class="btn btn-ghost" id="filterFavoriteBtn" type="button">★ 只看收藏</button>
+    <button class="btn btn-ghost" id="filterFavoriteBtn" type="button" style="display:none;">★ 只看收藏</button>
     <div id="dateFilterGroup" class="date-filter-group" style="display:none;">
       <select id="filterDateField">
         <option value="none">不按日期筛选</option>
@@ -1256,9 +1247,9 @@
         <label>审核情况</label>
         <div class="status-toggle" id="reviewStageToggle">
           <button data-v="pending" type="button">待审核</button>
-          <button data-v="reviewed" type="button">已审核</button>
+          <button data-v="reviewed" type="button">待提交</button>
         </div>
-        <div class="field-hint">待审核：填完了但你还没检查；已审核：检查过没问题，只差投递</div>
+        <div class="field-hint">待审核：填完了但你还没检查；待提交：检查过没问题，只差投递</div>
       </div>
       <div class="field" id="progressField" style="display:none;">
         <label>招聘进度</label>
@@ -1370,7 +1361,7 @@
       <div class="status-toggle" id="companyDetailMoveToggle">
         <button data-status="todo" type="button">待填写</button>
         <button data-status="inprogress" data-review-stage="pending" type="button">待审核</button>
-        <button data-status="inprogress" data-review-stage="reviewed" type="button">已审核</button>
+        <button data-status="inprogress" data-review-stage="reviewed" type="button">待提交</button>
         <button data-status="submitted" type="button">已提交</button>
       </div>
       <div class="field-hint">点一个和当前不一样的，会把这张卡里的所有岗位一起移过去</div>
@@ -1509,7 +1500,7 @@
 const STORAGE_KEY = 'wangshen_tracker_v2';
 const LEGACY_KEY = 'wangshen_tracker_v1';
 const REQUIREMENT_BUCKET = 'position-attachments';
-const REVIEW_STAGE_LABEL = {pending:'待审核', reviewed:'已审核'};
+const REVIEW_STAGE_LABEL = {pending:'待审核', reviewed:'待提交'};
 // 招聘进度可选项，顺序就是显示顺序。ended/offered 互斥（见上面数据模型说明），
 // 其余几项可以同时打勾。
 const PROGRESS_STAGES = [
@@ -1786,22 +1777,22 @@ function renderTodayLabel(){
 // 看板页显示完整的统计卡片；已提交进度/提醒事项两页地方更紧张，压缩成一行细字，
 // 数字本身不变，只是换个更轻的呈现方式。currentView 由 setActiveView() 维护。
 let currentView = 'board';
+// 顶部四张统计卡片：待填写/待提交（=填报中，含待审核+待提交两个子组）/已提交
+// （按公司数，跟"已提交"标签页、分段控件右侧汇总行用的是同一个口径）/提醒事项
+// （未完成的提醒数量，跟提醒事项页显示的一致）。
 function renderStats(){
   const active = positions.filter(r=>!r.deleted);
   const todo = active.filter(r=>r.status==='todo').length;
   const inprogress = active.filter(r=>r.status==='inprogress').length;
-  const startOfWeek = new Date(); startOfWeek.setHours(0,0,0,0);
-  startOfWeek.setDate(startOfWeek.getDate()-startOfWeek.getDay());
-  const thisWeek = active.filter(r=>new Date(r.createdAt) >= startOfWeek).length;
-  const overdue = active.filter(r=>r.status!=='submitted' && r.deadline && daysUntil(r.deadline)<0).length;
+  const submittedCompanyCount = new Set(active.filter(p=>p.status==='submitted').map(p=>p.companyId)).size;
+  const remindersCount = getActiveReminders().filter(i=>!i.done).length;
 
   const stats = [
-    {label:'本周新增', num:thisWeek, cls:''},
     {label:'待填写', num:todo, cls:''},
-    {label:'填报中', num:inprogress, cls:'warn'},
-    {label:'已逾期未提交', num:overdue, cls: overdue>0 ? 'danger' : 'danger zero'},
+    {label:'待提交', num:inprogress, cls:'warn'},
+    {label:'已提交', num:submittedCompanyCount, cls:'blue'},
+    {label:'提醒事项', num:remindersCount, cls:'danger'},
   ];
-  // v3：三个页面统一显示完整的统计条卡片，不再区分"看板页整卡/其余页细条"。
   const row = document.getElementById('statsRow');
   row.className = 'stats';
   row.innerHTML = stats.map(s=>`
@@ -1831,16 +1822,21 @@ function matchesFilters(r, opts){
     const hay = ((company?company.name:'') + ' ' + (r.position||'')).toLowerCase();
     if(!hay.includes(q)) return false;
   }
-  const urgent = document.getElementById('filterUrgent').value;
-  if(urgent!=='all'){
-    if(!r.deadline) return false;
-    const d = daysUntil(r.deadline);
-    if(urgent==='urgent' && !(d>=0 && d<=3)) return false;
-    if(urgent==='overdue' && !(d<0)) return false;
+  // 截止情况/招聘进度/只看收藏这三个筛选控件已经从看板页的工具栏拿掉了，只留在
+  // 已提交页——看板那边调用时会传 ignoreExtraFilters，不受这三项筛选影响，
+  // 就算已提交页那边设了值也不会牵连看板。
+  if(!(opts && opts.ignoreExtraFilters)){
+    const urgent = document.getElementById('filterUrgent').value;
+    if(urgent!=='all'){
+      if(!r.deadline) return false;
+      const d = daysUntil(r.deadline);
+      if(urgent==='urgent' && !(d>=0 && d<=3)) return false;
+      if(urgent==='overdue' && !(d<0)) return false;
+    }
+    const progressFilter = document.getElementById('filterProgress').value;
+    if(progressFilter!=='all' && !(r.progress && r.progress[progressFilter])) return false;
+    if(filterFavoriteOnly && !(company && company.favorite)) return false;
   }
-  const progressFilter = document.getElementById('filterProgress').value;
-  if(progressFilter!=='all' && !(r.progress && r.progress[progressFilter])) return false;
-  if(filterFavoriteOnly && !(company && company.favorite)) return false;
   // 日期区间筛选只在"已提交进度"页面生效——看板那边调用时会传 ignoreDateFilter，
   // 不受这个筛选影响（哪怕已提交进度那边设置了日期区间也不会牵连看板）。
   if(!(opts && opts.ignoreDateFilter)){
@@ -1952,8 +1948,8 @@ function renderGroupedCards(list, status, reviewStage){
         <div class="card" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
           <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}" title="删除这张卡里的所有岗位">&times;</button>
           <div class="right-tags">
-            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
             ${cardDeadlineBadge(g.list)}
+            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </div>
           <div class="company-row">
             <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
@@ -1978,7 +1974,7 @@ function renderGroupedCards(list, status, reviewStage){
 function renderBoard(){
   const statuses = ['todo','inprogress'];
   statuses.forEach(st=>{
-    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r, {ignoreDateFilter:true}));
+    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r, {ignoreDateFilter:true, ignoreExtraFilters:true}));
     document.getElementById('count-'+st).textContent = filtered.length;
     const col = document.getElementById('col-'+st);
     if(filtered.length===0){
@@ -1996,7 +1992,7 @@ function renderBoard(){
           ${pendingList.length ? renderGroupedCards(pendingList, st, 'pending') : '<div class="empty-hint">暂无记录</div>'}
         </div>
         <div class="review-stage-group">
-          <div class="review-stage-label"><span class="review-stage-dot reviewed"></span><span>已审核</span><span class="count-inline">${reviewedList.length}</span></div>
+          <div class="review-stage-label"><span class="review-stage-dot reviewed"></span><span>待提交</span><span class="count-inline">${reviewedList.length}</span></div>
           ${reviewedList.length ? renderGroupedCards(reviewedList, st, 'reviewed') : '<div class="empty-hint">暂无记录</div>'}
         </div>
       `;
@@ -2557,10 +2553,9 @@ function reminderCountdownText(dateTimeStr){
   if(mins<60) return `${mins}分钟后截止`;
   return `${Math.floor(mins/60)}小时${mins%60}分钟后截止`;
 }
-function renderRemindersTabCount(){
-  const n = getActiveReminders().filter(i=>!i.done).length;
-  document.getElementById('remindersTabCount').textContent = n>0 ? `(${n})` : '';
-}
+// 标签页文字旁边不再显示数量了（数量移到顶部统计卡片里），这个函数留空
+// 只是为了不用挨个删掉原来那几处调用它的地方。
+function renderRemindersTabCount(){}
 // 按"7 天内 / 之后 / 已完成"分组——已逾期的也算在"7 天内"里（比"之后"更该现在处理）；
 // 完成的不管日期多久远，一律归到"已完成"，跟看板页"已审核"、已提交进度页"已收藏"
 // 是同一套折叠交互。
@@ -4029,6 +4024,11 @@ function setActiveView(view){
   document.getElementById('remindersView').style.display = view==='reminders' ? 'block' : 'none';
   document.getElementById('dateFilterGroup').style.display = view==='submitted' ? 'flex' : 'none';
   document.getElementById('toolbar').style.display = view==='reminders' ? 'none' : 'flex';
+  // 截止情况/招聘进度/只看收藏这三个筛选控件只在已提交页出现，看板页工具栏只留
+  // 搜索框和新增网申按钮（matchesFilters 那边同步用 ignoreExtraFilters 跳过它们的值）。
+  document.getElementById('filterUrgent').style.display = view==='board' ? 'none' : '';
+  document.getElementById('filterProgress').style.display = view==='board' ? 'none' : '';
+  document.getElementById('filterFavoriteBtn').style.display = view==='board' ? 'none' : '';
   renderStats();
   positionTabSlider();
   if(view==='reminders') renderRemindersList();
