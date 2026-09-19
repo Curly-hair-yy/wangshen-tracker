@@ -190,6 +190,10 @@
   .btn:active{transform:scale(.98);}
   .btn-primary{background:var(--primary);color:#fff;}
   .btn-primary:hover{filter:brightness(.92);}
+  /* 校验失败时按钮"看起来"不能点，但其实还是能点——点了才会在字段下面显示
+     具体缺了什么，比真的用 disabled 属性挡住点击、什么反馈都没有更清楚。 */
+  .btn-primary.btn-disabled-look{opacity:.45;cursor:not-allowed;}
+  .btn-primary.btn-disabled-look:hover{filter:none;}
   .btn-ghost{background:var(--surface-2);border:none;color:var(--text);}
   .btn-ghost:hover{filter:brightness(.96);}
   .btn-ghost.active{background:var(--orange-soft);color:var(--orange);font-weight:600;}
@@ -462,16 +466,105 @@
     font-size:13px;color:var(--primary);background:none;border:none;cursor:pointer;
     padding:4px 0;
   }
-  .position-item-block{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line);}
-  .position-item-block:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
-  .position-item-block .item-row{margin-bottom:4px;}
+  /* 每个岗位现在是独立的一块小卡片（自己的截止时间 + 可选的"专属设置"），
+     不再是一条扁平的列表行——公司下面岗位一多，需要看得出这是几个各自独立的
+     单元，不是同一份表单字段的重复。 */
+  .position-group{
+    background:var(--surface-2);border-radius:var(--radius-md);
+    padding:12px;margin-bottom:10px;
+  }
+  .position-group:last-child{margin-bottom:0;}
+  .position-group .item-row{margin-bottom:4px;}
+  /* #positionItems 不再套在外层 .field 里了（每个岗位现在自己是一张小卡片），
+     所以这里把原本靠 ".field input" 这种祖先选择器才有的基础样式，直接在
+     .position-group 范围内重新声明一遍——不然这些输入框会掉回浏览器原生样式。 */
+  .position-group input[type=text],
+  .position-group input[type=date],
+  .position-group input[type=url],
+  .position-group textarea{
+    width:100%;padding:9px 12px;border:none;border-radius:var(--radius-md);
+    background:var(--surface);font-size:14px;font-family:inherit;color:var(--text);
+    transition:background .15s ease;
+  }
+  .position-group textarea{resize:vertical;min-height:56px;}
+  .position-group .exclusive-checklist input[type=text]{background:transparent;padding:6px 0;width:auto;flex:1;}
   .position-jd-body{margin-top:6px;}
+  .position-group-del{
+    background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;
+    padding:2px 6px;flex-shrink:0;
+  }
+  .position-group-del:hover{color:var(--red);}
+  .deadline-field{margin-top:8px;}
+  .deadline-quick-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .exclusive-toggle{
+    margin-top:10px;font-size:12px;color:var(--text-2);background:none;border:none;
+    cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:6px;
+  }
+  .exclusive-toggle .chevron{display:flex;transition:transform .2s cubic-bezier(.2,.8,.2,1);transform:rotate(-90deg);}
+  .exclusive-toggle.open .chevron{transform:rotate(0deg);}
+  .exclusive-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .2s cubic-bezier(.2,.8,.2,1);}
+  .exclusive-body.open{grid-template-rows:1fr;}
+  .exclusive-body > .inner{overflow:hidden;}
+  .exclusive-body .inner-pad{padding-top:8px;}
+  .exclusive-restore-btn{
+    font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;padding:2px 0;
+  }
+  .shared-settings-hint{font-size:12px;color:var(--text-2);margin:-8px 0 14px;}
   .meta-readonly{
     font-size:12px;
     color:var(--text-2);
     padding:0 0 4px;
     margin-bottom:10px;
+    display:flex;align-items:center;gap:6px;
   }
+  .meta-readonly .icon{display:flex;color:var(--text-3);flex-shrink:0;}
+  /* 公司名联想：自己做的下拉建议列表，键盘上下键选、回车确认，跟原生 datalist
+     比起来可以自己控制样式、键盘导航和"已有同名公司"提示。 */
+  .company-field{position:relative;}
+  .company-suggest{
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5;
+    background:var(--surface);border-radius:var(--radius-md);box-shadow:var(--shadow-2);
+    max-height:200px;overflow-y:auto;padding:4px;
+  }
+  .company-suggest-item{
+    padding:8px 10px;border-radius:calc(var(--radius-md) - 4px);font-size:14px;cursor:pointer;
+  }
+  .company-suggest-item.active{background:var(--primary-soft);color:var(--primary);}
+  .field-error{font-size:12px;color:var(--red);margin-top:4px;display:none;}
+  .field.has-error input{box-shadow:0 0 0 1.5px var(--red);}
+  .field.has-error .field-error{display:block;}
+  .checklist-common-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .checklist-common-pill{
+    font-size:12px;padding:5px 11px;border-radius:var(--radius-pill);
+    background:var(--surface-2);color:var(--text-2);border:none;cursor:pointer;
+  }
+  .checklist-common-pill.added{background:var(--primary-soft);color:var(--primary);}
+  /* 待办清单 iOS 风格：圆形勾选框 + 左缩进实线分隔；删除图标悬停才出现。 */
+  .item-row{position:relative;}
+  .item-row .ios-check{
+    width:20px;height:20px;border-radius:50%;flex-shrink:0;
+    border:2px solid var(--line);background:var(--surface);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .item-row .ios-check.checked{background:var(--primary);border-color:var(--primary);}
+  .item-row input[type=text]{border:none;background:none;padding:6px 0;}
+  .item-row input[type=text].done-text{color:var(--text-2);text-decoration:line-through;}
+  .item-row .del{opacity:0;transition:opacity .15s ease;}
+  .item-row:hover .del,.item-row input:focus ~ .del{opacity:1;}
+  .item-row + .item-row{border-top:1px solid var(--line);}
+  /* 关闭误关保护：有内容时点 × / 取消 / Esc，先在弹窗内叠这一条确认，不用系统 confirm()。 */
+  .close-confirm{
+    display:none;
+    position:absolute;inset:0;
+    background:var(--bg);
+    border-radius:var(--radius-lg);
+    flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    text-align:center;padding:24px;z-index:2;
+  }
+  .close-confirm.active{display:flex;}
+  .close-confirm p{margin:0;font-size:15px;color:var(--text);}
+  .close-confirm .actions{display:flex;gap:10px;}
   .other-positions-box{
     background:var(--surface-2);
     border-radius:var(--radius-md);
@@ -1091,15 +1184,17 @@
 <div class="drawer" id="drawer">
   <div class="drawer-head">
     <h3 id="drawerTitle">新增网申</h3>
-    <button class="drawer-close" id="drawerClose">&times;</button>
+    <button class="drawer-close" id="drawerClose" aria-label="关闭">&times;</button>
   </div>
   <div class="drawer-body">
     <div class="meta-readonly" id="metaReadonly" style="display:none;"></div>
 
-    <div class="field">
+    <div class="field company-field">
       <label>公司</label>
-      <input type="text" id="f-company" placeholder="例如：中国工商银行" list="companyList">
-      <datalist id="companyList"></datalist>
+      <input type="text" id="f-company" placeholder="例如：中国工商银行" autocomplete="off">
+      <div class="company-suggest" id="companySuggest" hidden></div>
+      <div class="field-error" id="companyError">请填写公司名称</div>
+      <div class="field-hint" id="companyDupHint" style="display:none;color:var(--orange);">已有同名公司</div>
     </div>
 
     <div class="other-positions-box" id="otherPositionsBox" style="display:none;">
@@ -1107,48 +1202,54 @@
       <div id="otherPositionsList"></div>
     </div>
 
-    <div class="field checklist-editor" id="positionField">
-      <label id="positionLabel">岗位</label>
-      <div id="positionItems"></div>
-      <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
-    </div>
-    <div class="field">
-      <label>状态</label>
-      <div class="status-toggle" id="statusToggle">
-        <button data-v="todo" type="button">待填写</button>
-        <button data-v="inprogress" type="button">填报中</button>
-        <button data-v="submitted" type="button">已提交</button>
+    <div id="positionItems"></div>
+    <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
+
+    <div id="sharedSettingsBlock" style="margin-top:18px;">
+      <label id="sharedSettingsLabel" style="display:block;font-size:13px;color:var(--text-2);margin-bottom:8px;">申请信息</label>
+      <div class="shared-settings-hint" id="sharedSettingsHint" style="display:none;">可在各岗位的"专属设置"中单独修改</div>
+      <div class="field">
+        <label>状态</label>
+        <div class="status-toggle" id="statusToggle">
+          <button data-v="todo" type="button">待填写</button>
+          <button data-v="inprogress" type="button">填报中</button>
+          <button data-v="submitted" type="button">已提交</button>
+        </div>
+      </div>
+      <div class="field" id="reviewStageField" style="display:none;">
+        <label>审核情况</label>
+        <div class="status-toggle" id="reviewStageToggle">
+          <button data-v="pending" type="button">待审核</button>
+          <button data-v="reviewed" type="button">已审核</button>
+        </div>
+        <div class="field-hint">待审核：填完了但你还没检查；已审核：检查过没问题，只差投递</div>
+      </div>
+      <div class="field" id="progressField" style="display:none;">
+        <label>招聘进度</label>
+        <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
+        <div class="progress-dates-list" id="progressDatesList"></div>
+      </div>
+      <div class="field">
+        <label>网申链接</label>
+        <input type="url" id="f-link" placeholder="https://…">
+      </div>
+      <div class="field checklist-editor">
+        <label>待办清单</label>
+        <div id="checklistItems"></div>
+        <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
+        <div class="checklist-common-pills" id="checklistCommonPills"></div>
+      </div>
+      <div class="field" id="stageDeadlinesField" style="display:none;">
+        <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
+        <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
       </div>
     </div>
-    <div class="field" id="reviewStageField" style="display:none;">
-      <label>审核情况</label>
-      <div class="status-toggle" id="reviewStageToggle">
-        <button data-v="pending" type="button">待审核</button>
-        <button data-v="reviewed" type="button">已审核</button>
+    <div class="close-confirm" id="closeConfirm">
+      <p>放弃填写？</p>
+      <div class="actions">
+        <button class="btn btn-ghost" id="closeConfirmKeepBtn" type="button">继续编辑</button>
+        <button class="btn btn-primary" id="closeConfirmDiscardBtn" type="button" style="background:var(--red);">放弃</button>
       </div>
-      <div class="field-hint">待审核：填完了但你还没检查；已审核：检查过没问题，只差投递</div>
-    </div>
-    <div class="field" id="progressField" style="display:none;">
-      <label>招聘进度</label>
-      <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
-      <div class="progress-dates-list" id="progressDatesList"></div>
-    </div>
-    <div class="field">
-      <label>截止时间</label>
-      <input type="date" id="f-deadline">
-    </div>
-    <div class="field">
-      <label>网申链接</label>
-      <input type="url" id="f-link" placeholder="https://…">
-    </div>
-    <div class="field checklist-editor">
-      <label>待办清单</label>
-      <div id="checklistItems"></div>
-      <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
-    </div>
-    <div class="field" id="stageDeadlinesField" style="display:none;">
-      <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
-      <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
     </div>
   </div>
   <div class="drawer-foot">
@@ -1617,6 +1718,7 @@ const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 const ICON_TRASH = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+const ICON_CLOCK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>';
 
 function getCompany(id){ return companies.find(c=>c.id===id); }
 
@@ -2377,14 +2479,8 @@ function renderAll(){
   renderStats();
   renderBoard();
   renderSubmittedList();
-  renderCompanyDatalist();
   renderRemindersTabCount();
   if(document.getElementById('remindersView').style.display!=='none') renderRemindersList();
-}
-
-function renderCompanyDatalist(){
-  const dl = document.getElementById('companyList');
-  dl.innerHTML = companies.filter(c=>!c.deleted).map(c=>`<option value="${escapeHtml(c.name)}">`).join('');
 }
 
 /* ---- 提醒事项：汇总所有"已提交岗位、环节还没完成、但设了提醒截止时间"的记录 ---- */
@@ -2939,31 +3035,48 @@ const overlay = document.getElementById('overlay');
 const drawer = document.getElementById('drawer');
 let currentEditCompanyId = null;
 
+// 一组岗位里，某个字段"共用值"取多数——大部分岗位现在是什么值，就认为那是
+// "公司层面统一"的值；跟多数值不一样的岗位，专属设置自动展开、显示它自己的值。
+// 只有一个岗位时没有"多数"可言，直接就是它自己的值，也不会有专属覆盖。
+function majorityValue(list, getValue, equals){
+  if(list.length===0) return {value:null, overrideIds:new Set()};
+  const buckets = [];
+  list.forEach(p=>{
+    const v = getValue(p);
+    const b = buckets.find(x=>equals(x.value, v));
+    if(b) b.items.push(p); else buckets.push({value:v, items:[p]});
+  });
+  buckets.sort((a,b)=>b.items.length-a.items.length);
+  const value = buckets[0].value;
+  const overrideIds = new Set(list.filter(p=>!equals(getValue(p), value)).map(p=>p.id));
+  return {value, overrideIds};
+}
 function openDrawer(id){
   editingId = id || null;
   const r = id ? positions.find(x=>x.id===id) : null;
   currentEditCompanyId = r ? r.companyId : null;
+  closeCloseConfirm();
 
   document.getElementById('drawerTitle').textContent = r ? '编辑网申' : '新增网申';
   document.getElementById('f-company').value = r ? getCompany(r.companyId)?.name || '' : '';
+  document.getElementById('companyDupHint').style.display = 'none';
+  hideCompanySuggest();
   // 同一家公司的其他岗位也一起拉进来编辑，不用为了改另一个岗位关掉重开——
-  // 状态/截止时间/网申链接这几个字段是公司层面共用的（保存时会统一套用到
-  // 这里列出的每一个岗位上，除非那个岗位自己单独填了链接），备注、岗位要求
-  // 这些各岗位自己独立。
-  const siblings = r ? positions.filter(p=>!p.deleted && p.companyId===r.companyId && p.id!==r.id)
-    .sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)) : [];
-  // 公司层面的默认链接是根据这家公司所有岗位的链接投票算出来的（跟卡片上
-  // 显示逻辑一致），不能只看当初点开的这一个岗位——不然如果点开的正好是
-  // 那个单独设置过链接的岗位，会反而把它的链接错当成"大家共用的默认值"。
-  // r 放最后：如果只有两个岗位、链接又刚好各不相同（票数打平），优先采信
-  // 别的岗位那边，而不是想当然把当初点开的这一个当成"大家共用的默认值"。
-  const sharedLinkValue = r ? companyLevelLink([...siblings, r]) : '';
+  // 状态/网申链接/待办清单这几个字段默认整家公司共用（保存时会统一套用到这里
+  // 列出的每一个岗位上，除非那个岗位自己在"专属设置"里单独填过），截止时间
+  // 现在是每个岗位各自一份；备注、岗位要求这些也各岗位自己独立。
+  const allPositions = r ? [r, ...positions.filter(p=>!p.deleted && p.companyId===r.companyId && p.id!==r.id)
+    .sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))] : [];
+  const sharedLinkValue = r ? companyLevelLink(allPositions) : '';
+  const statusMajority = r ? majorityValue(allPositions, p=>p.status, (a,b)=>a===b) : null;
+  const checklistMajority = r ? majorityValue(allPositions, p=>JSON.stringify(p.checklist||[]), (a,b)=>a===b) : null;
   function toDraftEntry(p){
     // 一个岗位的链接如果跟公司统一那个默认链接不一样，才算是这个岗位自己单独
-    // 设置过的——草稿里记下来、抽屉里默认展开显示；一样的话就当没设置过，
-    // 折叠成"+ 添加链接"，不用每个岗位都占一份看着一样的链接。
+    // 设置过的——草稿里记下来、专属设置里默认展开显示；一样的话就当没设置过。
     const ownLink = normalizeLink(p.link);
     const hasOwnLink = !!(ownLink && ownLink!==normalizeLink(sharedLinkValue));
+    const hasOwnStatus = statusMajority.overrideIds.has(p.id);
+    const hasOwnChecklist = checklistMajority.overrideIds.has(p.id);
     return {
       _existingId: p.id,
       name: p.position||'',
@@ -2973,17 +3086,22 @@ function openDrawer(id){
       requirement: p.requirement||'',
       images: (p.requirementImages||[]).map(path=>({path})),
       _jdOpen: !!(p.requirement || (p.requirementImages||[]).length),
+      deadline: p.deadline||'',
+      _statusOverride: hasOwnStatus,
+      _ownStatus: hasOwnStatus ? p.status : statusMajority.value,
+      _checklistOverride: hasOwnChecklist,
+      _ownChecklist: hasOwnChecklist ? JSON.parse(JSON.stringify(p.checklist||[])) : [],
+      _exclusiveOpen: hasOwnLink || hasOwnStatus || hasOwnChecklist,
     };
   }
   if(r){
-    positionDraft = [toDraftEntry(r), ...siblings.map(toDraftEntry)];
+    positionDraft = allPositions.map(toDraftEntry);
   } else {
-    positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false}];
+    positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false, deadline:'',
+      _statusOverride:false, _ownStatus:'todo', _checklistOverride:false, _ownChecklist:[], _exclusiveOpen:false}];
   }
-  renderPositionEditor();
-  document.getElementById('f-deadline').value = r ? (r.deadline||'') : '';
   document.getElementById('f-link').value = r ? sharedLinkValue : '';
-  setStatusToggle(r ? r.status : 'todo');
+  setStatusToggle(r ? statusMajority.value : 'todo');
   reviewStageDraft = r ? (r.reviewStage||'') : '';
   setReviewStageToggle(reviewStageDraft);
   updateReviewStageFieldVisibility();
@@ -2993,8 +3111,10 @@ function openDrawer(id){
   stageDeadlinesSectionOpen = Object.keys(stageDeadlinesDraft).length>0;
   renderProgressCheckboxes();
   updateProgressFieldVisibility();
-  checklistDraft = r ? JSON.parse(JSON.stringify(r.checklist||[])) : [];
+  checklistDraft = r ? JSON.parse(checklistMajority.value) : [];
   renderChecklistEditor();
+  renderPositionEditor();
+  updateSharedSettingsLabel();
   if(r){
     document.getElementById('otherPositionsBox').style.display = 'none';
   } else {
@@ -3002,18 +3122,26 @@ function openDrawer(id){
   }
 
   const metaBox = document.getElementById('metaReadonly');
+  metaBox.style.display='flex';
   if(r){
-    metaBox.style.display='block';
-    metaBox.innerHTML = `创建时间：${fmtDateTime(r.createdAt)}${r.updatedAt && r.updatedAt!==r.createdAt ? '　·　最近更新：'+fmtDateTime(r.updatedAt) : ''}`;
+    metaBox.innerHTML = `<span class="icon">${ICON_CLOCK}</span>创建时间：${fmtDateTime(r.createdAt)}${r.updatedAt && r.updatedAt!==r.createdAt ? '　·　最近更新：'+fmtDateTime(r.updatedAt) : ''}`;
   } else {
-    metaBox.style.display='block';
-    metaBox.innerHTML = `创建时间：保存后自动记录为当前时间`;
+    metaBox.innerHTML = `<span class="icon">${ICON_CLOCK}</span>保存时自动记录创建时间`;
   }
 
   document.getElementById('deleteBtn').style.display = r ? 'inline-block' : 'none';
+  validateCompanyField();
 
   overlay.classList.add('active');
   drawer.classList.add('active');
+  setTimeout(()=>document.getElementById('f-company').focus(), 50);
+  drawerOpenSnapshot = captureDrawerSnapshot();
+}
+
+function updateSharedSettingsLabel(){
+  const multi = positionDraft.length>1;
+  document.getElementById('sharedSettingsLabel').textContent = multi ? '所有岗位共用' : '申请信息';
+  document.getElementById('sharedSettingsHint').style.display = multi ? 'block' : 'none';
 }
 
 function renderOtherPositionsBox(){
@@ -3039,7 +3167,86 @@ function renderOtherPositionsBox(){
   `).join('');
   box.style.display='block';
 }
-document.getElementById('f-company').addEventListener('input', renderOtherPositionsBox);
+
+/* ---- 公司名联想：自己做的下拉建议，输入时按名字包含匹配，最多列 5 条，
+   键盘上下选、回车确认、Esc 收起；不改变保存时"按名字精确匹配合并/新建"的逻辑，
+   选中建议只是把名字填进输入框，跟直接手打这个名字效果一样。 ---- */
+let companySuggestIndex = -1;
+let companySuggestItems = [];
+function hideCompanySuggest(){
+  const box = document.getElementById('companySuggest');
+  box.hidden = true;
+  box.innerHTML = '';
+  companySuggestIndex = -1;
+  companySuggestItems = [];
+}
+function renderCompanySuggest(){
+  const input = document.getElementById('f-company');
+  const q = input.value.trim().toLowerCase();
+  const box = document.getElementById('companySuggest');
+  if(!q){ hideCompanySuggest(); return; }
+  companySuggestItems = companies.filter(c=>!c.deleted && c.name.toLowerCase().includes(q)).slice(0,5);
+  if(companySuggestItems.length===0){ hideCompanySuggest(); return; }
+  companySuggestIndex = -1;
+  box.hidden = false;
+  box.innerHTML = companySuggestItems.map((c,i)=>`<div class="company-suggest-item" data-idx="${i}">${escapeHtml(c.name)}</div>`).join('');
+  box.querySelectorAll('.company-suggest-item').forEach(el=>{
+    el.addEventListener('mousedown', (e)=>{
+      e.preventDefault();
+      selectCompanySuggest(Number(el.dataset.idx));
+    });
+  });
+}
+function selectCompanySuggest(idx){
+  const c = companySuggestItems[idx];
+  if(!c) return;
+  const input = document.getElementById('f-company');
+  input.value = c.name;
+  hideCompanySuggest();
+  renderOtherPositionsBox();
+  validateCompanyField();
+}
+function highlightCompanySuggest(){
+  document.querySelectorAll('.company-suggest-item').forEach((el,i)=>{
+    el.classList.toggle('active', i===companySuggestIndex);
+    if(i===companySuggestIndex) el.scrollIntoView({block:'nearest'});
+  });
+}
+document.getElementById('f-company').addEventListener('input', ()=>{
+  renderOtherPositionsBox();
+  renderCompanySuggest();
+  validateCompanyField();
+});
+document.getElementById('f-company').addEventListener('blur', ()=>{
+  // 稍微延迟一下，不然点击建议项时 blur 先触发，建议列表在 click 生效前就被收起了。
+  setTimeout(hideCompanySuggest, 150);
+});
+document.getElementById('f-company').addEventListener('keydown', (e)=>{
+  if(document.getElementById('companySuggest').hidden) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    companySuggestIndex = Math.min(companySuggestIndex+1, companySuggestItems.length-1);
+    highlightCompanySuggest();
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    companySuggestIndex = Math.max(companySuggestIndex-1, 0);
+    highlightCompanySuggest();
+  } else if(e.key==='Enter' && companySuggestIndex>=0){
+    e.preventDefault();
+    selectCompanySuggest(companySuggestIndex);
+  }
+});
+function validateCompanyField(){
+  const val = document.getElementById('f-company').value.trim();
+  const ok = !!val;
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.classList.toggle('btn-disabled-look', !ok);
+  const dupHint = document.getElementById('companyDupHint');
+  const dup = val && companies.some(c=>!c.deleted && c.name.toLowerCase()===val.toLowerCase() && c.id!==currentEditCompanyId);
+  dupHint.style.display = dup ? 'block' : 'none';
+  if(ok) document.getElementById('f-company').closest('.field').classList.remove('has-error');
+  return ok;
+}
 
 /* ---- 岗位要求配图（存在 Supabase Storage，需要先连接同步） ---- */
 function requirementImageUrl(path){
@@ -3053,8 +3260,25 @@ function deleteStorageImage(path){
 }
 
 // 岗位列表编辑器：新增网申时每个岗位一块，各自可以展开填写自己的岗位要求 + 多张图片
+// 截止时间快捷胶囊：今天/明天/本周五/一周后，纯粹是往同一个日期字段里填值，
+// 跟手动选日期完全等价，不新增字段。
+function quickDateOptions(){
+  const pad = n=>String(n).padStart(2,'0');
+  const fmt = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+  const friday = new Date(today); friday.setDate(friday.getDate() + ((5 - today.getDay() + 7) % 7));
+  const weekLater = new Date(today); weekLater.setDate(weekLater.getDate()+7);
+  return [
+    {key:'today', label:'今天', value:fmt(today)},
+    {key:'tomorrow', label:'明天', value:fmt(tomorrow)},
+    {key:'friday', label:'本周五', value:fmt(friday)},
+    {key:'week', label:'一周后', value:fmt(weekLater)},
+  ];
+}
 function renderPositionEditor(){
   const box = document.getElementById('positionItems');
+  const showExclusive = positionDraft.length>1;
   box.innerHTML = positionDraft.map((item, idx)=>{
     const hasJd = item.requirement || (item.images||[]).length>0;
     const imagesHtml = (item.images||[]).map((img, imgIdx)=>{
@@ -3066,19 +3290,53 @@ function renderPositionEditor(){
         <button class="req-img-del" type="button" data-idx="${idx}" data-img-idx="${imgIdx}">&times;</button>
       </div>`;
     }).join('');
-    return `
-      <div class="position-item-block" data-idx="${idx}">
-        <div class="item-row">
-          <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
-          ${(positionDraft.length>1 && !item._existingId) ? '<button class="del" type="button">&times;</button>' : ''}
+    const quickOpts = quickDateOptions();
+    const deadlinePillsHtml = quickOpts.map(o=>
+      `<button class="date-pill${item.deadline===o.value?' active':''}" type="button" data-idx="${idx}" data-value="${o.value}">${o.label}</button>`
+    ).join('')
+      + (idx>0 ? `<button class="date-pill" type="button" data-idx="${idx}" data-copy-prev="1">同上</button>` : '')
+      + (item.deadline ? `<button class="date-pill" type="button" data-idx="${idx}" data-value="">清除</button>` : '');
+    const exclusiveHtml = !showExclusive ? '' : `
+      <button class="exclusive-toggle${item._exclusiveOpen?' open':''}" type="button" data-idx="${idx}">
+        <span class="chevron">${ICON_CHEVRON_DOWN.replace('13" height="13"','11" height="11"')}</span>
+        <span>${item._exclusiveOpen ? '专属设置' : '沿用公司统一设置'}</span>
+      </button>
+      <div class="exclusive-body${item._exclusiveOpen?' open':''}"><div class="inner"><div class="inner-pad">
+        <div class="field" style="margin-bottom:10px;">
+          <label>这个岗位单独的状态</label>
+          <div class="status-toggle exclusive-status-toggle" data-idx="${idx}">
+            <button data-v="todo" type="button" class="${item._ownStatus==='todo'?'active':''}">待填写</button>
+            <button data-v="inprogress" type="button" class="${item._ownStatus==='inprogress'?'active':''}">填报中</button>
+            <button data-v="submitted" type="button" class="${item._ownStatus==='submitted'?'active':''}">已提交</button>
+          </div>
         </div>
-        <textarea class="position-note-input" data-idx="${idx}" placeholder="这个岗位的备注：笔试时间、内推码、联系人…">${escapeHtml(item.note||'')}</textarea>
         ${item._linkOpen ? `
-          <div class="position-link-row">
-            <input type="url" class="position-link-input" data-idx="${idx}" value="${escapeHtml(item.link||'')}" placeholder="这个岗位单独的网申链接（跟公司统一那个不一样时才填）">
+          <div class="position-link-row" style="margin-bottom:10px;">
+            <input type="url" class="position-link-input" data-idx="${idx}" value="${escapeHtml(item.link||'')}" placeholder="这个岗位单独的网申链接">
             <button class="add-item-btn position-link-remove" type="button" data-idx="${idx}">不用了</button>
           </div>
-        ` : `<button class="add-item-btn position-link-add" type="button" data-idx="${idx}">+ 添加链接</button>`}
+        ` : `<button class="add-item-btn position-link-add" type="button" data-idx="${idx}" style="margin-bottom:10px;">+ 单独设置网申链接</button>`}
+        <div class="field" style="margin-bottom:6px;">
+          <label>这个岗位单独的待办清单</label>
+          <div class="exclusive-checklist" data-idx="${idx}">${(item._ownChecklist||[]).map((ci,ciIdx)=>`
+            <div class="item-row">
+              <button class="ios-check${ci.done?' checked':''}" type="button" data-ci-idx="${ciIdx}">${ci.done?ICON_CHECK:''}</button>
+              <input type="text" class="${ci.done?'done-text':''}" data-ci-idx="${ciIdx}" value="${escapeHtml(ci.text)}" placeholder="例如：性格测试还没做">
+              <button class="del" type="button" data-ci-idx="${ciIdx}" aria-label="删除">&times;</button>
+            </div>
+          `).join('')}</div>
+          <button class="add-item-btn exclusive-checklist-add" type="button" data-idx="${idx}">+ 添加一项</button>
+        </div>
+        <button class="exclusive-restore-btn" type="button" data-idx="${idx}">改回统一设置</button>
+      </div></div></div>
+    `;
+    return `
+      <div class="position-group" data-idx="${idx}">
+        <div class="item-row">
+          <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
+          ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
+        </div>
+        <textarea class="position-note-input" data-idx="${idx}" placeholder="这个岗位的备注：笔试时间、内推码、联系人…">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
           <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
@@ -3087,17 +3345,33 @@ function renderPositionEditor(){
           <input type="file" class="position-jd-file" data-idx="${idx}" accept="image/*" multiple style="display:none;">
           <div class="field-hint position-jd-hint" data-idx="${idx}">${escapeHtml(item._imageError||'')}</div>
         </div>
+        <div class="field deadline-field">
+          <label>截止时间</label>
+          <input type="date" class="position-deadline-input" data-idx="${idx}" value="${item.deadline||''}">
+          <div class="deadline-quick-pills">${deadlinePillsHtml}</div>
+        </div>
+        ${exclusiveHtml}
       </div>
     `;
   }).join('');
 
-  box.querySelectorAll('.position-item-block').forEach(block=>{
+  box.querySelectorAll('.position-group').forEach(block=>{
     const idx = Number(block.dataset.idx);
     block.querySelector('.position-name-input').addEventListener('input', e=>{
       positionDraft[idx].name = e.target.value;
     });
     block.querySelector('.position-note-input').addEventListener('input', e=>{
       positionDraft[idx].note = e.target.value;
+    });
+    block.querySelector('.position-deadline-input').addEventListener('input', e=>{
+      positionDraft[idx].deadline = e.target.value;
+      renderPositionEditor();
+    });
+    block.querySelectorAll('.deadline-quick-pills .date-pill').forEach(pill=>{
+      pill.addEventListener('click', ()=>{
+        positionDraft[idx].deadline = pill.dataset.copyPrev ? (positionDraft[idx-1].deadline||'') : pill.dataset.value;
+        renderPositionEditor();
+      });
     });
     const linkAddBtn = block.querySelector('.position-link-add');
     if(linkAddBtn){
@@ -3120,11 +3394,12 @@ function renderPositionEditor(){
         renderPositionEditor();
       });
     }
-    const delBtn = block.querySelector('.del');
+    const delBtn = block.querySelector('.position-group-del');
     if(delBtn){
       delBtn.addEventListener('click', ()=>{
         positionDraft.splice(idx,1);
         renderPositionEditor();
+        updateSharedSettingsLabel();
       });
     }
     block.querySelector('.position-jd-toggle').addEventListener('click', ()=>{
@@ -3173,18 +3448,120 @@ function renderPositionEditor(){
         renderPositionEditor();
       });
     });
+    // 专属设置：折叠开关、状态、链接、待办清单
+    const exclusiveToggle = block.querySelector('.exclusive-toggle');
+    if(exclusiveToggle){
+      exclusiveToggle.addEventListener('click', ()=>{
+        positionDraft[idx]._exclusiveOpen = !positionDraft[idx]._exclusiveOpen;
+        renderPositionEditor();
+      });
+    }
+    const exclusiveStatusToggle = block.querySelector('.exclusive-status-toggle');
+    if(exclusiveStatusToggle){
+      exclusiveStatusToggle.addEventListener('click', e=>{
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        positionDraft[idx]._ownStatus = btn.dataset.v;
+        positionDraft[idx]._statusOverride = true;
+        renderPositionEditor();
+      });
+    }
+    const exclusiveChecklistAdd = block.querySelector('.exclusive-checklist-add');
+    if(exclusiveChecklistAdd){
+      exclusiveChecklistAdd.addEventListener('click', ()=>{
+        positionDraft[idx]._ownChecklist.push({text:'', done:false});
+        positionDraft[idx]._checklistOverride = true;
+        renderPositionEditor();
+      });
+    }
+    const exclusiveChecklist = block.querySelector('.exclusive-checklist');
+    if(exclusiveChecklist){
+      exclusiveChecklist.querySelectorAll('.ios-check').forEach(cb=>{
+        cb.addEventListener('click', ()=>{
+          const ciIdx = Number(cb.dataset.ciIdx);
+          positionDraft[idx]._ownChecklist[ciIdx].done = !positionDraft[idx]._ownChecklist[ciIdx].done;
+          positionDraft[idx]._checklistOverride = true;
+          renderPositionEditor();
+        });
+      });
+      exclusiveChecklist.querySelectorAll('input[type=text]').forEach(inp=>{
+        inp.addEventListener('input', ()=>{
+          const ciIdx = Number(inp.dataset.ciIdx);
+          positionDraft[idx]._ownChecklist[ciIdx].text = inp.value;
+          positionDraft[idx]._checklistOverride = true;
+        });
+      });
+      exclusiveChecklist.querySelectorAll('.del').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const ciIdx = Number(btn.dataset.ciIdx);
+          positionDraft[idx]._ownChecklist.splice(ciIdx,1);
+          positionDraft[idx]._checklistOverride = true;
+          renderPositionEditor();
+        });
+      });
+    }
+    const exclusiveRestoreBtn = block.querySelector('.exclusive-restore-btn');
+    if(exclusiveRestoreBtn){
+      exclusiveRestoreBtn.addEventListener('click', ()=>{
+        const entry = positionDraft[idx];
+        entry._statusOverride = false;
+        entry._checklistOverride = false;
+        entry._ownChecklist = [];
+        entry.link = '';
+        entry._linkOpen = false;
+        entry._exclusiveOpen = false;
+        renderPositionEditor();
+      });
+    }
   });
 }
 document.getElementById('addPositionBtn').addEventListener('click', ()=>{
-  positionDraft.push({name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false});
+  positionDraft.push({name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false, deadline:'',
+    _statusOverride:false, _ownStatus:document.querySelector('#statusToggle button.active')?.dataset.v||'todo',
+    _checklistOverride:false, _ownChecklist:[], _exclusiveOpen:false});
   renderPositionEditor();
+  updateSharedSettingsLabel();
 });
 
 function closeDrawer(){
   overlay.classList.remove('active');
   drawer.classList.remove('active');
+  closeCloseConfirm();
   editingId = null;
 }
+// 误关保护：弹窗打开时拍一份"快照"，关闭前跟当下状态比一比——没改过东西就直接
+// 关；改过的话，先在弹窗里叠一层"放弃填写？"确认，不用系统 confirm()。点遮罩
+// 不再关闭弹窗（防止手滑），只有 ×/取消/Esc 会走这个判断流程。
+let drawerOpenSnapshot = null;
+function captureDrawerSnapshot(){
+  return JSON.stringify({
+    company: document.getElementById('f-company').value.trim(),
+    positions: positionDraft.map(p=>({
+      name:p.name, note:p.note, link:p._linkOpen?p.link:'', requirement:p.requirement,
+      images:(p.images||[]).map(i=>i.path||null), deadline:p.deadline||'',
+      statusOverride:!!p._statusOverride, ownStatus:p._ownStatus,
+      checklistOverride:!!p._checklistOverride, ownChecklist:p._ownChecklist,
+    })),
+    status: document.querySelector('#statusToggle button.active')?.dataset.v,
+    reviewStage: reviewStageDraft,
+    link: document.getElementById('f-link').value.trim(),
+    checklist: checklistDraft,
+    progress: progressDraft,
+    stageDeadlines: stageDeadlinesDraft,
+  });
+}
+function drawerIsDirty(){
+  return drawerOpenSnapshot!==null && captureDrawerSnapshot()!==drawerOpenSnapshot;
+}
+function openCloseConfirm(){ document.getElementById('closeConfirm').classList.add('active'); }
+function closeCloseConfirm(){ document.getElementById('closeConfirm').classList.remove('active'); }
+function attemptCloseDrawer(){
+  if(!drawer.classList.contains('active')) return;
+  if(drawerIsDirty()) openCloseConfirm();
+  else closeDrawer();
+}
+document.getElementById('closeConfirmKeepBtn').addEventListener('click', closeCloseConfirm);
+document.getElementById('closeConfirmDiscardBtn').addEventListener('click', closeDrawer);
 
 function setStatusToggle(v){
   document.querySelectorAll('#statusToggle button').forEach(b=>{
@@ -3298,48 +3675,107 @@ document.getElementById('reviewStageToggle').addEventListener('click', e=>{
   setReviewStageToggle(reviewStageDraft);
 });
 
+// 常用待办快捷项：点一下就在清单里加一条同名待办（已经有同名的就不重复加，
+// 胶囊会显示成"已添加"状态）。纯粹是快速录入的辅助，加进去之后就是普通待办项，
+// 跟手打的没有任何区别。改这个数组就能调整以后要放哪些常用项。
+const CHECKLIST_COMMON_ITEMS = ['性格测试', '实习经历', '证书', '照片'];
+// 焦点转移是"回车新建下一行"体验的关键——不然每次都要重新点一下新出现的输入框，
+// 跟"图个快"的初衷背道而驰。用一个变量记一下这次 render 完该把光标放哪。
+let checklistFocusIdx = -1;
 function renderChecklistEditor(){
   const box = document.getElementById('checklistItems');
   box.innerHTML = checklistDraft.map((item, idx)=>`
     <div class="item-row" data-idx="${idx}">
-      <input type="checkbox" ${item.done?'checked':''}>
-      <input type="text" value="${escapeHtml(item.text)}" placeholder="例如：性格测试还没做">
-      <button class="del" type="button">&times;</button>
+      <button class="ios-check${item.done?' checked':''}" type="button" aria-label="标记完成">${item.done?ICON_CHECK:''}</button>
+      <input type="text" class="${item.done?'done-text':''}" value="${escapeHtml(item.text)}" placeholder="例如：性格测试还没做">
+      <button class="del" type="button" aria-label="删除这一项">${ICON_TRASH}</button>
     </div>
   `).join('');
   box.querySelectorAll('.item-row').forEach(row=>{
     const idx = Number(row.dataset.idx);
-    row.querySelector('input[type=checkbox]').addEventListener('change', e=>{
-      checklistDraft[idx].done = e.target.checked;
+    row.querySelector('.ios-check').addEventListener('click', ()=>{
+      checklistDraft[idx].done = !checklistDraft[idx].done;
+      renderChecklistEditor();
     });
-    row.querySelector('input[type=text]').addEventListener('input', e=>{
+    const textInput = row.querySelector('input[type=text]');
+    textInput.addEventListener('input', e=>{
       checklistDraft[idx].text = e.target.value;
+    });
+    textInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        checklistDraft.splice(idx+1, 0, {text:'', done:false});
+        checklistFocusIdx = idx+1;
+        renderChecklistEditor();
+      } else if(e.key==='Backspace' && textInput.value===''){
+        e.preventDefault();
+        if(checklistDraft.length>1){
+          checklistDraft.splice(idx,1);
+          checklistFocusIdx = Math.max(0, idx-1);
+          renderChecklistEditor();
+        }
+      }
     });
     row.querySelector('.del').addEventListener('click', ()=>{
       checklistDraft.splice(idx,1);
       renderChecklistEditor();
     });
   });
+  if(checklistFocusIdx>=0){
+    const target = box.querySelector(`.item-row[data-idx="${checklistFocusIdx}"] input[type=text]`);
+    if(target) target.focus();
+    checklistFocusIdx = -1;
+  }
+  renderChecklistCommonPills();
+}
+function renderChecklistCommonPills(){
+  const box = document.getElementById('checklistCommonPills');
+  box.innerHTML = CHECKLIST_COMMON_ITEMS.map(label=>{
+    const added = checklistDraft.some(i=>i.text.trim()===label);
+    return `<button class="checklist-common-pill${added?' added':''}" type="button" data-label="${escapeHtml(label)}">${added?'✓ ':'+ '}${escapeHtml(label)}</button>`;
+  }).join('');
+  box.querySelectorAll('.checklist-common-pill').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const label = btn.dataset.label;
+      if(checklistDraft.some(i=>i.text.trim()===label)) return;
+      // 常用项加进去的时候，如果清单里就一条空的占位行，直接用那一行，不留空行在上面。
+      if(checklistDraft.length===1 && checklistDraft[0].text.trim()==='') checklistDraft[0].text = label;
+      else checklistDraft.push({text:label, done:false});
+      renderChecklistEditor();
+    });
+  });
 }
 document.getElementById('addItemBtn').addEventListener('click', ()=>{
   checklistDraft.push({text:'', done:false});
+  checklistFocusIdx = checklistDraft.length-1;
   renderChecklistEditor();
 });
 
 document.getElementById('addBtn').addEventListener('click', ()=>openDrawer(null));
-document.getElementById('drawerClose').addEventListener('click', closeDrawer);
-document.getElementById('cancelBtn').addEventListener('click', closeDrawer);
-overlay.addEventListener('click', closeDrawer);
+document.getElementById('drawerClose').addEventListener('click', attemptCloseDrawer);
+document.getElementById('cancelBtn').addEventListener('click', attemptCloseDrawer);
+// 点遮罩不关闭这个弹窗了（防手滑漏填），只有 ×/取消/Esc 会触发关闭流程。
 
+// 每个岗位实际生效的状态/待办清单：专属设置开着就用它自己的值，没开就用共用值——
+// 状态/网申链接/待办清单这三个字段都是这套"共用为主、可专属覆盖"的规则，截止
+// 时间是每个岗位自己一份、不走这套规则。
+function effectiveStatus(entry, sharedStatus){
+  return entry._statusOverride ? entry._ownStatus : sharedStatus;
+}
+function effectiveChecklist(entry, sharedChecklist){
+  const list = entry._checklistOverride ? entry._ownChecklist : sharedChecklist;
+  return list.filter(i=>i.text.trim()!=='');
+}
 document.getElementById('saveBtn').addEventListener('click', ()=>{
   const companyName = document.getElementById('f-company').value.trim();
   if(!companyName){
-    alert('请填写公司名称');
+    document.getElementById('f-company').closest('.field').classList.add('has-error');
+    document.getElementById('f-company').focus();
     return;
   }
-  const status = document.querySelector('#statusToggle button.active').dataset.v;
+  const sharedStatus = document.querySelector('#statusToggle button.active').dataset.v;
   const now = new Date().toISOString();
-  const cleanChecklist = checklistDraft.filter(i=>i.text.trim()!=='');
+  const cleanSharedChecklist = checklistDraft.filter(i=>i.text.trim()!=='');
 
   // 查找或创建公司（按名字匹配时不管有没有被软删除都算找到——如果之前删过这家公司，
   // 现在又新增了它的岗位，直接把原来的公司记录复活，而不是产生一个重复的新公司）
@@ -3356,18 +3792,18 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     companyTouched = true;
   }
 
-  const deadline = document.getElementById('f-deadline').value;
   const link = document.getElementById('f-link').value.trim();
   function buildNewPosition(entry, idx){
+    const status = effectiveStatus(entry, sharedStatus);
     return {
       id: 'r_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,7),
       companyId: company.id,
       position: entry.name.trim(),
       status,
-      deadline,
+      deadline: entry.deadline||'',
       link: (entry.link && entry.link.trim()) ? entry.link.trim() : link,
       note: (entry.note||'').trim(),
-      checklist: JSON.parse(JSON.stringify(cleanChecklist)),
+      checklist: JSON.parse(JSON.stringify(effectiveChecklist(entry, cleanSharedChecklist))),
       requirement: (entry.requirement||'').trim(),
       requirementImages: (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path),
       reviewStage: status==='inprogress' ? reviewStageDraft : '',
@@ -3388,33 +3824,33 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   const touchedPositionIds = [];
   if(editingId){
     // positionDraft 里带 _existingId 的，是编辑时一起拉进来的已有岗位（可能不止
-    // 当初点开的那一个）——状态/截止时间/网申链接这几个公司层面共用的字段，统一
-    // 套到每一个上；岗位名/备注/岗位要求各自独立。但"待办清单"和"招聘进度"只
-    // 认真对待最初点开、正在编辑的那一个，其他捎带手编辑的岗位不动它们各自原来
-    // 记的清单/进度，避免顺手把兄弟岗位自己攒的进度记录覆盖掉。没有 _existingId
-    // 的是这次顺手新增的岗位，按新增处理。
+    // 当初点开的那一个）——状态/网申链接/待办清单默认整家公司共用，统一套到每
+    // 一个上；某个岗位如果开了"专属设置"，那三项改用它自己的值。截止时间现在
+    // 每个岗位各自一份，直接用它自己的。岗位名/备注/岗位要求各自独立。"招聘
+    // 进度"只认真对待最初点开、正在编辑的那一个，其他捎带手编辑的岗位不动它们
+    // 各自原来记的进度，避免顺手把兄弟岗位自己攒的进度记录覆盖掉。没有
+    // _existingId 的是这次顺手新增的岗位，按新增处理。
     positionDraft.forEach((entry, i)=>{
       if(entry._existingId){
         const r = positions.find(x=>x.id===entry._existingId);
         if(!r) return;
         const prevStatus = r.status;
         const isPrimary = entry._existingId===editingId;
+        const status = effectiveStatus(entry, sharedStatus);
         r.companyId = company.id;
         r.position = (entry.name||'').trim();
         r.status = status;
-        r.deadline = deadline;
+        r.deadline = entry.deadline||'';
         r.link = (entry.link && entry.link.trim()) ? entry.link.trim() : link;
         r.note = (entry.note||'').trim();
         r.requirement = (entry.requirement||'').trim();
         r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
         r.reviewStage = status==='inprogress' ? reviewStageDraft : '';
-        if(isPrimary){
-          r.checklist = cleanChecklist;
-          if(status==='submitted'){
-            r.progress = JSON.parse(JSON.stringify(progressDraft));
-            r.progressDates = JSON.parse(JSON.stringify(progressDatesDraft));
-            r.stageDeadlines = JSON.parse(JSON.stringify(stageDeadlinesDraft));
-          }
+        r.checklist = effectiveChecklist(entry, cleanSharedChecklist);
+        if(isPrimary && status==='submitted'){
+          r.progress = JSON.parse(JSON.stringify(progressDraft));
+          r.progressDates = JSON.parse(JSON.stringify(progressDatesDraft));
+          r.stageDeadlines = JSON.parse(JSON.stringify(stageDeadlinesDraft));
         }
         // 只在"第一次从别的状态变成已提交"那一刻记录时间；已经是已提交、这次只是
         // 改改别的字段，不重新记时间，免得日期跟着每次编辑到处跑
@@ -3429,7 +3865,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     });
   } else {
     const validEntries = positionDraft.filter(e=>e.name.trim()!=='');
-    const entriesToUse = validEntries.length ? validEntries : [positionDraft[0] || {name:'', requirement:'', images:[]}];
+    const entriesToUse = validEntries.length ? validEntries : [positionDraft[0] || {name:'', requirement:'', images:[], deadline:''}];
     entriesToUse.forEach((entry, i)=>{
       const newPos = buildNewPosition(entry, i);
       positions.push(newPos);
@@ -4424,16 +4860,25 @@ setInterval(()=>{ if(isSyncConfigured() && sb) pullAndMerge(); }, 60000);
 /* ---- 键盘快捷键：Esc 关闭当前抽屉，单行输入框里回车直接保存 ---- */
 document.addEventListener('keydown', (e)=>{
   if(e.key !== 'Escape') return;
-  if(drawer.classList.contains('active')) closeDrawer();
+  if(document.getElementById('closeConfirm').classList.contains('active')) closeCloseConfirm();
+  else if(document.getElementById('companySuggest').hidden===false) hideCompanySuggest();
+  else if(drawer.classList.contains('active')) attemptCloseDrawer();
   else if(syncDrawer.classList.contains('active')) closeSyncDrawer();
   else if(companyDetailDrawer.classList.contains('active')) closeCompanyDetail();
   else if(recycleBinDrawer.classList.contains('active')) closeRecycleBin();
 });
 document.getElementById('drawer').addEventListener('keydown', (e)=>{
+  // Cmd/Ctrl+Enter 无论光标在哪个字段（包括文本域）都直接保存。
+  if((e.metaKey||e.ctrlKey) && e.key==='Enter'){
+    e.preventDefault();
+    document.getElementById('saveBtn').click();
+    return;
+  }
   if(e.key !== 'Enter') return;
   // 文本域（岗位要求、备注）回车是换行，不是"保存"；其它单行输入框回车直接触发保存，
   // 这样新增时只填公司+岗位两个字段、回车就能秒存，不用把整张表单都填完再去点按钮。
   if(e.target.tagName === 'TEXTAREA') return;
+  if(e.target.id==='f-company' && !document.getElementById('companySuggest').hidden) return;
   e.preventDefault();
   document.getElementById('saveBtn').click();
 });
