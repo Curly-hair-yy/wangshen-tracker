@@ -493,10 +493,11 @@
   }
 
   .day-group{margin-bottom:4px;}
-  /* 吸顶时背景要跟它实际所在的容器（.column，浅灰底）保持一致，而不是页面底色——
-     之前用了页面底色，吸顶悬浮起来的时候在列面板里会露出一块颜色对不上的方块，
-     看着很突兀。 */
+  /* 吸顶时背景要跟它实际所在的容器保持一致，不然悬浮起来的时候会露出一块颜色
+     对不上的方块（看板页的列是 --surface-2 浅灰底；已提交进度页那边直接铺在
+     页面底色 --bg 上）。用一个可以被外层覆盖的变量，而不是哪个用得多就写死哪个。 */
   .day-group-label{
+    --group-label-bg:var(--bg);
     font-size:12px;
     font-weight:500;
     letter-spacing:.02em;
@@ -505,15 +506,28 @@
     margin-bottom:2px;
     position:sticky;
     top:0;
-    background:var(--surface-2);
+    background:var(--group-label-bg);
     z-index:2;
   }
+  .column .day-group-label{--group-label-bg:var(--surface-2);}
   .day-group .card{margin-bottom:10px;}
   .day-group .card:last-child{margin-bottom:0;}
   .fav-label{
-    cursor:pointer;display:flex;align-items:center;gap:5px;user-select:none;
+    cursor:pointer;user-select:none;
+    display:flex;align-items:center;gap:8px;
+    font-size:14px;font-weight:600;color:var(--text);
+    padding:10px 4px;margin-bottom:2px;
   }
-  .fav-collapse-arrow{font-size:10px;color:var(--text-2);width:10px;display:inline-block;}
+  .fav-label .fav-star-icon{color:var(--orange);font-size:14px;}
+  .fav-label .count-inline{
+    font-size:11px;font-weight:400;color:var(--text-2);
+    background:var(--surface-2);border-radius:10px;padding:1px 7px;
+  }
+  .fav-collapse-arrow{
+    margin-left:auto;color:var(--text-3);display:flex;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1);
+  }
+  .fav-collapse-arrow.collapsed{transform:rotate(-90deg);}
   .review-stage-group{margin-bottom:6px;}
   .review-stage-group:last-child{margin-bottom:0;}
   .review-stage-label{
@@ -680,6 +694,69 @@
   }
 
   .submitted-list{display:flex;flex-direction:column;gap:12px;}
+  .submitted-toolbar-actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;}
+  .submitted-toolbar-actions .btn-ghost{padding:7px 12px;font-size:12px;}
+
+  /* 筛选弹层：看板页这几个筛选控件（filterUrgent/filterProgress/收藏/日期）原地不动、
+     原来的 id 和事件绑定都没变；只是用 display:contents 让它们在看板页照常内联在
+     工具栏那一行里，切到"已提交进度"页时套一层 .popover-mode，让同一批元素
+     变成从"筛选"按钮下面弹出来的浮层，不用另外复制一套控件、两边各存一份。 */
+  .toolbar{position:relative;}
+  .filter-controls{display:contents;}
+  .filter-trigger-btn{display:none;position:relative;}
+  .toolbar.popover-mode .filter-trigger-btn{display:inline-flex;align-items:center;gap:6px;}
+  .filter-badge{
+    background:var(--primary);color:#fff;font-size:10px;font-weight:600;
+    border-radius:var(--radius-pill);min-width:16px;height:16px;padding:0 4px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-variant-numeric:tabular-nums;
+  }
+  .filter-badge[hidden]{display:none;}
+  .toolbar.popover-mode .filter-controls{
+    display:none;
+    position:absolute;top:calc(100% + 8px);left:0;z-index:30;
+    flex-direction:column;align-items:stretch;gap:10px;
+    background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-2);
+    padding:16px;min-width:280px;
+  }
+  .toolbar.popover-mode .filter-controls.open{display:flex;}
+  .filter-controls-foot{display:none;justify-content:flex-end;}
+  .toolbar.popover-mode .filter-controls-foot{display:flex;}
+  .filter-clear-btn{
+    font-size:12px;color:var(--text-2);background:none;border:none;cursor:pointer;padding:2px 0;
+  }
+  .filter-clear-btn:hover{color:var(--primary);}
+  .date-pills{display:flex;flex-wrap:wrap;gap:6px;}
+  .date-pill{
+    font-size:12px;padding:5px 11px;border-radius:var(--radius-pill);
+    background:var(--surface-2);color:var(--text-2);border:none;cursor:pointer;
+  }
+  .date-pill.active{background:var(--primary);color:#fff;font-weight:600;}
+  .toolbar.popover-mode .date-filter-group{flex-direction:column;align-items:stretch;gap:8px;}
+  .toolbar.popover-mode #customDateInputs{justify-content:space-between;}
+  .toolbar.popover-mode .filter-controls select{width:100%;}
+
+  /* 卡片折叠：chevron 按钮转向 + 内容区用 grid-rows 的 0fr/1fr 技巧做高度过渡，
+     跟看板页"已审核"分组那个折叠是同一套写法。折叠后只剩标题行，看得到公司名、
+     岗位数、和这张卡里"最新进度"是什么（用同一套 done/current 胶囊里最醒目的
+     那个）。 */
+  .card-collapse-btn{
+    background:none;border:none;color:var(--text-3);cursor:pointer;
+    padding:2px;margin-left:2px;display:flex;flex-shrink:0;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1);
+  }
+  .card-collapse-btn.collapsed{transform:rotate(-90deg);}
+  .card-collapsible-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .2s cubic-bezier(.2,.8,.2,1);}
+  .card-collapsible-body.collapsed{grid-template-rows:0fr;}
+  .card-collapsible-body > .inner{overflow:hidden;}
+  .card-summary-line{
+    display:none;align-items:center;gap:8px;margin-top:2px;
+    font-size:12px;color:var(--text-2);
+  }
+  .card.collapsed .card-summary-line{display:flex;}
+  .card-summary-line .progress-checkbox-item{
+    font-size:11px;padding:3px 8px;border-radius:var(--radius-pill);pointer-events:none;
+  }
   .reminders-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;}
   .paste-import-row{
     display:flex;align-items:center;gap:8px;
@@ -733,26 +810,50 @@
   #submittedList .card.dragging{opacity:.4;}
   #submittedList .card.drag-over-top{box-shadow:inset 0 3px 0 0 var(--primary);}
   #submittedList .card.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--primary);}
-  .company-row .seq{font-size:11px;color:var(--text-2);flex-shrink:0;}
-  .submitted-date{font-size:11px;color:var(--text-2);}
+  /* 序号弱化：还留在标题左边，但字号更小、颜色更淡，不跟公司名抢视线。 */
+  .company-row .seq{font-size:10px;color:var(--text-3);flex-shrink:0;font-variant-numeric:tabular-nums;}
+  .submitted-date{font-size:12px;color:var(--text-2);margin-right:4px;}
   .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;flex:1;}
   .position-line-main .position{flex-shrink:0;}
   .position-line-main .submitted-note{
     margin:0;flex-shrink:1;min-width:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  .submitted-position-line{cursor:pointer;border-bottom:1px dashed var(--line);padding-bottom:5px;}
-  .submitted-position-line:last-child{border-bottom:none;padding-bottom:0;}
+  .submitted-position-line{cursor:pointer;border-top:1px solid var(--line);padding-top:10px;margin-top:10px;}
+  .submitted-position-line:first-child{border-top:none;padding-top:0;margin-top:0;}
   .submitted-position-line.ended .position,
   .submitted-position-line.ended .position-link{color:var(--text-2);}
   .submitted-position-line.ended{opacity:.55;}
   .card.all-ended{opacity:.55;}
   .card.all-ended:hover{opacity:.85;}
   .submitted-row-progress{
-    display:flex;flex-wrap:wrap;gap:4px 12px;
-    margin:2px 0 6px 0;
+    display:flex;flex-wrap:wrap;gap:6px;
+    margin:8px 0 0 0;
   }
-  .submitted-row-progress .progress-checkbox-item{font-size:11.5px;}
+  /* 招聘进度迷你胶囊组：默认灰底淡字（未到达）；到达过的（done）主色淡底；
+     到达里最新的那一个（current）主色实底、白字，一眼看出"卡在哪一步"。
+     offered/结束这两个终点状态颜色固定，不跟着 done/current 变。 */
+  .submitted-row-progress .progress-checkbox-item{
+    position:relative;
+    font-size:12px;line-height:1;font-weight:400;
+    padding:5px 10px;
+    border-radius:var(--radius-pill);
+    color:var(--text-3);
+    background:var(--surface-2);
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .submitted-row-progress .progress-checkbox-item:hover{filter:brightness(.97);}
+  .submitted-row-progress .progress-checkbox-item.step-done{color:var(--text);background:var(--primary-soft);}
+  .submitted-row-progress .progress-checkbox-item.step-current{color:#fff;background:var(--primary);font-weight:600;}
+  .submitted-row-progress .progress-checkbox-item[data-key="offered"].step-done,
+  .submitted-row-progress .progress-checkbox-item[data-key="offered"].step-current{
+    color:var(--green);background:var(--green-soft);font-weight:600;
+  }
+  .submitted-row-progress .progress-checkbox-item[data-key="ended"].step-done,
+  .submitted-row-progress .progress-checkbox-item[data-key="ended"].step-current{
+    color:var(--text-2);background:var(--surface-2);font-weight:400;
+  }
   .submitted-note{
     font-size:12px;color:#9CA3AF;
     font-family:"Kaiti SC","STKaiti","KaiTi",serif;
@@ -853,34 +954,48 @@
     <button class="view-tab" id="viewTabReminders" type="button" role="tab" aria-selected="false">提醒事项 <span class="tab-count" id="remindersTabCount"></span></button>
   </div>
 
-  <div class="toolbar">
+  <div class="toolbar" id="toolbar">
     <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
-    <select id="filterUrgent">
-      <option value="all">全部截止情况</option>
-      <option value="urgent">3天内截止</option>
-      <option value="overdue">已逾期</option>
-    </select>
-    <select id="filterProgress">
-      <option value="all">全部招聘进度</option>
-      <option value="assessment">测评</option>
-      <option value="groupInterview">群面</option>
-      <option value="aiInterview">AI面</option>
-      <option value="interview1">一面</option>
-      <option value="interview2">二面</option>
-      <option value="offered">Offered</option>
-      <option value="ended">结束</option>
-    </select>
-    <button class="btn btn-ghost" id="filterFavoriteBtn" type="button">★ 只看收藏</button>
-    <div id="dateFilterGroup" class="date-filter-group" style="display:none;">
-      <select id="filterDateField">
-        <option value="none">不按日期筛选</option>
-        <option value="submittedAt">按提交日期</option>
-        <option value="createdAt">按新增日期</option>
+    <div class="filter-controls" id="filterControlsWrap">
+      <select id="filterUrgent">
+        <option value="all">全部截止情况</option>
+        <option value="urgent">3天内截止</option>
+        <option value="overdue">已逾期</option>
       </select>
-      <input type="date" id="filterDateStart">
-      <span class="date-filter-sep">至</span>
-      <input type="date" id="filterDateEnd">
+      <select id="filterProgress">
+        <option value="all">全部招聘进度</option>
+        <option value="assessment">测评</option>
+        <option value="groupInterview">群面</option>
+        <option value="aiInterview">AI面</option>
+        <option value="interview1">一面</option>
+        <option value="interview2">二面</option>
+        <option value="offered">Offered</option>
+        <option value="ended">结束</option>
+      </select>
+      <button class="btn btn-ghost" id="filterFavoriteBtn" type="button">★ 只看收藏</button>
+      <div id="dateFilterGroup" class="date-filter-group" style="display:none;">
+        <div class="date-pills" id="datePills">
+          <button class="date-pill active" type="button" data-range="all">全部</button>
+          <button class="date-pill" type="button" data-range="week">本周</button>
+          <button class="date-pill" type="button" data-range="month">本月</button>
+          <button class="date-pill" type="button" data-range="custom">自定义</button>
+        </div>
+        <select id="filterDateField">
+          <option value="none">不按日期筛选</option>
+          <option value="submittedAt">按提交日期</option>
+          <option value="createdAt">按新增日期</option>
+        </select>
+        <div id="customDateInputs" style="display:none;align-items:center;gap:6px;">
+          <input type="date" id="filterDateStart">
+          <span class="date-filter-sep">至</span>
+          <input type="date" id="filterDateEnd">
+        </div>
+      </div>
+      <div class="filter-controls-foot" id="filterControlsFoot">
+        <button class="filter-clear-btn" type="button" id="filterClearBtn">清除筛选</button>
+      </div>
     </div>
+    <button class="btn btn-ghost filter-trigger-btn" id="filterTriggerBtn" type="button">筛选<span class="filter-badge" id="filterBadge" hidden>0</span></button>
     <button class="btn btn-primary" id="addBtn">+ 新增网申</button>
   </div>
 
@@ -896,6 +1011,10 @@
   </div>
 
   <div id="submittedView" style="display:none;">
+    <div class="submitted-toolbar-actions">
+      <button class="btn btn-ghost" id="collapseAllBtn" type="button">全部折叠</button>
+      <button class="btn btn-ghost" id="expandAllBtn" type="button">全部展开</button>
+    </div>
     <div class="submitted-list" id="submittedList"></div>
   </div>
 
@@ -1292,6 +1411,36 @@ function progressLabelText(key, progress, dates, stageDeadlines){
   }
   return label;
 }
+// 已提交进度页那一排迷你胶囊专用：已到达的环节里，日期最新的那个算"当前进度"
+// （current，胶囊里带日期后缀），其余已到达的算"done"（不重复显示日期，
+// 鼠标停留能看到，见 stepLabelText 里的 title）；没到达的不给状态，走默认样式。
+// 环节不要求连续勾选（比如可能跳过群面），这里只看"到达没到达"和"哪个最新"。
+function computeStepStatuses(progress, dates){
+  let currentKey = null, currentTime = -Infinity;
+  PROGRESS_STAGES.forEach(s=>{
+    if(!progress[s.key]) return;
+    const t = dates[s.key] ? new Date(dates[s.key]+'T00:00:00').getTime() : 0;
+    if(t>=currentTime){ currentTime = t; currentKey = s.key; }
+  });
+  const map = {};
+  PROGRESS_STAGES.forEach(s=>{
+    if(!progress[s.key]) return;
+    map[s.key] = s.key===currentKey ? 'current' : 'done';
+  });
+  return map;
+}
+function stepLabelText(key, progress, dates, stageDeadlines, status){
+  const stage = PROGRESS_STAGES.find(s=>s.key===key);
+  const label = stage ? stage.label : key;
+  if(status==='current' && dates[key]) return `${label} · ${shortDateLabel(dates[key])}`;
+  if(status) return label;
+  const entry = stageDeadlineEntry(stageDeadlines, key);
+  if(!progress[key] && entry && entry.date){
+    const overdue = isOverdue(entry.date);
+    return `${label}<span class="stage-date-${overdue?'overdue':'pending'}">(${shortDateTimeLabel(entry.date)})</span>`;
+  }
+  return label;
+}
 // 勾选某个招聘进度时顺带维护它的日期：第一次勾上自动记今天，取消勾选就把日期清掉
 // （下次重新勾上会记新的日期，而不是沿用一个"取消过又勾回来"的旧日期）。
 function setProgressChecked(progress, progressDates, key, checked){
@@ -1387,6 +1536,8 @@ function loadUiPrefs(){
 function saveUiPrefs(){ safeSetItem(UI_PREFS_KEY, JSON.stringify(uiPrefs)); }
 let uiPrefs = loadUiPrefs();
 if(uiPrefs.reviewedCollapsed===undefined) uiPrefs.reviewedCollapsed = true;
+// 已提交进度页每张卡片自己的折叠状态，key 是公司 id；默认展开（不在这个表里就是展开）。
+if(!uiPrefs.collapsedCompanyIds) uiPrefs.collapsedCompanyIds = {};
 
 const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
@@ -1769,12 +1920,31 @@ function renderSubmittedList(){
     return;
   }
 
+  // 折叠后那一行摘要用的"这张卡最新进度"：把卡里所有岗位的 progress 摊平一起看，
+  // 日期最新的那个算数——跟 computeStepStatuses() 判断单个岗位 current 是同一个逻辑，
+  // 只是这里是整张卡（可能好几个岗位）合在一起比。
+  function computeCardSummaryStep(list){
+    let bestKey = null, bestTime = -Infinity;
+    list.forEach(p=>{
+      const progress = p.progress||{}, dates = p.progressDates||{};
+      PROGRESS_STAGES.forEach(s=>{
+        if(!progress[s.key]) return;
+        const t = dates[s.key] ? new Date(dates[s.key]+'T00:00:00').getTime() : 0;
+        if(t>=bestTime){ bestTime = t; bestKey = s.key; }
+      });
+    });
+    return bestKey;
+  }
+
   function renderSubmittedCard(g, showDate){
     const company = getCompany(g.companyId);
     const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
     const dateLabel = dayLabel(dateKeyOfGroup(g));
     const seqNum = companySeqMap.get(g.companyId);
     const defaultLink = companyLevelLink(g.list);
+    const collapsed = !!uiPrefs.collapsedCompanyIds[g.companyId];
+    const summaryKey = computeCardSummaryStep(g.list);
+    const summaryStage = summaryKey ? PROGRESS_STAGES.find(s=>s.key===summaryKey) : null;
     // 公司级提醒（比如整个公司统一测评）不挂在具体岗位上，已经完成的就不用再占地方显示了。
     const companyReminderHtml = company ? PROGRESS_STAGES.map(s=>{
       const entry = companyStageDeadlineEntry(company, s.key);
@@ -1788,13 +1958,18 @@ function renderSubmittedList(){
       const progress = p.progress || {};
       const dates = p.progressDates || {};
       const deadlines = p.stageDeadlines || {};
-      const progressHtml = PROGRESS_STAGES.map(s=>`
-        <label class="progress-checkbox-item${progress[s.key]?' checked':''}" data-key="${s.key}">
+      const stepStatuses = computeStepStatuses(progress, dates);
+      const progressHtml = PROGRESS_STAGES.map(s=>{
+        const status = stepStatuses[s.key] || '';
+        const titleAttr = status==='done' && dates[s.key] ? ` title="完成于 ${fmtDate(dates[s.key])}"` : '';
+        return `
+        <label class="progress-checkbox-item${status?' step-'+status:''}" data-key="${s.key}"${titleAttr}>
           <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-          <span class="stage-label" data-id="${p.id}" data-key="${s.key}">${progressLabelText(s.key, progress, dates, deadlines)}</span>
+          <span class="stage-label" data-id="${p.id}" data-key="${s.key}">${stepLabelText(s.key, progress, dates, deadlines, status)}</span>
           <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${s.key}" value="${(stageDeadlineEntry(deadlines, s.key)||{}).date||''}" tabindex="-1">
         </label>
-      `).join('');
+      `;
+      }).join('');
       return `
         <div class="submitted-position-line${progress.ended?' ended':''}" data-id="${p.id}">
           <div class="position-line">
@@ -1803,7 +1978,7 @@ function renderSubmittedList(){
               ${p.note ? `<span class="submitted-note">${escapeHtml(p.note)}</span>` : ''}
             </span>
             <span class="position-line-meta">
-              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
+              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
             </span>
             <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
           </div>
@@ -1812,21 +1987,28 @@ function renderSubmittedList(){
       `;
     }).join('');
     return `
-      <div class="card${allProgressEnded(g.list)?' all-ended':''}" data-company-id="${g.companyId}">
+      <div class="card${allProgressEnded(g.list)?' all-ended':''}${collapsed?' collapsed':''}" data-company-id="${g.companyId}">
         <span class="drag-handle" draggable="true" title="拖动调整顺序">⠿</span>
         <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="submitted" data-review-stage="" title="删除这张卡里的所有岗位">&times;</button>
         <div class="company-row">
           <span class="seq">${seqNum}</span>
-          <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+          <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+          <button class="card-collapse-btn${collapsed?' collapsed':''}" type="button" data-company-id="${g.companyId}" title="折叠/展开这张卡" aria-label="折叠/展开这张卡" aria-expanded="${collapsed?'false':'true'}">${ICON_CHEVRON_DOWN}</button>
           <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
           <span class="company-row-right">
             ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
-            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
+            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </span>
         </div>
-        ${companyReminderHtml ? `<div class="company-stage-reminders">${companyReminderHtml}</div>` : ''}
-        <div class="position-list">${positionLines}</div>
-        ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
+        <div class="card-summary-line">
+          <span>${g.list.length} 个岗位</span>
+          ${summaryStage ? `<span class="progress-checkbox-item step-current" data-key="${summaryKey}">${summaryStage.label}</span>` : ''}
+        </div>
+        <div class="card-collapsible-body${collapsed?' collapsed':''}"><div class="inner">
+          ${companyReminderHtml ? `<div class="company-stage-reminders">${companyReminderHtml}</div>` : ''}
+          <div class="position-list">${positionLines}</div>
+          ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
+        </div></div>
       </div>
     `;
   }
@@ -1835,13 +2017,14 @@ function renderSubmittedList(){
   if(orderedFavGroups.length){
     html += `
       <div class="day-group" data-section="fav">
-        <div class="day-group-label fav-label" id="favSectionToggle">
-          <span class="fav-collapse-arrow">${favSectionCollapsed?'▸':'▾'}</span>
-          <span>★ 收藏</span>
-        </div>
-        <div class="fav-section-body"${favSectionCollapsed?' style="display:none;"':''}>
+        <button class="fav-label" id="favSectionToggle" type="button" aria-expanded="${favSectionCollapsed?'false':'true'}">
+          <span class="fav-star-icon">★</span><span>收藏</span>
+          <span class="count-inline">${orderedFavGroups.length}</span>
+          <span class="fav-collapse-arrow${favSectionCollapsed?' collapsed':''}">${ICON_CHEVRON_DOWN}</span>
+        </button>
+        <div class="card-collapsible-body${favSectionCollapsed?' collapsed':''}" id="favSectionBody"><div class="inner">
           ${orderedFavGroups.map(g=>renderSubmittedCard(g, true)).join('')}
-        </div>
+        </div></div>
       </div>
     `;
   }
@@ -1869,11 +2052,31 @@ function renderSubmittedList(){
 
   const favToggle = document.getElementById('favSectionToggle');
   if(favToggle){
+    const favBody = document.getElementById('favSectionBody');
     favToggle.addEventListener('click', ()=>{
       favSectionCollapsed = !favSectionCollapsed;
-      renderSubmittedList();
+      favToggle.setAttribute('aria-expanded', favSectionCollapsed ? 'false' : 'true');
+      favToggle.querySelector('.fav-collapse-arrow').classList.toggle('collapsed', favSectionCollapsed);
+      favBody.classList.toggle('collapsed', favSectionCollapsed);
     });
   }
+  // 每张卡片自己的折叠/展开，状态存在 uiPrefs.collapsedCompanyIds 里（独立 key，
+  // 不进同步、不进台账数据），刷新页面还记得住。
+  list.querySelectorAll('.card-collapse-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const companyId = btn.dataset.companyId;
+      const collapsed = !uiPrefs.collapsedCompanyIds[companyId];
+      if(collapsed) uiPrefs.collapsedCompanyIds[companyId] = true;
+      else delete uiPrefs.collapsedCompanyIds[companyId];
+      saveUiPrefs();
+      const card = btn.closest('.card');
+      card.classList.toggle('collapsed', collapsed);
+      btn.classList.toggle('collapsed', collapsed);
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      card.querySelector('.card-collapsible-body').classList.toggle('collapsed', collapsed);
+    });
+  });
 
   // 拖拽排序：句柄在卡片最左边，悬停才显示。dragstart/dragend 挂在句柄上，每次
   // render 都要重新挂（因为卡片是新生成的 DOM）；dragover/drop 挂在 #submittedList
@@ -3204,6 +3407,7 @@ document.getElementById('deleteBtn').addEventListener('click', ()=>{
 function renderFilteredViews(){
   renderBoard();
   renderSubmittedList();
+  updateFilterBadge();
 }
 document.getElementById('searchInput').addEventListener('input', renderFilteredViews);
 document.getElementById('filterUrgent').addEventListener('change', renderFilteredViews);
@@ -3214,6 +3418,122 @@ document.getElementById('filterFavoriteBtn').addEventListener('click', function(
   this.classList.toggle('active', filterFavoriteOnly);
   renderFilteredViews();
 });
+
+// 已提交进度页：把截止情况/招聘进度/收藏/日期这几个筛选控件从"筛选"按钮下面
+// 弹出来（看板页还是照常排成一行，见 .filter-controls 的 CSS）。按钮上的数字
+// 徽标显示当前生效了几个筛选，方便一眼看出"现在是不是在看筛选过的结果"。
+function updateFilterBadge(){
+  const badge = document.getElementById('filterBadge');
+  if(!badge) return;
+  let count = 0;
+  if(document.getElementById('filterUrgent').value!=='all') count++;
+  if(document.getElementById('filterProgress').value!=='all') count++;
+  if(filterFavoriteOnly) count++;
+  if(document.getElementById('filterDateField').value!=='none') count++;
+  badge.textContent = count;
+  badge.hidden = count===0;
+}
+const filterTriggerBtn = document.getElementById('filterTriggerBtn');
+const filterControlsWrap = document.getElementById('filterControlsWrap');
+filterTriggerBtn.setAttribute('aria-haspopup','true');
+filterTriggerBtn.setAttribute('aria-expanded','false');
+function openFilterPopover(){
+  filterControlsWrap.classList.add('open');
+  filterTriggerBtn.setAttribute('aria-expanded','true');
+}
+function closeFilterPopover(){
+  filterControlsWrap.classList.remove('open');
+  filterTriggerBtn.setAttribute('aria-expanded','false');
+}
+filterTriggerBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  if(filterControlsWrap.classList.contains('open')) closeFilterPopover();
+  else openFilterPopover();
+});
+document.addEventListener('click', (e)=>{
+  if(!filterControlsWrap.classList.contains('open')) return;
+  if(e.target.closest('#filterControlsWrap') || e.target===filterTriggerBtn) return;
+  closeFilterPopover();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape' && filterControlsWrap.classList.contains('open')) closeFilterPopover();
+});
+document.getElementById('filterClearBtn').addEventListener('click', ()=>{
+  document.getElementById('filterUrgent').value = 'all';
+  document.getElementById('filterProgress').value = 'all';
+  filterFavoriteOnly = false;
+  document.getElementById('filterFavoriteBtn').classList.remove('active');
+  applyDateRange('all');
+  renderFilteredViews();
+});
+
+// 日期区间的"本周/本月"是按今天现算的，跟 renderStats() 里"本周新增"用的是同一套
+// 星期天起始的周定义，不用另外发明一套。
+function dateKeyFromDate(d){
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function weekRange(){
+  const start = new Date(); start.setHours(0,0,0,0);
+  start.setDate(start.getDate()-start.getDay());
+  const end = new Date(start); end.setDate(end.getDate()+6);
+  return [dateKeyFromDate(start), dateKeyFromDate(end)];
+}
+function monthRange(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  return [dateKeyFromDate(start), dateKeyFromDate(end)];
+}
+function applyDateRange(range){
+  const fieldSel = document.getElementById('filterDateField');
+  const startInp = document.getElementById('filterDateStart');
+  const endInp = document.getElementById('filterDateEnd');
+  const customBox = document.getElementById('customDateInputs');
+  document.querySelectorAll('.date-pill').forEach(b=>b.classList.toggle('active', b.dataset.range===range));
+  if(range==='all'){
+    fieldSel.value = 'none';
+    startInp.value = ''; endInp.value = '';
+    customBox.style.display = 'none';
+  } else if(range==='week' || range==='month'){
+    if(fieldSel.value==='none') fieldSel.value = 'submittedAt';
+    const [s,e] = range==='week' ? weekRange() : monthRange();
+    startInp.value = s; endInp.value = e;
+    customBox.style.display = 'none';
+  } else {
+    if(fieldSel.value==='none') fieldSel.value = 'submittedAt';
+    customBox.style.display = 'flex';
+  }
+  renderSubmittedList();
+  updateFilterBadge();
+}
+document.querySelectorAll('.date-pill').forEach(btn=>{
+  btn.addEventListener('click', ()=>applyDateRange(btn.dataset.range));
+});
+// 直接改"按提交日期/按新增日期"那个下拉、或者手动改自定义的起止日期，也要保持
+// 徽标数字和胶囊的高亮状态跟得上，不只是靠点胶囊才会更新。
+document.getElementById('filterDateField').addEventListener('change', function(){
+  if(this.value==='none'){
+    document.querySelectorAll('.date-pill').forEach(b=>b.classList.toggle('active', b.dataset.range==='all'));
+    document.getElementById('customDateInputs').style.display = 'none';
+  }
+  renderSubmittedList();
+  updateFilterBadge();
+});
+
+// "全部折叠/全部展开"：对当前渲染出来的所有公司卡片一次性设置折叠状态，状态存
+// 在跟单张卡片折叠同一个 uiPrefs.collapsedCompanyIds 里。
+function setAllCardsCollapsed(collapsed){
+  const { orderedListGroups } = computeSubmittedGroups();
+  orderedListGroups.forEach(g=>{
+    if(collapsed) uiPrefs.collapsedCompanyIds[g.companyId] = true;
+    else delete uiPrefs.collapsedCompanyIds[g.companyId];
+  });
+  saveUiPrefs();
+  renderSubmittedList();
+}
+document.getElementById('collapseAllBtn').addEventListener('click', ()=>setAllCardsCollapsed(true));
+document.getElementById('expandAllBtn').addEventListener('click', ()=>setAllCardsCollapsed(false));
 
 /* ---- 页面切换：看板 / 已提交进度 / 提醒事项 ---- */
 // 分段控件的白色滑块：量一下当前激活的标签按钮相对轨道的位置和宽度，写到滑块的
@@ -3246,7 +3566,11 @@ function setActiveView(view){
   document.getElementById('submittedView').style.display = view==='submitted' ? 'block' : 'none';
   document.getElementById('remindersView').style.display = view==='reminders' ? 'block' : 'none';
   document.getElementById('dateFilterGroup').style.display = view==='submitted' ? 'flex' : 'none';
-  document.querySelector('.toolbar').style.display = view==='reminders' ? 'none' : 'flex';
+  const toolbar = document.getElementById('toolbar');
+  toolbar.style.display = view==='reminders' ? 'none' : 'flex';
+  toolbar.classList.toggle('popover-mode', view==='submitted');
+  if(view!=='submitted') closeFilterPopover();
+  updateFilterBadge();
   renderStats();
   positionTabSlider();
   if(view==='reminders') renderRemindersList();
@@ -3267,9 +3591,8 @@ document.getElementById('viewTabs').addEventListener('keydown', (e)=>{
   document.getElementById(nextId).focus();
   setActiveView(viewOf[nextId]);
 });
-document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
-document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
-document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
+document.getElementById('filterDateStart').addEventListener('change', ()=>{ renderSubmittedList(); updateFilterBadge(); });
+document.getElementById('filterDateEnd').addEventListener('change', ()=>{ renderSubmittedList(); updateFilterBadge(); });
 
 /* ---- 公司详情抽屉（点击看板卡片打开） ---- */
 const companyDetailOverlay = document.getElementById('companyDetailOverlay');
