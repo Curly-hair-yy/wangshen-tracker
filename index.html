@@ -868,9 +868,114 @@
     font-family:inherit;line-height:1.4;
   }
 
-  .submitted-list{display:flex;flex-direction:column;gap:12px;}
+  .submitted-list{display:flex;flex-direction:column;gap:0;}
   .submitted-toolbar-actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;}
   .submitted-toolbar-actions .btn-ghost{padding:7px 12px;font-size:12px;}
+
+  /* 已提交进度页：左侧只读"进度概览"卡片，顶部要跟右侧第一条日期线对齐，
+     所以两边都不能有多余的 margin-top。 */
+  .progress-layout{display:grid;grid-template-columns:270px 1fr;gap:26px;align-items:start;}
+  .overview{
+    margin-top:0;
+    position:sticky;
+    top:20px;
+    border-radius:var(--radius-panel);
+    padding:20px;
+    background:var(--glass);
+    border:1px solid var(--glass-border);
+    box-shadow:var(--shadow);
+  }
+  .overview h3{margin:0 0 16px;font-size:18px;letter-spacing:-.02em;color:var(--ink);}
+  .overview-grid{display:grid;gap:8px;}
+  .overview-item{
+    display:flex;justify-content:space-between;align-items:center;
+    min-height:42px;border-radius:var(--radius-overview);padding:0 12px;
+    background:var(--overview-item);color:#3d546d;font-weight:850;
+  }
+  .overview-item strong{font-size:21px;color:var(--ink);font-variant-numeric:tabular-nums;}
+
+  .date-line{
+    display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;
+    color:#7890aa;font-weight:950;margin:0 0 16px;height:26px;font-size:14px;
+  }
+  .date-line:after{content:"";height:1px;background:var(--line);}
+
+  .progress-company{
+    position:relative;
+    border-radius:var(--radius-panel);
+    padding:26px 26px 26px 36px;
+    margin-bottom:28px;
+    background:var(--glass-strong);
+    border:1px solid var(--glass-border);
+    box-shadow:var(--shadow-company);
+    cursor:default;
+  }
+  .progress-company:hover{transform:none;background:var(--glass-strong);box-shadow:var(--shadow-company);}
+  .progress-company.ended{opacity:.6;}
+  .progress-company.ended .company-title,.progress-company.ended .role-name{color:var(--gray-ink);}
+  .progress-company .drag-handle{left:10px;}
+  .company-head{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+    padding-bottom:20px;padding-right:22px;border-bottom:1px solid var(--line);margin-bottom:8px;
+  }
+  .company-title{
+    font-size:22px;font-weight:950;letter-spacing:-.03em;
+    display:flex;align-items:center;gap:8px;color:var(--ink);
+  }
+  .company-title .favorite-star{font-size:18px;}
+  .company-title .seq{font-size:12px;font-weight:800;color:var(--text-3);}
+  .company-head-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .company-date{color:#4a6381;font-weight:950;font-size:13px;white-space:nowrap;}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+
+  .role{
+    position:relative;
+    display:grid;grid-template-columns:250px 1fr;gap:24px;align-items:center;
+    padding:18px 0;border-bottom:1px solid var(--line);
+  }
+  .role:last-child{border-bottom:0;}
+  .role-name{font-size:17px;font-weight:950;color:#1d3450;display:flex;align-items:center;gap:6px;}
+  .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
+  .role-name .position-link:hover{color:var(--blue);}
+  .role-desc{color:#8194ad;font-size:13px;font-weight:750;margin-top:6px;}
+  .role-del-btn{
+    position:absolute;top:14px;right:0;opacity:0;
+    background:none;border:none;color:var(--text-3);cursor:pointer;
+    font-size:16px;line-height:1;padding:4px;
+    transition:opacity .15s ease,color .15s ease;
+  }
+  .role:hover .role-del-btn{opacity:1;}
+  .role-del-btn:hover{color:var(--red);}
+
+  .track{position:relative;display:grid;grid-template-columns:repeat(7,1fr);min-height:82px;}
+  .track:before{
+    content:"";position:absolute;top:16px;left:7%;right:7%;height:4px;
+    border-radius:999px;background:var(--gray);
+  }
+  .track .line{position:absolute;top:16px;left:var(--left);width:var(--width);height:4px;border-radius:999px;z-index:1;}
+  .track .line.done-line{background:var(--blue-line);}
+  .track .line.scheduled-line{background:var(--orange);}
+  .track .line.ended-line{background:var(--ended);}
+  .track .step{position:relative;z-index:2;display:grid;justify-items:center;cursor:pointer;}
+  .track .step-dot{width:25px;height:25px;border-radius:50%;background:#eef4fa;border:4px solid #fff;box-shadow:0 0 0 2px var(--gray);}
+  .track .step.done .step-dot{background:var(--blue-2);box-shadow:0 0 0 2px var(--blue-2);}
+  .track .step.current .step-dot{background:var(--blue);box-shadow:0 0 0 2px var(--blue),0 0 0 8px var(--blue-soft);}
+  .track .step.scheduled .step-dot{background:var(--orange);box-shadow:0 0 0 2px var(--orange),0 0 0 8px var(--orange-soft);}
+  .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
+  .track .step-label{margin-top:10px;font-size:12px;font-weight:950;color:#8297ae;text-align:center;}
+  .track .step-date{margin-top:3px;font-size:11px;font-weight:850;color:#a0b0c2;white-space:nowrap;}
+  .track .step.done .step-label,.track .step.done .step-date{color:var(--blue-label);}
+  .track .step.current .step-label,.track .step.current .step-date{color:var(--blue);}
+  .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
+  .track .step.ended .step-label,.track .step.ended .step-date{color:var(--gray-ink);}
+  .track .stage-deadline-input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;}
+  @media(max-width:860px){
+    .progress-layout{grid-template-columns:1fr;}
+    .overview{position:static;}
+    .role{grid-template-columns:1fr;}
+    .company-title{font-size:18px;}
+    .company-head{flex-wrap:wrap;}
+  }
 
   /* v3：筛选弹层作废，所有筛选控件原地常驻在工具栏这一行里，两个页面都一样
      （已提交进度页多出的日期筛选放不下就自己换到第二行、靠右，见 .date-filter-group
@@ -2089,179 +2194,228 @@ function computeSubmittedGroups(){
   return { filtered, groups, companySeqMap, orderedFavGroups, orderedListGroups };
 }
 
+// 七个节点固定顺序（跟 PROGRESS_STAGES 完全一致），轨道上"Offer"只是 Offered 的
+// 显示简写，进度概览那边继续用完整的"Offered"。
+function trackStepLabel(key){
+  if(key==='offered') return 'Offer';
+  const s = PROGRESS_STAGES.find(x=>x.key===key);
+  return s ? s.label : key;
+}
+// 算一条岗位轨道上七个节点各自的状态、以及要画哪几段连接线。纯展示层推导，
+// 不改任何存储字段。节点状态：done/current/scheduled/empty/ended，规则见
+// wangshen-tracker-ui-redesign-v3.md 的 9.4。
+function computeTrack(progress, dates, stageDeadlines){
+  progress = progress || {}; dates = dates || {}; stageDeadlines = stageDeadlines || {};
+  const keys = PROGRESS_STAGES.map(s=>s.key);
+  const N = keys.length;
+  const cx = i => (i + 0.5) / N * 100;
+  const nowTs = Date.now();
+  const isEnded = !!progress.ended;
+  const statusMap = computeStepStatuses(progress, dates); // {key:'current'|'done'}，只有已到达的节点才有值
+
+  let currentIdx = -1, firstDoneIdx = -1;
+  keys.forEach((key,i)=>{
+    if(statusMap[key]){
+      if(firstDoneIdx===-1) firstDoneIdx = i;
+      if(statusMap[key]==='current') currentIdx = i;
+    }
+  });
+
+  const steps = keys.map((key,i)=>{
+    let status = '', dateLabel = '';
+    if(isEnded){
+      status = 'ended';
+      if(dates[key]) dateLabel = shortDateLabel(dates[key]);
+    } else if(statusMap[key]){
+      status = statusMap[key];
+      if(dates[key]) dateLabel = shortDateLabel(dates[key]);
+    } else {
+      const entry = stageDeadlineEntry(stageDeadlines, key);
+      if(entry && entry.date){
+        const entryTs = entry.date.includes('T') ? new Date(entry.date).getTime() : new Date(entry.date+'T00:00:00').getTime();
+        if(entryTs > nowTs){ status = 'scheduled'; dateLabel = shortDateTimeLabel(entry.date); }
+      }
+    }
+    return {key, label: trackStepLabel(key), status, dateLabel};
+  });
+
+  const lines = [];
+  if(isEnded){
+    lines.push({cls:'ended-line', left:cx(0), width:cx(N-1)-cx(0)});
+  } else if(currentIdx>=0){
+    if(firstDoneIdx < currentIdx){
+      lines.push({cls:'done-line', left:cx(firstDoneIdx), width:cx(currentIdx)-cx(firstDoneIdx)});
+    }
+    let nextScheduledIdx = -1;
+    for(let i=currentIdx+1;i<N;i++){ if(steps[i].status==='scheduled'){ nextScheduledIdx=i; break; } }
+    if(nextScheduledIdx>=0){
+      lines.push({cls:'scheduled-line', left:cx(currentIdx), width:cx(nextScheduledIdx)-cx(currentIdx)});
+    }
+  }
+  return {steps, lines};
+}
+function renderTrackHtml(p){
+  const progress = p.progress || {}, dates = p.progressDates || {}, deadlines = p.stageDeadlines || {};
+  const {steps, lines} = computeTrack(progress, dates, deadlines);
+  const linesHtml = lines.map(l=>`<span class="line ${l.cls}" style="--left:${l.left}%;--width:${l.width}%"></span>`).join('');
+  const stepsHtml = steps.map(st=>`
+    <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}">
+      <span class="step-dot"></span>
+      <div class="step-label">${st.label}</div>
+      <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
+      <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${st.key}" value="${(stageDeadlineEntry(deadlines, st.key)||{}).date||''}" tabindex="-1">
+    </div>
+  `).join('');
+  return `<div class="track">${linesHtml}${stepsHtml}</div>`;
+}
+// 左侧"进度概览"：收藏公司数 + 七个环节里"当前最新已发生步骤是它"的岗位数，
+// 全部现算，不受搜索/筛选影响，范围是所有未删除的已提交岗位。
+function renderProgressOverview(){
+  const submitted = positions.filter(p=>!p.deleted && p.status==='submitted');
+  const companyIds = new Set(submitted.map(p=>p.companyId));
+  const favCount = [...companyIds].filter(id=>{ const c=getCompany(id); return c && c.favorite; }).length;
+  const stageCounts = {};
+  PROGRESS_STAGES.forEach(s=>{ stageCounts[s.key] = 0; });
+  submitted.forEach(p=>{
+    const statusMap = computeStepStatuses(p.progress||{}, p.progressDates||{});
+    const currentKey = Object.keys(statusMap).find(k=>statusMap[k]==='current');
+    if(currentKey!==undefined && currentKey!==null) stageCounts[currentKey]++;
+  });
+  const items = [
+    {label:'收藏公司', num:favCount},
+    ...PROGRESS_STAGES.map(s=>({label:s.label, num:stageCounts[s.key]||0}))
+  ];
+  const el = document.getElementById('progressOverview');
+  el.innerHTML = `
+    <h3>进度概览</h3>
+    <div class="overview-grid">
+      ${items.map(it=>`<div class="overview-item"><span>${it.label}</span><strong>${it.num}</strong></div>`).join('')}
+    </div>
+  `;
+}
+// 公司卡头部那一排最多 3 个的关键节点胶囊：蓝底实心 = 该公司某岗位当前最新已发生的
+// 步骤；橙色 = 已安排但还没到的步骤；红色 = 设了提醒但已经过期还没打勾的步骤。
+// 同一个环节键（key）只留优先级最高的一条（current > overdue > scheduled），
+// 按时间从早到晚排序，最多显示 3 个，推导不出就整行不显示。
+function computeCompanyChips(g, company){
+  const candidates = [];
+  g.list.forEach(p=>{
+    const progress = p.progress||{}, dates = p.progressDates||{}, deadlines = p.stageDeadlines||{};
+    if(progress.ended) return;
+    const statusMap = computeStepStatuses(progress, dates);
+    Object.keys(statusMap).forEach(k=>{
+      if(statusMap[k]==='current'){
+        const ts = dates[k] ? new Date(dates[k]+'T00:00:00').getTime() : 0;
+        candidates.push({key:k, date: dates[k]||'', type:'current', ts});
+      }
+    });
+    PROGRESS_STAGES.forEach(s=>{
+      if(progress[s.key]) return;
+      const entry = stageDeadlineEntry(deadlines, s.key);
+      if(entry && entry.date){
+        const ts = entry.date.includes('T') ? new Date(entry.date).getTime() : new Date(entry.date+'T00:00:00').getTime();
+        candidates.push({key:s.key, date:entry.date, type: ts<Date.now() ? 'overdue' : 'scheduled', ts});
+      }
+    });
+  });
+  if(company){
+    PROGRESS_STAGES.forEach(s=>{
+      const entry = companyStageDeadlineEntry(company, s.key);
+      if(entry && entry.date && !entry.done){
+        const ts = entry.date.includes('T') ? new Date(entry.date).getTime() : new Date(entry.date+'T00:00:00').getTime();
+        candidates.push({key:s.key, date:entry.date, type: ts<Date.now() ? 'overdue' : 'scheduled', ts});
+      }
+    });
+  }
+  const priority = {current:0, overdue:1, scheduled:2};
+  const byKey = new Map();
+  candidates.forEach(c=>{
+    const existing = byKey.get(c.key);
+    if(!existing || priority[c.type] < priority[existing.type]) byKey.set(c.key, c);
+  });
+  const sorted = [...byKey.values()].sort((a,b)=>(a.ts||0)-(b.ts||0));
+  return sorted.slice(0,3).map(c=>{
+    const label = trackStepLabel(c.key);
+    const dateText = c.date ? shortDateTimeLabel(c.date) : '';
+    const cls = c.type==='current' ? 'blue-solid' : (c.type==='overdue' ? 'red' : 'orange');
+    return `<span class="chip ${cls}">${label}${dateText?' '+dateText:''}</span>`;
+  }).join('');
+}
+
 function renderSubmittedList(){
-  const { filtered, orderedFavGroups, orderedListGroups, companySeqMap } = computeSubmittedGroups();
-  // 标签页上的数字要显示"总共有多少家"，不受搜索/日期筛选影响，所以单独算，
-  // 不能用 computeSubmittedGroups() 里那份（那份是筛选之后的）。
-  const totalSubmittedCompanies = new Set(
-    positions.filter(p=>!p.deleted && p.status==='submitted').map(p=>p.companyId)
-  ).size;
-  const countEl = document.getElementById('submittedTabCount');
-  if(countEl) countEl.textContent = totalSubmittedCompanies ? `(${totalSubmittedCompanies})` : '';
+  const { orderedListGroups, companySeqMap } = computeSubmittedGroups();
+  renderProgressOverview();
 
   const list = document.getElementById('submittedList');
-  if(filtered.length===0){
+  if(orderedListGroups.length===0){
     list.innerHTML = `<div class="empty-hint">暂无记录</div>`;
     return;
   }
 
-  // 折叠后那一行摘要用的"这张卡最新进度"：把卡里所有岗位的 progress 摊平一起看，
-  // 日期最新的那个算数——跟 computeStepStatuses() 判断单个岗位 current 是同一个逻辑，
-  // 只是这里是整张卡（可能好几个岗位）合在一起比。
-  function computeCardSummaryStep(list){
-    let bestKey = null, bestTime = -Infinity;
-    list.forEach(p=>{
-      const progress = p.progress||{}, dates = p.progressDates||{};
-      PROGRESS_STAGES.forEach(s=>{
-        if(!progress[s.key]) return;
-        const t = dates[s.key] ? new Date(dates[s.key]+'T00:00:00').getTime() : 0;
-        if(t>=bestTime){ bestTime = t; bestKey = s.key; }
-      });
-    });
-    return bestKey;
+  function renderRole(p, defaultLink){
+    const ownLink = normalizeLink(p.link);
+    const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
+    return `
+      <div class="role" data-id="${p.id}">
+        <button class="role-del-btn" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
+        <div>
+          <div class="role-name">
+            <span>${escapeHtml(p.position||'（未命名岗位）')}</span>
+            ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
+          </div>
+          ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
+        </div>
+        ${renderTrackHtml(p)}
+      </div>
+    `;
   }
 
-  function renderSubmittedCard(g, showDate){
+  function renderCompanyCard(g, dateLabel){
     const company = getCompany(g.companyId);
     const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
-    const dateLabel = dayLabel(dateKeyOfGroup(g));
     const seqNum = companySeqMap.get(g.companyId);
     const defaultLink = companyLevelLink(g.list);
-    const collapsed = !!uiPrefs.collapsedCompanyIds[g.companyId];
-    const summaryKey = computeCardSummaryStep(g.list);
-    const summaryStage = summaryKey ? PROGRESS_STAGES.find(s=>s.key===summaryKey) : null;
-    // 公司级提醒（比如整个公司统一测评）不挂在具体岗位上，已经完成的就不用再占地方显示了。
-    const companyReminderHtml = company ? PROGRESS_STAGES.map(s=>{
-      const entry = companyStageDeadlineEntry(company, s.key);
-      if(!entry || !entry.date || entry.done) return '';
-      const overdue = isOverdue(entry.date);
-      return `<span class="company-stage-reminder stage-date-${overdue?'overdue':'pending'}" data-company-id="${company.id}" data-key="${s.key}">${s.label}(${shortDateTimeLabel(entry.date)})</span>`;
-    }).join('') : '';
-    const positionLines = g.list.map(p=>{
-      const ownLink = normalizeLink(p.link);
-      const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
-      const progress = p.progress || {};
-      const dates = p.progressDates || {};
-      const deadlines = p.stageDeadlines || {};
-      const stepStatuses = computeStepStatuses(progress, dates);
-      const progressHtml = PROGRESS_STAGES.map(s=>{
-        const status = stepStatuses[s.key] || '';
-        const titleAttr = status==='done' && dates[s.key] ? ` title="完成于 ${fmtDate(dates[s.key])}"` : '';
-        return `
-        <label class="progress-checkbox-item${status?' step-'+status:''}" data-key="${s.key}"${titleAttr}>
-          <input type="checkbox" data-id="${p.id}" data-key="${s.key}" ${progress[s.key]?'checked':''}>
-          <span class="stage-label" data-id="${p.id}" data-key="${s.key}">${stepLabelText(s.key, progress, dates, deadlines, status)}</span>
-          <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${s.key}" value="${(stageDeadlineEntry(deadlines, s.key)||{}).date||''}" tabindex="-1">
-        </label>
-      `;
-      }).join('');
-      return `
-        <div class="submitted-position-line${progress.ended?' ended':''}" data-id="${p.id}">
-          <div class="position-line">
-            <span class="position-line-main">
-              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
-              ${p.note ? `<span class="submitted-note">${escapeHtml(p.note)}</span>` : ''}
-            </span>
-            <span class="position-line-meta">
-              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
-            </span>
-            <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
-          </div>
-          <div class="submitted-row-progress">${progressHtml}</div>
-        </div>
-      `;
-    }).join('');
+    const ended = allProgressEnded(g.list);
+    const chipsHtml = computeCompanyChips(g, company);
     return `
-      <div class="card${allProgressEnded(g.list)?' all-ended':''}${collapsed?' collapsed':''}" data-company-id="${g.companyId}">
+      <article class="card progress-company${ended?' ended':''}" data-company-id="${g.companyId}">
         <span class="drag-handle" draggable="true" title="拖动调整顺序">⠿</span>
         <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="submitted" data-review-stage="" title="删除这张卡里的所有岗位">&times;</button>
-        <div class="company-row">
-          <span class="seq">${seqNum}</span>
-          <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
-          <button class="card-collapse-btn${collapsed?' collapsed':''}" type="button" data-company-id="${g.companyId}" title="折叠/展开这张卡" aria-label="折叠/展开这张卡" aria-expanded="${collapsed?'false':'true'}">${ICON_CHEVRON_DOWN}</button>
-          <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-          <span class="company-row-right">
-            ${showDate ? `<span class="submitted-date">${dateLabel}</span>` : ''}
+        <div class="company-head">
+          <div>
+            <div class="company-title">
+              <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+              <span>${escapeHtml(company?company.name:'（未知公司）')}</span>
+              <span class="seq">#${seqNum}</span>
+            </div>
+            ${chipsHtml ? `<div class="chips">${chipsHtml}</div>` : ''}
+          </div>
+          <div class="company-head-right">
+            ${ended ? `<span class="chip gray">已结束</span>` : ''}
+            <span class="company-date">${dateLabel}</span>
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
-          </span>
+          </div>
         </div>
-        <div class="card-summary-line">
-          <span>${g.list.length} 个岗位</span>
-          ${summaryStage ? `<span class="progress-checkbox-item step-current" data-key="${summaryKey}">${summaryStage.label}</span>` : ''}
-        </div>
-        <div class="card-collapsible-body${collapsed?' collapsed':''}"><div class="inner">
-          ${companyReminderHtml ? `<div class="company-stage-reminders">${companyReminderHtml}</div>` : ''}
-          <div class="position-list">${positionLines}</div>
-          ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
-        </div></div>
-      </div>
+        ${g.list.map(p=>renderRole(p, defaultLink)).join('')}
+        ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
+      </article>
     `;
   }
 
+  // 日期行只是给这份"按编号排好的列表"分段用的说明文字，不吸顶、不折叠——排序永远
+  // 按编号，标题只在日期变化的地方插一条。
   let html = '';
-  if(orderedFavGroups.length){
-    html += `
-      <div class="day-group" data-section="fav">
-        <button class="fav-label" id="favSectionToggle" type="button" aria-expanded="${favSectionCollapsed?'false':'true'}">
-          <span class="fav-star-icon">★</span><span>收藏</span>
-          <span class="count-inline">${orderedFavGroups.length}</span>
-          <span class="fav-collapse-arrow${favSectionCollapsed?' collapsed':''}">${ICON_CHEVRON_DOWN}</span>
-        </button>
-        <div class="card-collapsible-body${favSectionCollapsed?' collapsed':''}" id="favSectionBody"><div class="inner">
-          ${orderedFavGroups.map(g=>renderSubmittedCard(g, true)).join('')}
-        </div></div>
-      </div>
-    `;
-  }
-  // 日期标题只是给这份"按编号排好的列表"分段用的说明文字——排序永远按编号，
-  // 标题只在日期变化的地方插一条，同一个日期理论上会连续出现（编号顺序和提交
-  // 顺序在绝大多数情况下是一致的），除非个别记录的提交日期跟编号顺序对不上
-  // （比如很早创建、很晚才点提交的），这种极少数情况下日期标题可能会分成两段，
-  // 属于如实反映"编号优先"这条规则下的正常结果。
   let i = 0;
   while(i < orderedListGroups.length){
     const key = dateKeyOfGroup(orderedListGroups[i]);
-    const segment = [];
+    const label = dayLabel(key);
+    html += `<div class="date-line">${label}</div>`;
     while(i < orderedListGroups.length && dateKeyOfGroup(orderedListGroups[i]) === key){
-      segment.push(orderedListGroups[i]);
+      html += renderCompanyCard(orderedListGroups[i], label);
       i++;
     }
-    html += `
-      <div class="day-group" data-section="date" data-day-key="${key}">
-        <div class="day-group-label">${dayLabel(key)}</div>
-        ${segment.map(g=>renderSubmittedCard(g, false)).join('')}
-      </div>
-    `;
   }
   list.innerHTML = html;
-
-  const favToggle = document.getElementById('favSectionToggle');
-  if(favToggle){
-    const favBody = document.getElementById('favSectionBody');
-    favToggle.addEventListener('click', ()=>{
-      favSectionCollapsed = !favSectionCollapsed;
-      favToggle.setAttribute('aria-expanded', favSectionCollapsed ? 'false' : 'true');
-      favToggle.querySelector('.fav-collapse-arrow').classList.toggle('collapsed', favSectionCollapsed);
-      favBody.classList.toggle('collapsed', favSectionCollapsed);
-    });
-  }
-  // 每张卡片自己的折叠/展开，状态存在 uiPrefs.collapsedCompanyIds 里（独立 key，
-  // 不进同步、不进台账数据），刷新页面还记得住。
-  list.querySelectorAll('.card-collapse-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const companyId = btn.dataset.companyId;
-      const collapsed = !uiPrefs.collapsedCompanyIds[companyId];
-      if(collapsed) uiPrefs.collapsedCompanyIds[companyId] = true;
-      else delete uiPrefs.collapsedCompanyIds[companyId];
-      saveUiPrefs();
-      const card = btn.closest('.card');
-      card.classList.toggle('collapsed', collapsed);
-      btn.classList.toggle('collapsed', collapsed);
-      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      card.querySelector('.card-collapsible-body').classList.toggle('collapsed', collapsed);
-    });
-  });
 
   // 拖拽排序：句柄在卡片最左边，悬停才显示。dragstart/dragend 挂在句柄上，每次
   // render 都要重新挂（因为卡片是新生成的 DOM）；dragover/drop 挂在 #submittedList
@@ -2294,7 +2448,7 @@ function renderSubmittedList(){
       toggleFavorite(btn.dataset.companyId);
     });
   });
-  list.querySelectorAll('.position-line-del').forEach(btn=>{
+  list.querySelectorAll('.role-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const id = btn.dataset.id;
@@ -2304,58 +2458,28 @@ function renderSubmittedList(){
       }
     });
   });
-  list.querySelectorAll('.submitted-row-progress input[type=checkbox]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      const pos = positions.find(x=>x.id===cb.dataset.id);
+  // 轨道节点：点圆点/空白处标记到达（打勾等效），点文字或日期弹出这个环节自己的
+  // 日期选择框，用来单独设置/修改这个环节的提醒截止时间——两者是两回事。
+  list.querySelectorAll('.track .step').forEach(stepEl=>{
+    stepEl.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const pos = positions.find(p=>p.id===stepEl.dataset.id);
       if(!pos) return;
-      const key = cb.dataset.key;
+      const key = stepEl.dataset.key;
+      if(e.target.closest('.step-label, .step-date')){
+        const input = stepEl.querySelector('.stage-deadline-input');
+        if(!input) return;
+        if(input.showPicker){ try{ input.showPicker(); }catch(err){ input.focus(); } } else { input.focus(); }
+        return;
+      }
       if(!pos.progress) pos.progress = {};
       if(!pos.progressDates) pos.progressDates = {};
-      setProgressChecked(pos.progress, pos.progressDates, key, cb.checked);
+      setProgressChecked(pos.progress, pos.progressDates, key, !pos.progress[key]);
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
       flushQueue();
-      // 排序不看进度，不用整个重新渲染——只局部刷新这一个岗位自己的勾选框状态，
-      // 以及"结束"对应的灰色样式（这一行、以及整张卡是不是要跟着变灰）
-      const line = cb.closest('.submitted-position-line');
-      line.querySelectorAll('.progress-checkbox-item').forEach(label=>{
-        const k = label.dataset.key;
-        const checked = !!pos.progress[k];
-        label.classList.toggle('checked', checked);
-        label.querySelector('input[type=checkbox]').checked = checked;
-        label.querySelector('.stage-label').innerHTML = progressLabelText(k, pos.progress, pos.progressDates||{}, pos.stageDeadlines||{});
-      });
-      line.classList.toggle('ended', !!pos.progress.ended);
-      const card = cb.closest('.card');
-      const companyId = card.dataset.companyId;
-      const siblingPositions = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status==='submitted' && matchesFilters(p));
-      card.classList.toggle('all-ended', allProgressEnded(siblingPositions));
-      renderRemindersTabCount();
-    });
-  });
-  // 点环节文字（不是勾选框）弹出这个环节自己的日期选择框，用来单独设置/修改这个
-  // 环节的提醒截止时间——跟勾选框本身的"标记完成"是两回事，e.preventDefault() 是
-  // 为了不让这次点击顺带把 label 关联的勾选框也切换了。
-  list.querySelectorAll('.stage-label').forEach(span=>{
-    span.addEventListener('click', (e)=>{
-      e.preventDefault();
-      e.stopPropagation();
-      const input = span.parentElement.querySelector('.stage-deadline-input');
-      if(!input) return;
-      if(input.showPicker){
-        try{ input.showPicker(); }catch(err){ input.focus(); }
-      } else {
-        input.focus();
-      }
-    });
-  });
-  // 公司级提醒直接点开完整的编辑提醒弹窗（能顺带改备注），不用像岗位级那样在卡片上
-  // 现挂一个隐藏的日期框。
-  list.querySelectorAll('.company-stage-reminder').forEach(span=>{
-    span.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      openReminderDrawerForEdit('company', span.dataset.companyId, span.dataset.key);
+      renderAll();
     });
   });
   list.querySelectorAll('.stage-deadline-input').forEach(inp=>{
@@ -2374,9 +2498,9 @@ function renderSubmittedList(){
       renderAll();
     });
   });
-  list.querySelectorAll('.submitted-position-line').forEach(row=>{
+  list.querySelectorAll('.role').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.position-line-del, .position-link, .submitted-row-progress')) return;
+      if(e.target.closest('.role-del-btn, .position-link, .track')) return;
       openDrawer(row.dataset.id);
     });
   });
@@ -2387,9 +2511,6 @@ function renderSubmittedList(){
 // 越叠越多，同一次拖拽会被处理很多遍）。真正的分组/顺序在每次 drop 时用
 // computeSubmittedGroups() 现算最新的，不依赖某一次 render 留下的旧数据。
 const submittedDragState = { companyId: null };
-// 收藏区折叠状态：只在这个页面停留期间记着，刷新页面会恢复展开——只是个显示开关，
-// 不用跟着同步到别的设备上。
-let favSectionCollapsed = false;
 function reorderIds(ids, draggedId, targetId, before){
   const fromIdx = ids.indexOf(draggedId);
   if(fromIdx===-1) return;
