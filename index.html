@@ -26,13 +26,13 @@
     margin:0;
     background:var(--bg);
     color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    font-family:"Songti SC","STSong","Noto Serif SC",Georgia,serif;
     line-height:1.5;
   }
   h1,h2,h3,.serif{
     font-family:"Songti SC","STSong","Noto Serif SC",Georgia,serif;
   }
-  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+  .wrap{max-width:1600px;width:calc(100% - 40px);margin:0 auto;padding:28px 0 80px;}
 
   header{
     display:flex;
@@ -44,9 +44,9 @@
     flex-wrap:wrap;
     gap:12px;
   }
-  header h1{font-size:26px;margin:0;letter-spacing:1px;}
-  header .sub{color:var(--ink-soft);font-size:13px;margin-top:4px;}
-  .today{font-size:13px;color:var(--ink-soft);text-align:right;}
+  header h1{font-size:28px;margin:0;letter-spacing:1px;}
+  header .sub{color:var(--ink-soft);font-size:14px;margin-top:4px;}
+  .today{font-size:14px;color:var(--ink-soft);text-align:right;}
 
   .stats{
     display:grid;
@@ -188,7 +188,7 @@
     flex-wrap:wrap;
     padding-right:22px;
   }
-  .card .company{font-size:15px;font-weight:600;}
+  .card .company{font-size:16px;font-weight:600;}
   .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;}
   .company-row-right{margin-left:auto;display:flex;align-items:baseline;gap:6px;}
   .company-row-right .company-link{margin-left:0;margin-top:0;font-size:12px;}
@@ -198,7 +198,7 @@
     flex-shrink:0;
   }
   .favorite-star.active{color:var(--warn);}
-  .card .position{font-size:13px;color:var(--ink-soft);}
+  .card .position{font-size:14px;color:var(--ink-soft);}
   .card .other-positions{
     font-size:11px;
     color:var(--ink-soft);
@@ -287,6 +287,9 @@
     font-family:inherit;
   }
   .field textarea{resize:vertical;min-height:56px;}
+  #reminderNoteInput,.position-note-input{
+    font-family:"Kaiti SC","STKaiti","KaiTi",serif;
+  }
   .field-hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
   .status-toggle{display:flex;flex-wrap:wrap;gap:6px;}
   .status-toggle button{
@@ -556,8 +559,8 @@
   .reminder-row:hover{border-color:var(--primary);}
   .reminder-row.overdue{border-color:var(--danger);}
   .reminder-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;}
-  .reminder-company{font-weight:600;font-size:14px;}
-  .reminder-position{font-size:13px;color:var(--ink-soft);}
+  .reminder-company{font-weight:600;font-size:15px;}
+  .reminder-position{font-size:14px;color:var(--ink-soft);}
   .reminder-company-wide{font-style:italic;}
   .reminder-stage{
     font-size:12px;padding:2px 8px;border-radius:10px;
