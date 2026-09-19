@@ -493,14 +493,19 @@
   }
 
   .day-group{margin-bottom:4px;}
+  /* 吸顶时背景要跟它实际所在的容器（.column，浅灰底）保持一致，而不是页面底色——
+     之前用了页面底色，吸顶悬浮起来的时候在列面板里会露出一块颜色对不上的方块，
+     看着很突兀。 */
   .day-group-label{
-    font-size:13px;
-    color:var(--text-2);
-    padding:6px 2px;
-    margin-bottom:4px;
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:.02em;
+    color:var(--text-3);
+    padding:8px 4px 6px;
+    margin-bottom:2px;
     position:sticky;
     top:0;
-    background:var(--bg);
+    background:var(--surface-2);
     z-index:2;
   }
   .day-group .card{margin-bottom:10px;}
