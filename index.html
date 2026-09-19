@@ -1,69 +1,125 @@
 <!DOCTYPE html>
 <!-- redeploy nudge: retrigger GitHub Pages build after a stuck run -->
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="apple">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>网申追踪台账</title>
 <style>
+  /* 主题开关：只由 <html data-theme="..."> 这一个值决定。改成 "classic" 就是改版前的
+     原色（第 4.1 节备份，逐项取自改版前的 CSS 实际值）；"apple" 是新试用配色（4.2 节）。
+     所有组件只允许引用下面这些变量，不能写死颜色，否则切主题会不完整。
+     radius / shadow 是结构性设计，不属于"颜色"，两个主题共用同一份，切回 classic 也不恢复。 */
   :root{
+    --radius-lg:18px;
+    --radius-md:12px;
+    --radius-pill:999px;
+    --shadow-1:0 1px 2px rgba(29,51,84,.05), 0 4px 16px rgba(29,51,84,.05);
+    --shadow-2:0 12px 40px rgba(29,51,84,.16);
+  }
+  :root[data-theme="classic"]{
     --bg:#F8FBFE;
     --surface:#FFFFFF;
-    --ink:#1F2C38;
-    --ink-soft:#5D7488;
+    --surface-2:#EEF3F8;
+    --text:#1F2C38;
+    --text-2:#5D7488;
+    --text-3:#93A5B6;
     --line:#CBDCEA;
     --primary:#1F3A5F;
     --primary-soft:#DCE7F2;
     --accent:#A6431D;
     --accent-soft:#F3E4DC;
-    --warn:#B5741B;
-    --warn-soft:#F6EBD8;
-    --danger:#9B2C2C;
-    --danger-soft:#F3E0DE;
+    --orange:#B5741B;
+    --orange-soft:#F6EBD8;
+    --red:#9B2C2C;
+    --red-soft:#F3E0DE;
+    --green:#2E7D4F;
+    --green-soft:#E1F0E6;
+  }
+  :root[data-theme="apple"]{
+    --bg:#F7FAFE;
+    --surface:#FFFFFF;
+    --text:#1D2731;
+    --text-2:#53697D;
+    --orange:#AC691A; --orange-soft:#F5E8D2;
+    --red:#902727;    --red-soft:#F8E6E6;
+    --green:#297246;  --green-soft:#E3F1E8;
+
+    --text-3:#8A9AA7;
+    --surface-2:#EDF2F8;
+    --line:rgba(29,51,84,.10);
+    --primary:#0071E3;
+    --primary-soft:#E4EFFC;
+    --accent:var(--primary);
+    --accent-soft:var(--primary-soft);
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
     background:var(--bg);
-    color:var(--ink);
-    font-family:"Songti SC","STSong","Noto Serif SC",Georgia,serif;
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
     line-height:1.5;
   }
-  h1,h2,h3,.serif{
-    font-family:"Songti SC","STSong","Noto Serif SC",Georgia,serif;
+  h1,h2,h3{
+    font-family:inherit;
+    font-weight:600;
   }
   .wrap{max-width:1600px;width:calc(100% - 40px);margin:0 auto;padding:28px 0 80px;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
+  }
+  :focus-visible{outline:2px solid var(--primary); outline-offset:2px;}
 
   header{
     display:flex;
     justify-content:space-between;
     align-items:flex-end;
-    border-bottom:2px solid var(--ink);
     padding-bottom:16px;
     margin-bottom:20px;
     flex-wrap:wrap;
     gap:12px;
   }
-  header h1{font-size:28px;margin:0;letter-spacing:1px;}
-  header .sub{color:var(--ink-soft);font-size:14px;margin-top:4px;}
-  .today{font-size:14px;color:var(--ink-soft);text-align:right;}
+  header h1{font-size:32px;margin:0;letter-spacing:-0.02em;font-weight:600;font-variant-numeric:tabular-nums;}
+  header .sub{color:var(--text-2);font-size:14px;margin-top:4px;}
+  .today{font-size:13px;color:var(--text-2);text-align:right;}
 
   .stats{
     display:grid;
     grid-template-columns:repeat(4,1fr);
-    gap:12px;
+    gap:0;
     margin-bottom:20px;
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-1);
+    overflow:hidden;
   }
   .stat-card{
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:12px 16px;
+    padding:16px 20px;
+    border-left:1px solid var(--line);
   }
-  .stat-card .num{font-size:24px;font-weight:600;font-family:"Songti SC",serif;}
-  .stat-card .label{font-size:12px;color:var(--ink-soft);margin-top:2px;}
-  .stat-card.warn .num{color:var(--warn);}
-  .stat-card.danger .num{color:var(--danger);}
+  .stat-card:first-child{border-left:none;}
+  .stat-card .num{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);}
+  .stat-card .label{font-size:13px;color:var(--text-2);margin-top:4px;}
+  .stat-card.warn .num{color:var(--orange);}
+  .stat-card.danger .num{color:var(--red);}
+  .stat-card.danger.zero .num{color:var(--text-3);}
+  .stats.thin{
+    display:flex;
+    align-items:center;
+    background:none;
+    box-shadow:none;
+    border-radius:0;
+    padding:0;
+    gap:6px;
+    font-size:13px;
+    color:var(--text-2);
+    font-variant-numeric:tabular-nums;
+  }
+  .thin-stat-sep{color:var(--text-3);}
+  .thin-stat.warn{color:var(--orange);}
+  .thin-stat.danger{color:var(--red);}
+  .thin-stat.danger.zero{color:var(--text-2);}
 
   .toolbar{
     display:flex;
@@ -75,45 +131,55 @@
   .toolbar input[type=text]{
     flex:1;
     min-width:180px;
-    padding:9px 12px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    background:var(--surface);
+    padding:9px 14px;
+    border:none;
+    border-radius:var(--radius-md);
+    background:var(--surface-2);
     font-size:14px;
+    color:var(--text);
+    transition:background .15s ease, box-shadow .15s ease;
   }
+  .toolbar input[type=text]:focus{background:var(--surface); box-shadow:var(--shadow-1);}
   .toolbar select{
-    padding:9px 10px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    background:var(--surface);
+    padding:9px 14px;
+    border:none;
+    border-radius:var(--radius-md);
+    background:var(--surface-2);
     font-size:14px;
-    color:var(--ink);
+    color:var(--text);
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2353697D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 8px center;
+    padding-right:28px;
   }
   .date-filter-group{
     display:flex;align-items:center;gap:6px;
   }
   .date-filter-group input[type=date]{
-    padding:8px 10px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    background:var(--surface);
+    padding:8px 12px;
+    border:none;
+    border-radius:var(--radius-md);
+    background:var(--surface-2);
     font-size:13px;
-    color:var(--ink);
+    color:var(--text);
   }
-  .date-filter-sep{font-size:13px;color:var(--ink-soft);}
+  .date-filter-sep{font-size:13px;color:var(--text-2);}
   .btn{
     border:none;
-    border-radius:4px;
+    border-radius:var(--radius-md);
     padding:10px 16px;
     font-size:14px;
     cursor:pointer;
     font-weight:500;
+    transition:background .15s ease, transform .1s ease;
   }
+  .btn:active{transform:scale(.98);}
   .btn-primary{background:var(--primary);color:#fff;}
-  .btn-primary:hover{background:#16304f;}
-  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
-  .btn-ghost:hover{border-color:var(--ink);}
-  .btn-ghost.active{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);font-weight:600;}
+  .btn-primary:hover{filter:brightness(.92);}
+  .btn-ghost{background:var(--surface-2);border:none;color:var(--text);}
+  .btn-ghost:hover{filter:brightness(.96);}
+  .btn-ghost.active{background:var(--orange-soft);color:var(--orange);font-weight:600;}
 
   .board{
     display:grid;
@@ -123,18 +189,44 @@
   @media(max-width:860px){
     .board{grid-template-columns:1fr;}
     .stats{grid-template-columns:repeat(2,1fr);}
+    .stat-card:nth-child(2){border-left:none;}
   }
-  .view-tabs{display:flex;gap:8px;margin-bottom:20px;}
-  .view-tab{
-    border:1px solid var(--line);
+  /* 分段控件（标签页）：灰底圆角轨道 + 白色滑块，滑块位置由 JS 量出当前项的
+     offsetLeft/offsetWidth 后写到 .view-tab-slider 的 transform/width 上，
+     这样标签文字里带的数字（"已提交进度 (3)"）变长变短时滑块也能跟着量对。 */
+  .view-tabs{
+    display:inline-flex;
+    position:relative;
+    gap:0;
+    margin-bottom:20px;
+    background:var(--surface-2);
+    border-radius:var(--radius-md);
+    padding:3px;
+  }
+  .view-tab-slider{
+    position:absolute;
+    top:3px;left:3px;
+    height:calc(100% - 6px);
     background:var(--surface);
-    color:var(--ink-soft);
-    padding:9px 16px;
-    border-radius:4px;
+    border-radius:calc(var(--radius-md) - 3px);
+    box-shadow:var(--shadow-1);
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), width .25s cubic-bezier(.2,.8,.2,1);
+    z-index:0;
+  }
+  .view-tab{
+    position:relative;
+    z-index:1;
+    border:none;
+    background:transparent;
+    color:var(--text-2);
+    padding:8px 16px;
+    border-radius:calc(var(--radius-md) - 3px);
     font-size:14px;
     cursor:pointer;
   }
-  .view-tab.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;}
+  .view-tab.active{color:var(--text);font-weight:600;}
+  .view-tab .tab-count{font-weight:400;color:var(--text-3);}
+  .view-tab.active .tab-count{color:var(--text-2);}
   .column{
     background:rgba(255,255,255,0.45);
     border:1px solid var(--line);
@@ -157,14 +249,14 @@
     border:1px solid var(--line);
     border-radius:10px;
     padding:1px 8px;
-    color:var(--ink-soft);
+    color:var(--text-2);
   }
-  .column[data-status="todo"] .column-head{border-top:3px solid var(--ink-soft);}
-  .column[data-status="inprogress"] .column-head{border-top:3px solid var(--warn);}
+  .column[data-status="todo"] .column-head{border-top:3px solid var(--text-2);}
+  .column[data-status="inprogress"] .column-head{border-top:3px solid var(--orange);}
   .column[data-status="submitted"] .column-head{border-top:3px solid var(--accent);}
   .column-body{padding:10px;display:flex;flex-direction:column;gap:10px;flex:1;}
   .empty-hint{
-    color:var(--ink-soft);
+    color:var(--text-2);
     font-size:13px;
     text-align:center;
     padding:24px 10px;
@@ -197,11 +289,11 @@
     font-size:15px;line-height:1;color:var(--line);
     flex-shrink:0;
   }
-  .favorite-star.active{color:var(--warn);}
-  .card .position{font-size:14px;color:var(--ink-soft);}
+  .favorite-star.active{color:var(--orange);}
+  .card .position{font-size:14px;color:var(--text-2);}
   .card .other-positions{
     font-size:11px;
-    color:var(--ink-soft);
+    color:var(--text-2);
     margin-top:2px;
   }
   .card .meta-row{
@@ -211,26 +303,28 @@
     margin-top:8px;
     font-size:12px;
   }
-  .checklist-mini{color:var(--ink-soft);}
+  .checklist-mini{color:var(--text-2);}
   .deadline-badge{
     padding:2px 7px;
     border-radius:10px;
     font-size:11px;
   }
   .deadline-badge.normal{background:var(--primary-soft);color:var(--primary);}
-  .deadline-badge.warn{background:var(--warn-soft);color:var(--warn);}
-  .deadline-badge.danger{background:var(--danger-soft);color:var(--danger);}
+  .deadline-badge.warn{background:var(--orange-soft);color:var(--orange);}
+  .deadline-badge.danger{background:var(--red-soft);color:var(--red);}
   .card .stamp{
     margin-top:8px;
     font-size:11px;
-    color:var(--ink-soft);
+    color:var(--text-2);
     border-top:1px dashed var(--line);
     padding-top:6px;
   }
 
   .overlay{
     position:fixed;inset:0;
-    background:rgba(31,44,56,0.35);
+    background:rgba(29,39,49,0.35);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
     display:none;
     z-index:50;
   }
@@ -242,13 +336,13 @@
     max-width:92vw;
     max-height:86vh;
     background:var(--bg);
-    border-radius:14px;
-    box-shadow:0 16px 48px rgba(31,44,56,0.28);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-2);
     transform:translate(-50%,-50%) scale(.96);
     opacity:0;
     visibility:hidden;
     pointer-events:none;
-    transition:transform .2s ease, opacity .2s ease;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1), opacity .2s ease;
     z-index:51;
     display:flex;
     flex-direction:column;
@@ -262,52 +356,61 @@
   }
   .drawer-head{
     padding:18px 20px 14px;
-    border-bottom:2px solid var(--ink);
+    border-bottom:1px solid var(--line);
     display:flex;
     justify-content:space-between;
     align-items:center;
   }
-  .drawer-head h3{margin:0;font-size:18px;}
+  .drawer-head h3{margin:0;font-size:20px;font-weight:600;}
   .drawer-close{
-    background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-soft);
-    line-height:1;padding:4px;
+    background:var(--surface-2);border:none;font-size:16px;cursor:pointer;color:var(--text-2);
+    line-height:1;width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:background .15s ease;
   }
+  .drawer-close:hover{background:var(--line);}
   .drawer-body{padding:16px 20px;overflow-y:auto;flex:1;}
   .field{margin-bottom:14px;}
   .field label{
-    display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;
+    display:block;font-size:13px;color:var(--text-2);margin-bottom:5px;
   }
   .field input[type=text],.field input[type=date],.field input[type="datetime-local"],.field input[type=url],.field textarea,.field select{
     width:100%;
-    padding:9px 10px;
-    border:1px solid var(--line);
-    border-radius:4px;
-    background:var(--surface);
+    padding:9px 12px;
+    border:none;
+    border-radius:var(--radius-md);
+    background:var(--surface-2);
     font-size:14px;
     font-family:inherit;
+    color:var(--text);
+    transition:background .15s ease, box-shadow .15s ease;
+  }
+  .field input[type=text]:focus,.field input[type=date]:focus,.field input[type="datetime-local"]:focus,.field input[type=url]:focus,.field textarea:focus,.field select:focus{
+    background:var(--surface);
   }
   .field textarea{resize:vertical;min-height:56px;}
   #reminderNoteInput,.position-note-input{
     font-family:"Kaiti SC","STKaiti","KaiTi",serif;
   }
-  .field-hint{font-size:11px;color:var(--ink-soft);margin-top:4px;}
-  .status-toggle{display:flex;flex-wrap:wrap;gap:6px;}
+  .field-hint{font-size:12px;color:var(--text-2);margin-top:4px;}
+  .status-toggle{display:flex;flex-wrap:wrap;gap:3px;background:var(--surface-2);padding:3px;border-radius:var(--radius-md);}
   .status-toggle button{
     flex:1;
     min-width:64px;
     padding:8px 6px;
-    border:1px solid var(--line);
-    background:var(--surface);
-    border-radius:4px;
-    font-size:12px;
+    border:none;
+    background:transparent;
+    border-radius:calc(var(--radius-md) - 3px);
+    font-size:13px;
     cursor:pointer;
-    color:var(--ink-soft);
+    color:var(--text-2);
+    transition:background .15s ease, color .15s ease;
   }
   .status-toggle button.active{
-    border-color:var(--primary);
-    background:var(--primary-soft);
-    color:var(--primary);
+    background:var(--surface);
+    color:var(--text);
     font-weight:600;
+    box-shadow:var(--shadow-1);
   }
   .checklist-editor .item-row{
     display:flex;
@@ -321,36 +424,32 @@
   .item-row input[type=checkbox]{width:16px;height:16px;flex-shrink:0;}
   .item-row input[type=text]{flex:1;}
   .item-row .del{
-    background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:16px;
+    background:none;border:none;color:var(--text-2);cursor:pointer;font-size:16px;
     padding:2px 6px;
   }
-  .item-row .del:hover{color:var(--danger);}
+  .item-row .del:hover{color:var(--red);}
   .add-item-btn{
-    font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;
+    font-size:13px;color:var(--primary);background:none;border:none;cursor:pointer;
     padding:4px 0;
   }
-  .position-item-block{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line);}
+  .position-item-block{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line);}
   .position-item-block:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
   .position-item-block .item-row{margin-bottom:4px;}
   .position-jd-body{margin-top:6px;}
   .meta-readonly{
     font-size:12px;
-    color:var(--ink-soft);
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:8px 10px;
-    margin-bottom:14px;
+    color:var(--text-2);
+    padding:0 0 4px;
+    margin-bottom:10px;
   }
   .other-positions-box{
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:8px 10px;
+    background:var(--surface-2);
+    border-radius:var(--radius-md);
+    padding:8px 12px;
     margin-bottom:14px;
     font-size:12px;
   }
-  .other-positions-box .op-title{color:var(--ink-soft);margin-bottom:4px;}
+  .other-positions-box .op-title{color:var(--text-2);margin-bottom:4px;}
   .other-positions-box .op-item{
     display:flex;
     justify-content:space-between;
@@ -362,7 +461,7 @@
     border-radius:8px;
   }
   .op-tag.todo{background:var(--primary-soft);color:var(--primary);}
-  .op-tag.inprogress{background:var(--warn-soft);color:var(--warn);}
+  .op-tag.inprogress{background:var(--orange-soft);color:var(--orange);}
   .op-tag.submitted{background:var(--accent-soft);color:var(--accent);}
   .drawer-foot{
     padding:14px 20px;
@@ -373,13 +472,13 @@
   }
   .drawer-foot .right{display:flex;gap:8px;}
   .danger-link{
-    background:none;border:none;color:var(--danger);font-size:13px;cursor:pointer;
+    background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;
   }
 
   .day-group{margin-bottom:4px;}
   .day-group-label{
     font-size:11px;
-    color:var(--ink-soft);
+    color:var(--text-2);
     padding:2px 2px 6px;
     border-bottom:1px dashed var(--line);
     margin-bottom:8px;
@@ -389,22 +488,22 @@
   .fav-label{
     cursor:pointer;display:flex;align-items:center;gap:5px;user-select:none;
   }
-  .fav-collapse-arrow{font-size:10px;color:var(--ink-soft);width:10px;display:inline-block;}
+  .fav-collapse-arrow{font-size:10px;color:var(--text-2);width:10px;display:inline-block;}
   .review-stage-group{margin-bottom:14px;}
   .review-stage-group:last-child{margin-bottom:0;}
   .review-stage-label{
     font-size:12px;
     font-weight:600;
-    color:var(--warn);
+    color:var(--orange);
     padding-bottom:6px;
     margin-bottom:8px;
-    border-bottom:1px solid var(--warn-soft);
+    border-bottom:1px solid var(--orange-soft);
     display:flex;
     justify-content:space-between;
     align-items:center;
   }
   .review-stage-label .count-inline{
-    font-size:11px;font-weight:400;color:var(--ink-soft);
+    font-size:11px;font-weight:400;color:var(--text-2);
     background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 6px;
   }
   .position-list{margin-top:6px;display:flex;flex-direction:column;}
@@ -421,7 +520,7 @@
   }
   .position-line-meta{
     display:flex;align-items:center;gap:6px;flex-shrink:0;
-    font-size:11px;color:var(--ink-soft);
+    font-size:11px;color:var(--text-2);
   }
   .card-del-btn{
     display:none;
@@ -431,11 +530,11 @@
     border:none;
     background:var(--surface);
     box-shadow:0 0 0 1px var(--line);
-    color:var(--ink-soft);
+    color:var(--text-2);
     font-size:14px;line-height:1;
     cursor:pointer;
   }
-  .card-del-btn:hover{background:var(--danger);color:#fff;box-shadow:none;}
+  .card-del-btn:hover{background:var(--red);color:#fff;box-shadow:none;}
   .card:hover .card-del-btn{display:flex;align-items:center;justify-content:center;}
   .position-line-del{
     display:none;
@@ -444,11 +543,11 @@
     border-radius:50%;
     border:none;
     background:transparent;
-    color:var(--ink-soft);
+    color:var(--text-2);
     font-size:13px;line-height:1;
     cursor:pointer;
   }
-  .position-line-del:hover{color:var(--danger);}
+  .position-line-del:hover{color:var(--red);}
   .position-line:hover .position-line-del{display:flex;align-items:center;justify-content:center;}
 
   .position-detail-item{
@@ -470,11 +569,11 @@
     border:none;
     background:var(--bg);
     box-shadow:0 0 0 1px var(--line);
-    color:var(--ink-soft);
+    color:var(--text-2);
     font-size:14px;line-height:1;
     cursor:pointer;
   }
-  .position-detail-del:hover{background:var(--danger);color:#fff;box-shadow:none;}
+  .position-detail-del:hover{background:var(--red);color:#fff;box-shadow:none;}
   .position-detail-item:hover .position-detail-del{display:flex;align-items:center;justify-content:center;}
   .position-detail-head{
     display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
@@ -495,7 +594,7 @@
     font-size:13px;cursor:pointer;
   }
   .detail-checklist-item input[type=checkbox]{width:15px;height:15px;flex-shrink:0;}
-  .detail-checklist-item.done span{color:var(--ink-soft);text-decoration:line-through;}
+  .detail-checklist-item.done span{color:var(--text-2);text-decoration:line-through;}
   .progress-checkboxes{
     margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
     display:flex;flex-wrap:wrap;gap:6px 14px;
@@ -511,13 +610,13 @@
   .progress-checkbox-item.checked{color:var(--primary);font-weight:700;}
   .stage-label{cursor:pointer;}
   .stage-label:hover{text-decoration:underline dotted;}
-  .stage-date-pending{color:var(--warn);font-weight:600;}
-  .stage-date-overdue{color:var(--danger);font-weight:700;}
+  .stage-date-pending{color:var(--orange);font-weight:600;}
+  .stage-date-overdue{color:var(--red);font-weight:700;}
   .company-stage-reminders{display:flex;flex-wrap:wrap;gap:8px 12px;font-size:12px;margin:2px 0 8px 0;}
   .company-stage-reminder{cursor:pointer;}
   .company-stage-reminder:hover{text-decoration:underline dotted;}
-  .company-stage-reminder.stage-date-pending{color:var(--warn);}
-  .company-stage-reminder.stage-date-overdue{color:var(--danger);}
+  .company-stage-reminder.stage-date-pending{color:var(--orange);}
+  .company-stage-reminder.stage-date-overdue{color:var(--red);}
   .stage-deadline-input{
     position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
     opacity:0;pointer-events:none;border:0;
@@ -530,10 +629,10 @@
     background:var(--surface);border:1px solid var(--line);border-radius:6px;
     padding:4px 10px;
   }
-  .progress-date-row-label{font-size:12px;color:var(--ink);white-space:nowrap;flex-shrink:0;}
+  .progress-date-row-label{font-size:12px;color:var(--text);white-space:nowrap;flex-shrink:0;}
   .progress-date-input{
     flex:1;min-width:0;text-align:right;
-    font-size:12px;color:var(--ink-soft);border:none;
+    font-size:12px;color:var(--text-2);border:none;
     padding:3px 0;background:transparent;
     font-family:inherit;line-height:1.4;
   }
@@ -545,11 +644,11 @@
     padding:8px 10px;border:1px solid var(--line);border-radius:6px;margin-top:8px;
     font-size:13px;cursor:pointer;
   }
-  .paste-import-row.unmatched{border-color:var(--warn);background:var(--warn-soft);cursor:default;}
-  .paste-import-row.unrecognized{border-color:var(--line);background:var(--surface);color:var(--ink-soft);cursor:default;}
+  .paste-import-row.unmatched{border-color:var(--orange);background:var(--orange-soft);cursor:default;}
+  .paste-import-row.unrecognized{border-color:var(--line);background:var(--surface);color:var(--text-2);cursor:default;}
   .paste-import-row-main{flex:1;min-width:0;}
-  .paste-import-row-note{font-size:11px;color:var(--warn);margin-left:8px;}
-  .paste-import-row.unrecognized .paste-import-row-note{color:var(--ink-soft);}
+  .paste-import-row-note{font-size:11px;color:var(--orange);margin-left:8px;}
+  .paste-import-row.unrecognized .paste-import-row-note{color:var(--text-2);}
   .reminders-list{display:flex;flex-direction:column;gap:10px;}
   .reminder-row{
     display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -557,43 +656,43 @@
     padding:12px 14px;cursor:pointer;
   }
   .reminder-row:hover{border-color:var(--primary);}
-  .reminder-row.overdue{border-color:var(--danger);}
+  .reminder-row.overdue{border-color:var(--red);}
   .reminder-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;}
   .reminder-company{font-weight:600;font-size:15px;}
-  .reminder-position{font-size:14px;color:var(--ink-soft);}
+  .reminder-position{font-size:14px;color:var(--text-2);}
   .reminder-company-wide{font-style:italic;}
   .reminder-stage{
     font-size:12px;padding:2px 8px;border-radius:10px;
     background:var(--primary-soft);color:var(--primary);
   }
   .reminder-note{
-    flex-basis:100%;font-size:12px;color:var(--ink-soft);
+    flex-basis:100%;font-size:12px;color:var(--text-2);
     font-family:"Kaiti SC","STKaiti","KaiTi",serif;
   }
   .reminder-row.done{opacity:.55;}
-  .reminder-row.done .reminder-stage{background:var(--line);color:var(--ink-soft);}
-  .reminder-done-label{font-size:12px;color:var(--ink-soft);}
+  .reminder-row.done .reminder-stage{background:var(--line);color:var(--text-2);}
+  .reminder-done-label{font-size:12px;color:var(--text-2);}
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;}
   .reminder-done-btn,.reminder-clear-btn,.reminder-undo-btn{
     border:1px solid var(--line);background:var(--surface);border-radius:4px;
-    font-size:12px;padding:4px 9px;cursor:pointer;color:var(--ink-soft);
+    font-size:12px;padding:4px 9px;cursor:pointer;color:var(--text-2);
   }
   .reminder-done-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
-  .reminder-clear-btn:hover{background:var(--danger);border-color:var(--danger);color:#fff;}
-  .reminder-undo-btn:hover{background:var(--warn);border-color:var(--warn);color:#fff;}
+  .reminder-clear-btn:hover{background:var(--red);border-color:var(--red);color:#fff;}
+  .reminder-undo-btn:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
   #submittedList .card{background:#FFFFFF;cursor:default;padding-left:28px;}
   .drag-handle{
     position:absolute;left:6px;top:50%;transform:translateY(-50%);
     width:16px;height:16px;display:flex;align-items:center;justify-content:center;
-    color:var(--ink-soft);font-size:14px;line-height:1;cursor:grab;
+    color:var(--text-2);font-size:14px;line-height:1;cursor:grab;
     opacity:0;transition:opacity .15s ease;user-select:none;
   }
   .card:hover .drag-handle{opacity:1;}
   #submittedList .card.dragging{opacity:.4;}
   #submittedList .card.drag-over-top{box-shadow:inset 0 3px 0 0 var(--primary);}
   #submittedList .card.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--primary);}
-  .company-row .seq{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
-  .submitted-date{font-size:11px;color:var(--ink-soft);}
+  .company-row .seq{font-size:11px;color:var(--text-2);flex-shrink:0;}
+  .submitted-date{font-size:11px;color:var(--text-2);}
   .position-line-main{display:flex;align-items:baseline;gap:6px;min-width:0;flex:1;}
   .position-line-main .position{flex-shrink:0;}
   .position-line-main .submitted-note{
@@ -603,7 +702,7 @@
   .submitted-position-line{cursor:pointer;border-bottom:1px dashed var(--line);padding-bottom:5px;}
   .submitted-position-line:last-child{border-bottom:none;padding-bottom:0;}
   .submitted-position-line.ended .position,
-  .submitted-position-line.ended .position-link{color:var(--ink-soft);}
+  .submitted-position-line.ended .position-link{color:var(--text-2);}
   .submitted-position-line.ended{opacity:.55;}
   .card.all-ended{opacity:.55;}
   .card.all-ended:hover{opacity:.85;}
@@ -619,7 +718,7 @@
     white-space:pre-wrap;word-break:break-word;
   }
   .requirement-body{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
-  .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--ink);margin-bottom:8px;}
+  .requirement-text{font-size:13px;white-space:pre-wrap;color:var(--text);margin-bottom:8px;}
   .requirement-images{display:flex;flex-wrap:wrap;gap:8px;}
   .requirement-images img{
     width:72px;height:72px;object-fit:cover;border-radius:4px;border:1px solid var(--line);
@@ -629,38 +728,39 @@
   .req-img-thumb img{width:100%;height:100%;object-fit:cover;border-radius:4px;border:1px solid var(--line);}
   .req-img-thumb.uploading{
     display:flex;align-items:center;justify-content:center;
-    font-size:10px;color:var(--ink-soft);text-align:center;
+    font-size:10px;color:var(--text-2);text-align:center;
     border:1px dashed var(--line);border-radius:4px;
   }
   .req-img-del{
     position:absolute;top:-6px;right:-6px;
     width:18px;height:18px;border-radius:50%;
-    background:var(--danger);color:#fff;border:none;
+    background:var(--red);color:#fff;border:none;
     font-size:12px;line-height:1;cursor:pointer;
   }
 
   .sync-indicator{
     display:flex;align-items:center;gap:6px;
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:5px 10px 5px 8px;
+    background:var(--surface-2);
+    border:none;
+    border-radius:var(--radius-pill);
+    padding:6px 12px 6px 10px;
     font-size:12px;
-    color:var(--ink-soft);
+    color:var(--text-2);
     cursor:pointer;
+    transition:background .15s ease;
   }
-  .sync-indicator:hover{border-color:var(--primary);}
-  .sync-indicator .dot{width:8px;height:8px;border-radius:50%;background:#9aa9b6;flex-shrink:0;}
-  .sync-indicator[data-state="disconnected"] .dot{background:#9aa9b6;}
-  .sync-indicator[data-state="syncing"] .dot{background:var(--warn);animation:sync-pulse 1s infinite;}
-  .sync-indicator[data-state="synced"] .dot{background:#2E7D4F;}
-  .sync-indicator[data-state="error"] .dot{background:var(--danger);}
+  .sync-indicator:hover{background:var(--line);}
+  .sync-indicator .dot{width:8px;height:8px;border-radius:50%;background:var(--text-3);flex-shrink:0;}
+  .sync-indicator[data-state="disconnected"] .dot{background:var(--text-3);}
+  .sync-indicator[data-state="syncing"] .dot{background:var(--orange);animation:sync-pulse 1s infinite;}
+  .sync-indicator[data-state="synced"] .dot{background:var(--green);}
+  .sync-indicator[data-state="error"] .dot{background:var(--red);}
   @keyframes sync-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
   .sync-banner{
     background:var(--primary-soft);
-    border:1px solid var(--line);
-    border-radius:6px;
+    border:none;
+    border-radius:var(--radius-md);
     padding:12px 16px;
     margin-bottom:16px;
     display:none;
@@ -704,10 +804,11 @@
 
   <div class="stats" id="statsRow"></div>
 
-  <div class="view-tabs">
-    <button class="view-tab active" id="viewTabBoard" type="button">看板</button>
-    <button class="view-tab" id="viewTabSubmitted" type="button">已提交进度 <span id="submittedTabCount"></span></button>
-    <button class="view-tab" id="viewTabReminders" type="button">提醒事项 <span id="remindersTabCount"></span></button>
+  <div class="view-tabs" id="viewTabs" role="tablist">
+    <div class="view-tab-slider" id="viewTabSlider"></div>
+    <button class="view-tab active" id="viewTabBoard" type="button" role="tab" aria-selected="true">看板</button>
+    <button class="view-tab" id="viewTabSubmitted" type="button" role="tab" aria-selected="false">已提交进度 <span class="tab-count" id="submittedTabCount"></span></button>
+    <button class="view-tab" id="viewTabReminders" type="button" role="tab" aria-selected="false">提醒事项 <span class="tab-count" id="remindersTabCount"></span></button>
   </div>
 
   <div class="toolbar">
@@ -957,7 +1058,7 @@
     <div class="field-hint" id="reminderEmptyHint" style="display:none;">还没有已提交的岗位，或者这个岗位的环节都已经完成了，没法加提醒。</div>
   </div>
   <div class="drawer-foot">
-    <button class="btn btn-ghost" id="reminderDeleteBtn" type="button" style="display:none;color:var(--danger);">删除这条提醒</button>
+    <button class="btn btn-ghost" id="reminderDeleteBtn" type="button" style="display:none;color:var(--red);">删除这条提醒</button>
     <div class="right" style="margin-left:auto;">
       <button class="btn btn-ghost" id="reminderCancelBtn">取消</button>
       <button class="btn btn-primary" id="reminderSaveBtn">保存</button>
@@ -1258,6 +1359,9 @@ function renderTodayLabel(){
     `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
 }
 
+// 看板页显示完整的统计卡片；已提交进度/提醒事项两页地方更紧张，压缩成一行细字，
+// 数字本身不变，只是换个更轻的呈现方式。currentView 由 setActiveView() 维护。
+let currentView = 'board';
 function renderStats(){
   const active = positions.filter(r=>!r.deleted);
   const todo = active.filter(r=>r.status==='todo').length;
@@ -1271,14 +1375,21 @@ function renderStats(){
     {label:'本周新增', num:thisWeek, cls:''},
     {label:'待填写', num:todo, cls:''},
     {label:'填报中', num:inprogress, cls:'warn'},
-    {label:'已逾期未提交', num:overdue, cls:'danger'},
+    {label:'已逾期未提交', num:overdue, cls: overdue>0 ? 'danger' : 'danger zero'},
   ];
-  document.getElementById('statsRow').innerHTML = stats.map(s=>`
-    <div class="stat-card ${s.cls}">
-      <div class="num">${s.num}</div>
-      <div class="label">${s.label}</div>
-    </div>
-  `).join('');
+  const row = document.getElementById('statsRow');
+  if(currentView==='board'){
+    row.className = 'stats';
+    row.innerHTML = stats.map(s=>`
+      <div class="stat-card ${s.cls}">
+        <div class="num">${s.num}</div>
+        <div class="label">${s.label}</div>
+      </div>
+    `).join('');
+  } else {
+    row.className = 'stats thin';
+    row.innerHTML = stats.map(s=>`<span class="thin-stat ${s.cls}">${s.num} ${s.label}</span>`).join('<span class="thin-stat-sep">·</span>');
+  }
 }
 
 function deadlineBadge(r){
@@ -3003,20 +3114,57 @@ document.getElementById('filterFavoriteBtn').addEventListener('click', function(
 });
 
 /* ---- 页面切换：看板 / 已提交进度 / 提醒事项 ---- */
+// 分段控件的白色滑块：量一下当前激活的标签按钮相对轨道的位置和宽度，写到滑块的
+// transform/width 上，让它"滑"过去，而不是每个标签自己再单独套一层背景色。
+function positionTabSlider(){
+  const track = document.getElementById('viewTabs');
+  const slider = document.getElementById('viewTabSlider');
+  const activeBtn = track.querySelector('.view-tab.active');
+  if(!track || !slider || !activeBtn) return;
+  const trackRect = track.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  slider.style.width = btnRect.width + 'px';
+  slider.style.transform = `translateX(${btnRect.left - trackRect.left - 3}px)`;
+}
+window.addEventListener('resize', positionTabSlider);
+
 function setActiveView(view){
-  document.getElementById('viewTabBoard').classList.toggle('active', view==='board');
-  document.getElementById('viewTabSubmitted').classList.toggle('active', view==='submitted');
-  document.getElementById('viewTabReminders').classList.toggle('active', view==='reminders');
+  currentView = view;
+  const tabs = [
+    {id:'viewTabBoard', v:'board'},
+    {id:'viewTabSubmitted', v:'submitted'},
+    {id:'viewTabReminders', v:'reminders'},
+  ];
+  tabs.forEach(t=>{
+    const el = document.getElementById(t.id);
+    el.classList.toggle('active', view===t.v);
+    el.setAttribute('aria-selected', view===t.v ? 'true' : 'false');
+  });
   document.getElementById('board').style.display = view==='board' ? 'grid' : 'none';
   document.getElementById('submittedView').style.display = view==='submitted' ? 'block' : 'none';
   document.getElementById('remindersView').style.display = view==='reminders' ? 'block' : 'none';
   document.getElementById('dateFilterGroup').style.display = view==='submitted' ? 'flex' : 'none';
   document.querySelector('.toolbar').style.display = view==='reminders' ? 'none' : 'flex';
+  renderStats();
+  positionTabSlider();
   if(view==='reminders') renderRemindersList();
 }
 document.getElementById('viewTabBoard').addEventListener('click', ()=>setActiveView('board'));
 document.getElementById('viewTabSubmitted').addEventListener('click', ()=>setActiveView('submitted'));
 document.getElementById('viewTabReminders').addEventListener('click', ()=>setActiveView('reminders'));
+// 左右方向键在三个标签之间切换，焦点跟着移动（role="tablist" 的标准键盘行为）。
+document.getElementById('viewTabs').addEventListener('keydown', (e)=>{
+  if(e.key!=='ArrowLeft' && e.key!=='ArrowRight') return;
+  const order = ['viewTabBoard','viewTabSubmitted','viewTabReminders'];
+  const viewOf = {viewTabBoard:'board', viewTabSubmitted:'submitted', viewTabReminders:'reminders'};
+  const idx = order.indexOf(document.activeElement.id);
+  if(idx===-1) return;
+  e.preventDefault();
+  const nextIdx = e.key==='ArrowRight' ? (idx+1)%order.length : (idx-1+order.length)%order.length;
+  const nextId = order[nextIdx];
+  document.getElementById(nextId).focus();
+  setActiveView(viewOf[nextId]);
+});
 document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
@@ -3863,6 +4011,7 @@ function runHistoryImport(){
 /* ---- 初始化 ---- */
 loadData();
 renderAll();
+positionTabSlider();
 startSync().then(()=>{
   if(new URLSearchParams(location.search).get('import') === 'history2026'){
     runHistoryImport();
