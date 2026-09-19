@@ -35,6 +35,13 @@
     --red-soft:#F3E0DE;
     --green:#2E7D4F;
     --green-soft:#E1F0E6;
+    /* 提醒事项页的招聘环节类型胶囊专用色，跟上面 orange/red/green 的"状态语义"
+       分开——这几个纯粹用来区分"这是测评还是群面"，不代表紧急程度。 */
+    --tag-violet:#5B4B8A; --tag-violet-soft:#EAE4F5;
+    --tag-teal:#1F6E6B;   --tag-teal-soft:#DDEEEC;
+    --tag-rose:#9C3566;   --tag-rose-soft:#F5E1EB;
+    --tag-amber:#7A5A22;  --tag-amber-soft:#F0E6D2;
+    --tag-indigo:#46507A; --tag-indigo-soft:#E4E6F0;
   }
   :root[data-theme="apple"]{
     --bg:#F7FAFE;
@@ -52,6 +59,12 @@
     --primary-soft:#E4EFFC;
     --accent:var(--primary);
     --accent-soft:var(--primary-soft);
+
+    --tag-violet:#6D5DD3; --tag-violet-soft:#EAE7FB;
+    --tag-teal:#0F8B8D;   --tag-teal-soft:#DFF3F2;
+    --tag-rose:#C2367D;   --tag-rose-soft:#FBE4EF;
+    --tag-amber:#9A6B1E;  --tag-amber-soft:#F5EBD6;
+    --tag-indigo:#55618C; --tag-indigo-soft:#E7E9F3;
   }
   *{box-sizing:border-box;}
   body{
@@ -768,37 +781,84 @@
   .paste-import-row-main{flex:1;min-width:0;}
   .paste-import-row-note{font-size:11px;color:var(--orange);margin-left:8px;}
   .paste-import-row.unrecognized .paste-import-row-note{color:var(--text-2);}
+  /* 提醒事项页参考 iOS「提醒事项」：圆形勾选框在最左边，倒计时胶囊是行里最醒目的
+     信息（不是随便一个小字），删除按钮默认藏起来，划过/聚焦到这一行才露出来。 */
+  .reminders-group{margin-bottom:4px;}
+  .reminders-group-label{
+    width:100%;
+    font-size:13px;font-weight:600;color:var(--text);
+    padding:8px 4px;margin-bottom:4px;
+    background:none;border:none;
+    display:flex;gap:8px;justify-content:flex-start;align-items:center;
+    cursor:default;
+  }
+  .reminders-group-label.clickable{cursor:pointer;border-radius:var(--radius-md);}
+  .reminders-group-label.clickable:hover{background:var(--surface-2);}
+  .reminders-group-label .count-inline{
+    font-size:11px;font-weight:400;color:var(--text-2);
+    background:var(--surface-2);border-radius:10px;padding:1px 7px;
+  }
+  .reminders-group-label .chevron{
+    margin-left:auto;color:var(--text-3);display:flex;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1);
+  }
+  .reminders-group-label.collapsed .chevron{transform:rotate(-90deg);}
   .reminders-list{display:flex;flex-direction:column;gap:10px;}
   .reminder-row{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    background:var(--surface);border-radius:var(--radius-md);box-shadow:var(--shadow-1);
     padding:12px 14px;cursor:pointer;
   }
-  .reminder-row:hover{border-color:var(--primary);}
-  .reminder-row.overdue{border-color:var(--red);}
-  .reminder-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;}
+  .reminder-row.overdue{box-shadow:0 0 0 1px var(--red-soft), var(--shadow-1);}
+  .reminder-check{
+    width:22px;height:22px;border-radius:50%;flex-shrink:0;
+    border:2px solid var(--line);background:var(--surface);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .reminder-check:hover{border-color:var(--primary);}
+  .reminder-check.checked{background:var(--primary);border-color:var(--primary);}
+  .reminder-main{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;flex:1;}
   .reminder-company{font-weight:600;font-size:15px;}
   .reminder-position{font-size:14px;color:var(--text-2);}
-  .reminder-company-wide{font-style:italic;}
   .reminder-stage{
     font-size:12px;padding:2px 8px;border-radius:10px;
-    background:var(--primary-soft);color:var(--primary);
+    background:var(--surface-2);color:var(--text-2);
   }
+  /* 提醒的类型胶囊颜色集中在这几条规则里，以后台账再加新的招聘环节，只要在
+     REMINDER_STAGE_TAG（JS 里）给它挑一个这里已经定义的色系就行，不用现造新颜色。 */
+  .reminder-stage.tag-violet{background:var(--tag-violet-soft);color:var(--tag-violet);}
+  .reminder-stage.tag-teal{background:var(--tag-teal-soft);color:var(--tag-teal);}
+  .reminder-stage.tag-rose{background:var(--tag-rose-soft);color:var(--tag-rose);}
+  .reminder-stage.tag-amber{background:var(--tag-amber-soft);color:var(--tag-amber);}
+  .reminder-stage.tag-indigo{background:var(--tag-indigo-soft);color:var(--tag-indigo);}
+  .reminder-stage.tag-green{background:var(--green-soft);color:var(--green);}
   .reminder-note{
     flex-basis:100%;font-size:12px;color:var(--text-2);
     font-family:"Kaiti SC","STKaiti","KaiTi",serif;
   }
   .reminder-row.done{opacity:.55;}
-  .reminder-row.done .reminder-stage{background:var(--line);color:var(--text-2);}
+  .reminder-row.done .reminder-company,
+  .reminder-row.done .reminder-position{text-decoration:line-through;}
   .reminder-done-label{font-size:12px;color:var(--text-2);}
-  .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-  .reminder-done-btn,.reminder-clear-btn,.reminder-undo-btn{
-    border:1px solid var(--line);background:var(--surface);border-radius:4px;
-    font-size:12px;padding:4px 9px;cursor:pointer;color:var(--text-2);
+  .reminder-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto;}
+  .reminder-countdown-badge{
+    padding:3px 10px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;
   }
-  .reminder-done-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
-  .reminder-clear-btn:hover{background:var(--red);border-color:var(--red);color:#fff;}
-  .reminder-undo-btn:hover{background:var(--orange);border-color:var(--orange);color:#fff;}
+  .reminder-countdown-badge.danger{background:var(--red-soft);color:var(--red);}
+  .reminder-countdown-badge.warn{background:var(--orange-soft);color:var(--orange);}
+  .reminder-countdown-badge.far{background:var(--surface-2);color:var(--text-2);font-weight:400;}
+  .reminder-datetime{font-size:12px;color:var(--text-2);white-space:nowrap;}
+  .reminder-delete-btn{
+    opacity:0;
+    width:24px;height:24px;border-radius:50%;
+    border:none;background:none;color:var(--text-3);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:14px;
+    transition:opacity .15s ease, background .15s ease, color .15s ease;
+  }
+  .reminder-row:hover .reminder-delete-btn,
+  .reminder-row:focus-within .reminder-delete-btn{opacity:1;}
+  .reminder-delete-btn:hover{background:var(--red-soft);color:var(--red);}
   #submittedList .card{background:#FFFFFF;cursor:default;padding-left:28px;}
   .drag-handle{
     position:absolute;left:6px;top:50%;transform:translateY(-50%);
@@ -1324,6 +1384,19 @@ const PROGRESS_STAGES = [
   {key:'offered', label:'Offered'},
   {key:'ended', label:'结束'},
 ];
+// 提醒事项页类型胶囊的颜色映射，集中写在这一处：以后台账再加新的招聘环节，
+// 在这里给它挑一个 CSS 里已经定义好的 tag-* 色系（见 :root 主题变量里的
+// --tag-violet/--tag-teal/--tag-rose/--tag-amber/--tag-indigo）就行；漏了映射的
+// 环节会自动落到中性灰（不报错，只是不出彩）。offered/ended 固定跟板颜色语义一致。
+const REMINDER_STAGE_TAG = {
+  assessment: 'violet',
+  groupInterview: 'teal',
+  aiInterview: 'rose',
+  interview1: 'amber',
+  interview2: 'indigo',
+  offered: 'green',
+  ended: 'neutral',
+};
 function applyProgressExclusivity(progress, changedKey, progressDates){
   if(changedKey==='ended' && progress.ended){ progress.offered = false; if(progressDates) delete progressDates.offered; }
   if(changedKey==='offered' && progress.offered){ progress.ended = false; if(progressDates) delete progressDates.ended; }
@@ -1538,9 +1611,12 @@ let uiPrefs = loadUiPrefs();
 if(uiPrefs.reviewedCollapsed===undefined) uiPrefs.reviewedCollapsed = true;
 // 已提交进度页每张卡片自己的折叠状态，key 是公司 id；默认展开（不在这个表里就是展开）。
 if(!uiPrefs.collapsedCompanyIds) uiPrefs.collapsedCompanyIds = {};
+if(uiPrefs.remindersDoneCollapsed===undefined) uiPrefs.remindersDoneCollapsed = true;
 
 const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+const ICON_TRASH = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
 function getCompany(id){ return companies.find(c=>c.id===id); }
 
@@ -2366,69 +2442,133 @@ function renderRemindersTabCount(){
   const n = getActiveReminders().filter(i=>!i.done).length;
   document.getElementById('remindersTabCount').textContent = n>0 ? `(${n})` : '';
 }
+// 按"7 天内 / 之后 / 已完成"分组——已逾期的也算在"7 天内"里（比"之后"更该现在处理）；
+// 完成的不管日期多久远，一律归到"已完成"，跟看板页"已审核"、已提交进度页"已收藏"
+// 是同一套折叠交互。
+function reminderGroupOf(item){
+  if(item.done) return 'done';
+  const datePart = item.date.includes('T') ? item.date.split('T')[0] : item.date;
+  return daysUntil(datePart)<=7 ? 'soon' : 'later';
+}
+function renderReminderRow(item){
+  const isCompanyScope = item.scope==='company';
+  const company = isCompanyScope ? item.company : getCompany(item.position.companyId);
+  const id = isCompanyScope ? item.company.id : item.position.id;
+  const positionHtml = isCompanyScope
+    ? `<span class="reminder-position">全部岗位通用</span>`
+    : `<span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>`;
+  const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
+  const tag = REMINDER_STAGE_TAG[item.stage.key] || 'neutral';
+  const stageHtml = `<span class="reminder-stage${tag!=='neutral'?' tag-'+tag:''}">${item.stage.label}</span>`;
+  if(item.done){
+    return `
+      <div class="reminder-row done" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" tabindex="0" title="点这里可以改日期、加备注">
+        <button class="reminder-check checked" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="撤销完成" aria-label="撤销完成">${ICON_CHECK}</button>
+        <div class="reminder-main">
+          <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+          ${positionHtml}
+          ${stageHtml}
+          ${noteHtml}
+        </div>
+        <div class="reminder-meta">
+          <span class="reminder-done-label">已完成${item.doneDate ? ' · '+fmtDate(item.doneDate) : ''}</span>
+          <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="清掉这条提醒记录" aria-label="清掉这条提醒记录">${ICON_TRASH}</button>
+        </div>
+      </div>
+    `;
+  }
+  const overdue = isOverdue(item.date);
+  const dateText = reminderCountdownText(item.date);
+  const badgeCls = overdue ? 'danger' : (daysUntil(item.date.split('T')[0])<=3 ? 'warn' : 'far');
+  return `
+    <div class="reminder-row${overdue?' overdue':''}" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" tabindex="0" title="点这里可以改日期、加备注">
+      <button class="reminder-check" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="标记完成" aria-label="标记完成"></button>
+      <div class="reminder-main">
+        <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+        ${positionHtml}
+        ${stageHtml}
+        ${noteHtml}
+      </div>
+      <div class="reminder-meta">
+        <span class="reminder-countdown-badge ${badgeCls}">${dateText}</span>
+        <span class="reminder-datetime">${fmtDeadlineDateTime(item.date)}</span>
+        <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
+      </div>
+    </div>
+  `;
+}
 function renderRemindersList(){
   renderRemindersTabCount();
   const list = document.getElementById('remindersList');
   const items = getActiveReminders();
   if(items.length===0){
-    list.innerHTML = `<div class="empty-hint">暂无提醒事项</div>`;
+    list.innerHTML = `<div class="empty-hint">还没有提醒，点右上角"添加提醒"试试</div>`;
     return;
   }
-  list.innerHTML = items.map(item=>{
-    const isCompanyScope = item.scope==='company';
-    const company = isCompanyScope ? item.company : getCompany(item.position.companyId);
-    const id = isCompanyScope ? item.company.id : item.position.id;
-    const positionHtml = isCompanyScope
-      ? `<span class="reminder-position reminder-company-wide">全部岗位通用</span>`
-      : `<span class="reminder-position">${escapeHtml(item.position.position||'（未命名岗位）')}</span>`;
-    const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
-    if(item.done){
-      return `
-        <div class="reminder-row done" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
-          <div class="reminder-main">
-            <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-            ${positionHtml}
-            <span class="reminder-stage">${item.stage.label}</span>
-            ${noteHtml}
-          </div>
-          <div class="reminder-meta">
-            <span class="reminder-done-label">已完成${item.doneDate ? ' · '+fmtDate(item.doneDate) : ''}</span>
-            <button class="reminder-undo-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}">撤销完成</button>
-            <button class="reminder-clear-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="清掉这条提醒记录">×</button>
-          </div>
-        </div>
-      `;
-    }
-    const overdue = isOverdue(item.date);
-    const dateText = reminderCountdownText(item.date);
-    return `
-      <div class="reminder-row${overdue?' overdue':''}" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="点这里可以改日期、加备注">
-        <div class="reminder-main">
-          <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-          ${positionHtml}
-          <span class="reminder-stage">${item.stage.label}</span>
-          ${noteHtml}
-        </div>
-        <div class="reminder-meta">
-          <span class="deadline-badge ${overdue?'danger':'warn'}">${fmtDeadlineDateTime(item.date)} · ${dateText}</span>
-          <button class="reminder-done-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}">✓ 标记完成</button>
-          <button class="reminder-clear-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成">×</button>
-        </div>
+  const soon = items.filter(i=>reminderGroupOf(i)==='soon');
+  const later = items.filter(i=>reminderGroupOf(i)==='later');
+  const done = items.filter(i=>reminderGroupOf(i)==='done');
+  const doneCollapsed = uiPrefs.remindersDoneCollapsed;
+  let html = '';
+  if(soon.length){
+    html += `
+      <div class="reminders-group">
+        <div class="reminders-group-label"><span>7 天内</span><span class="count-inline">${soon.length}</span></div>
+        <div class="reminders-list">${soon.map(renderReminderRow).join('')}</div>
       </div>
     `;
-  }).join('');
+  }
+  if(later.length){
+    html += `
+      <div class="reminders-group">
+        <div class="reminders-group-label"><span>之后</span><span class="count-inline">${later.length}</span></div>
+        <div class="reminders-list">${later.map(renderReminderRow).join('')}</div>
+      </div>
+    `;
+  }
+  if(done.length){
+    html += `
+      <div class="reminders-group">
+        <button class="reminders-group-label clickable${doneCollapsed?' collapsed':''}" type="button" id="remindersDoneToggle" aria-expanded="${doneCollapsed?'false':'true'}">
+          <span>已完成</span><span class="count-inline">${done.length}</span>
+          <span class="chevron">${ICON_CHEVRON_DOWN}</span>
+        </button>
+        <div class="card-collapsible-body${doneCollapsed?' collapsed':''}" id="remindersDoneBody"><div class="inner">
+          <div class="reminders-list">${done.map(renderReminderRow).join('')}</div>
+        </div></div>
+      </div>
+    `;
+  }
+  list.innerHTML = html;
+
+  const doneToggle = document.getElementById('remindersDoneToggle');
+  if(doneToggle){
+    const doneBody = document.getElementById('remindersDoneBody');
+    doneToggle.addEventListener('click', ()=>{
+      uiPrefs.remindersDoneCollapsed = !uiPrefs.remindersDoneCollapsed;
+      saveUiPrefs();
+      doneToggle.classList.toggle('collapsed', uiPrefs.remindersDoneCollapsed);
+      doneToggle.setAttribute('aria-expanded', uiPrefs.remindersDoneCollapsed ? 'false' : 'true');
+      doneBody.classList.toggle('collapsed', uiPrefs.remindersDoneCollapsed);
+    });
+  }
+
   list.querySelectorAll('.reminder-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.reminder-done-btn, .reminder-clear-btn, .reminder-undo-btn')) return;
+      if(e.target.closest('.reminder-check, .reminder-delete-btn')) return;
       openReminderDrawerForEdit(row.dataset.scope, row.dataset.id, row.dataset.key);
     });
   });
-  list.querySelectorAll('.reminder-done-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+  // 圆形勾选框身兼"标记完成"和"撤销完成"两个动作——看这一行当前是不是已完成
+  // 状态，决定这次点击是要打勾还是取消。
+  list.querySelectorAll('.reminder-check').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const nowDone = !btn.classList.contains('checked');
       if(btn.dataset.scope==='company'){
         const c = getCompany(btn.dataset.id);
         if(!c) return;
-        setCompanyStageDone(c, btn.dataset.key, true);
+        setCompanyStageDone(c, btn.dataset.key, nowDone);
         c.updatedAt = new Date().toISOString();
         saveData();
         queueUpsert('companies', c.id);
@@ -2440,7 +2580,7 @@ function renderRemindersList(){
       if(!pos) return;
       if(!pos.progress) pos.progress = {};
       if(!pos.progressDates) pos.progressDates = {};
-      setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, true);
+      setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, nowDone);
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
@@ -2448,33 +2588,9 @@ function renderRemindersList(){
       renderAll();
     });
   });
-  list.querySelectorAll('.reminder-undo-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(btn.dataset.scope==='company'){
-        const c = getCompany(btn.dataset.id);
-        if(!c) return;
-        setCompanyStageDone(c, btn.dataset.key, false);
-        c.updatedAt = new Date().toISOString();
-        saveData();
-        queueUpsert('companies', c.id);
-        flushQueue();
-        renderAll();
-        return;
-      }
-      const pos = positions.find(x=>x.id===btn.dataset.id);
-      if(!pos) return;
-      if(!pos.progress) pos.progress = {};
-      if(!pos.progressDates) pos.progressDates = {};
-      setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, false);
-      pos.updatedAt = new Date().toISOString();
-      saveData();
-      queueUpsert('positions', pos.id);
-      flushQueue();
-      renderAll();
-    });
-  });
-  list.querySelectorAll('.reminder-clear-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+  list.querySelectorAll('.reminder-delete-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
       if(btn.dataset.scope==='company'){
         const c = getCompany(btn.dataset.id);
         if(!c || !c.stageDeadlines) return;
