@@ -228,73 +228,76 @@
   .view-tab .tab-count{font-weight:400;color:var(--text-3);}
   .view-tab.active .tab-count{color:var(--text-2);}
   .column{
-    background:rgba(255,255,255,0.45);
-    border:1px solid var(--line);
-    border-radius:6px;
+    background:var(--surface-2);
+    border:none;
+    border-radius:var(--radius-lg);
     min-height:200px;
     display:flex;
     flex-direction:column;
   }
   .column-head{
-    padding:12px 14px;
-    border-bottom:1px solid var(--line);
+    padding:14px 16px 10px;
     display:flex;
     justify-content:space-between;
     align-items:center;
   }
-  .column-head h2{font-size:15px;margin:0;}
+  .column-head h2{font-size:15px;margin:0;display:flex;align-items:center;gap:8px;font-weight:600;}
+  .col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .col-dot.todo{background:var(--primary);}
+  .col-dot.inprogress{background:var(--orange);}
   .column-head .count{
     font-size:12px;
     background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:1px 8px;
+    border-radius:var(--radius-pill);
+    padding:2px 9px;
     color:var(--text-2);
   }
-  .column[data-status="todo"] .column-head{border-top:3px solid var(--text-2);}
-  .column[data-status="inprogress"] .column-head{border-top:3px solid var(--orange);}
-  .column[data-status="submitted"] .column-head{border-top:3px solid var(--accent);}
-  .column-body{padding:10px;display:flex;flex-direction:column;gap:10px;flex:1;}
+  .column-body{padding:6px 10px 10px;display:flex;flex-direction:column;gap:10px;flex:1;}
   .empty-hint{
-    color:var(--text-2);
+    color:var(--text-3);
     font-size:13px;
     text-align:center;
     padding:24px 10px;
-    border:1px dashed var(--line);
-    border-radius:4px;
   }
 
   .card{
     background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:12px 14px;
+    border:none;
+    border-radius:var(--radius-md);
+    box-shadow:var(--shadow-1);
+    padding:16px;
     cursor:pointer;
     position:relative;
+    transition:box-shadow .15s ease, transform .1s ease;
   }
-  .card:hover{border-color:var(--primary);}
+  .card:hover{box-shadow:0 2px 4px rgba(29,51,84,.06), 0 8px 20px rgba(29,51,84,.09);}
+  .card:active{transform:scale(.99);}
   .card .company-row{
     display:flex;
-    align-items:baseline;
+    align-items:center;
     gap:6px;
     flex-wrap:wrap;
     padding-right:22px;
   }
   .card .company{font-size:16px;font-weight:600;}
-  .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;}
-  .company-row-right{margin-left:auto;display:flex;align-items:baseline;gap:6px;}
-  .company-row-right .company-link{margin-left:0;margin-top:0;font-size:12px;}
+  .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;color:var(--text-2);flex-shrink:0;display:flex;align-items:center;}
+  .company-row .company-link:hover{color:var(--primary);}
+  .company-row-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+  .company-row-right .company-link{margin-left:0;margin-top:0;}
   .favorite-star{
     background:none;border:none;cursor:pointer;padding:0;
-    font-size:15px;line-height:1;color:var(--line);
+    font-size:15px;line-height:1;color:var(--text-3);
     flex-shrink:0;
+    transition:color .15s ease;
   }
+  .favorite-star:hover{color:var(--text-2);}
   .favorite-star.active{color:var(--orange);}
+  .favorite-star.active:hover{color:var(--orange);}
   .card .position{font-size:14px;color:var(--text-2);}
   .card .other-positions{
     font-size:11px;
-    color:var(--text-2);
-    margin-top:2px;
+    color:var(--text-3);
+    margin-top:6px;
   }
   .card .meta-row{
     display:flex;
@@ -305,18 +308,32 @@
   }
   .checklist-mini{color:var(--text-2);}
   .deadline-badge{
-    padding:2px 7px;
-    border-radius:10px;
+    padding:2px 8px;
+    border-radius:var(--radius-pill);
     font-size:11px;
   }
-  .deadline-badge.normal{background:var(--primary-soft);color:var(--primary);}
+  .deadline-badge.normal{background:var(--surface-2);color:var(--text-2);}
   .deadline-badge.warn{background:var(--orange-soft);color:var(--orange);}
   .deadline-badge.danger{background:var(--red-soft);color:var(--red);}
+  /* 卡片顶部这个是新增的"这张卡最近一个截止时间"摘要胶囊，跟岗位行里那个更详细的
+     deadline-badge 是两码事——这个只看最近的一个、文案更短，方便扫一眼卡片标题行
+     就知道紧不紧急；具体是哪个岗位、哪天，还是看下面每一行自己的 deadline-badge。 */
+  .card-deadline-badge{
+    padding:2px 9px;
+    border-radius:var(--radius-pill);
+    font-size:11px;
+    font-weight:600;
+    flex-shrink:0;
+    font-variant-numeric:tabular-nums;
+  }
+  .card-deadline-badge.far{background:var(--surface-2);color:var(--text-2);font-weight:400;}
+  .card-deadline-badge.warn{background:var(--orange-soft);color:var(--orange);}
+  .card-deadline-badge.danger{background:var(--red-soft);color:var(--red);}
   .card .stamp{
     margin-top:8px;
     font-size:11px;
     color:var(--text-2);
-    border-top:1px dashed var(--line);
+    border-top:1px solid var(--line);
     padding-top:6px;
   }
 
@@ -477,11 +494,14 @@
 
   .day-group{margin-bottom:4px;}
   .day-group-label{
-    font-size:11px;
+    font-size:13px;
     color:var(--text-2);
-    padding:2px 2px 6px;
-    border-bottom:1px dashed var(--line);
-    margin-bottom:8px;
+    padding:6px 2px;
+    margin-bottom:4px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:2;
   }
   .day-group .card{margin-bottom:10px;}
   .day-group .card:last-child{margin-bottom:0;}
@@ -489,26 +509,43 @@
     cursor:pointer;display:flex;align-items:center;gap:5px;user-select:none;
   }
   .fav-collapse-arrow{font-size:10px;color:var(--text-2);width:10px;display:inline-block;}
-  .review-stage-group{margin-bottom:14px;}
+  .review-stage-group{margin-bottom:6px;}
   .review-stage-group:last-child{margin-bottom:0;}
   .review-stage-label{
-    font-size:12px;
+    width:100%;
+    font-size:13px;
     font-weight:600;
-    color:var(--orange);
-    padding-bottom:6px;
-    margin-bottom:8px;
-    border-bottom:1px solid var(--orange-soft);
+    color:var(--text);
+    padding:8px 4px;
+    margin-bottom:4px;
+    background:none;
+    border:none;
     display:flex;
-    justify-content:space-between;
+    gap:8px;
+    justify-content:flex-start;
     align-items:center;
+    cursor:default;
   }
+  .review-stage-label.clickable{cursor:pointer;border-radius:var(--radius-md);}
+  .review-stage-label.clickable:hover{background:var(--surface-2);}
+  .review-stage-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .review-stage-dot.pending{background:var(--orange);}
+  .review-stage-dot.reviewed{background:var(--green);}
   .review-stage-label .count-inline{
     font-size:11px;font-weight:400;color:var(--text-2);
-    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 6px;
+    background:var(--surface-2);border-radius:10px;padding:1px 7px;
   }
-  .position-list{margin-top:6px;display:flex;flex-direction:column;}
-  .position-line-block{border-bottom:1px dashed var(--line);padding-bottom:5px;}
-  .position-line-block:last-child{border-bottom:none;padding-bottom:0;}
+  .review-stage-label .chevron{
+    margin-left:auto;color:var(--text-3);display:flex;
+    transition:transform .2s cubic-bezier(.2,.8,.2,1);
+  }
+  .review-stage-label.collapsed .chevron{transform:rotate(-90deg);}
+  .review-stage-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .2s cubic-bezier(.2,.8,.2,1);}
+  .review-stage-body.collapsed{grid-template-rows:0fr;}
+  .review-stage-body > .inner{overflow:hidden;}
+  .position-list{margin-top:8px;display:flex;flex-direction:column;}
+  .position-line-block{border-top:1px solid var(--line);padding-top:6px;margin-top:6px;}
+  .position-line-block:first-child{border-top:none;padding-top:0;margin-top:0;}
   .position-line{
     position:relative;
     display:flex;
@@ -844,11 +881,11 @@
 
   <div class="board" id="board">
     <div class="column" data-status="todo">
-      <div class="column-head"><h2 class="serif">待填写</h2><span class="count" id="count-todo">0</span></div>
+      <div class="column-head"><h2><span class="col-dot todo"></span>待填写</h2><span class="count" id="count-todo">0</span></div>
       <div class="column-body" id="col-todo"></div>
     </div>
     <div class="column" data-status="inprogress">
-      <div class="column-head"><h2 class="serif">填报中</h2><span class="count" id="count-inprogress">0</span></div>
+      <div class="column-head"><h2><span class="col-dot inprogress"></span>填报中</h2><span class="count" id="count-inprogress">0</span></div>
       <div class="column-body" id="col-inprogress"></div>
     </div>
   </div>
@@ -1332,6 +1369,23 @@ function saveData(){
   safeSetItem(STORAGE_KEY, JSON.stringify({companies, positions}));
 }
 
+// 纯界面偏好（折叠/展开状态之类），跟真正的台账数据分开存一个 key，不进同步，
+// 每台设备自己记自己的展开状态就好，不用也不应该跟着同步码走。
+const UI_PREFS_KEY = 'wangshen_ui_prefs';
+function loadUiPrefs(){
+  try{
+    const raw = localStorage.getItem(UI_PREFS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {};
+}
+function saveUiPrefs(){ safeSetItem(UI_PREFS_KEY, JSON.stringify(uiPrefs)); }
+let uiPrefs = loadUiPrefs();
+if(uiPrefs.reviewedCollapsed===undefined) uiPrefs.reviewedCollapsed = true;
+
+const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
+const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+
 function getCompany(id){ return companies.find(c=>c.id===id); }
 
 function fmtDateTime(iso){
@@ -1457,6 +1511,31 @@ function dayLabel(key){
   const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
   return `${d.getMonth()+1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
 }
+// 看板页的日期分组头用"今天/昨天/9月16日 周三"这种相对说法，比精确日期更好扫一眼；
+// 已提交进度页那边继续用完整的 dayLabel()，不受这个影响。
+function relativeDayLabel(key){
+  const today = dayKeyOf(new Date().toISOString());
+  const yesterday = dayKeyOf(new Date(Date.now()-86400000).toISOString());
+  if(key===today) return '今天';
+  if(key===yesterday) return '昨天';
+  return dayLabel(key);
+}
+// 卡片顶部那个概括性的截止胶囊：只看这张卡里所有岗位中最近的一个截止时间，
+// 文案比岗位行里那个更短。已逾期/今天/明天都算紧急（红），2~3天算临近（橙），
+// 更远的就用中性灰色 + 简短日期，没有任何岗位设截止时间就不显示。
+function cardDeadlineBadge(list){
+  const deadlines = list.map(x=>x.deadline).filter(Boolean).sort();
+  if(!deadlines.length) return '';
+  const nearest = deadlines[0];
+  const d = daysUntil(nearest);
+  let cls='far', text;
+  if(d<0){ cls='danger'; text=`已逾期 ${Math.abs(d)} 天`; }
+  else if(d===0){ cls='danger'; text='今天截止'; }
+  else if(d===1){ cls='danger'; text='明天截止'; }
+  else if(d<=3){ cls='warn'; text=`剩 ${d} 天`; }
+  else { text=`${new Date(nearest+'T00:00:00').getMonth()+1}月${new Date(nearest+'T00:00:00').getDate()}日`; }
+  return `<span class="card-deadline-badge ${cls}">${text}</span>`;
+}
 
 // 把一组岗位按创建日期分组，同一天内再按公司合并成一张卡，返回 HTML 字符串。
 // reviewStage 只在渲染"填报中"栏的某个审核子分组时传入，用来给卡片打标记。
@@ -1503,7 +1582,7 @@ function renderGroupedCards(list, status, reviewStage){
               <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
               <span class="position-line-meta">
                 ${checklistText}${deadlineBadge(p)}
-                ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
+                ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
               </span>
               <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
             </div>
@@ -1515,9 +1594,12 @@ function renderGroupedCards(list, status, reviewStage){
         <div class="card" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
           <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}" title="删除这张卡里的所有岗位">&times;</button>
           <div class="company-row">
-            <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+            <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
-            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener">链接 ↗</a>` : ''}
+            <span class="company-row-right">
+              ${cardDeadlineBadge(g.list)}
+              ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
+            </span>
           </div>
           <div class="position-list">${positionLines}</div>
           ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
@@ -1527,7 +1609,7 @@ function renderGroupedCards(list, status, reviewStage){
 
     return `
       <div class="day-group">
-        <div class="day-group-label">${dayLabel(dayKey)}</div>
+        <div class="day-group-label">${relativeDayLabel(dayKey)}</div>
         ${cardsHtml}
       </div>
     `;
@@ -1548,16 +1630,31 @@ function renderBoard(){
     if(st==='inprogress'){
       const pendingList = filtered.filter(p=>reviewStageOf(p)==='pending');
       const reviewedList = filtered.filter(p=>reviewStageOf(p)==='reviewed');
+      const reviewedCollapsed = uiPrefs.reviewedCollapsed;
       col.innerHTML = `
         <div class="review-stage-group">
-          <div class="review-stage-label"><span>待审核</span><span class="count-inline">${pendingList.length}</span></div>
+          <div class="review-stage-label"><span class="review-stage-dot pending"></span><span>待审核</span><span class="count-inline">${pendingList.length}</span></div>
           ${pendingList.length ? renderGroupedCards(pendingList, st, 'pending') : '<div class="empty-hint">暂无记录</div>'}
         </div>
         <div class="review-stage-group">
-          <div class="review-stage-label"><span>已审核</span><span class="count-inline">${reviewedList.length}</span></div>
-          ${reviewedList.length ? renderGroupedCards(reviewedList, st, 'reviewed') : '<div class="empty-hint">暂无记录</div>'}
+          <button class="review-stage-label clickable${reviewedCollapsed?' collapsed':''}" type="button" id="reviewedGroupToggle" aria-expanded="${reviewedCollapsed?'false':'true'}">
+            <span class="review-stage-dot reviewed"></span><span>已审核</span><span class="count-inline">${reviewedList.length}</span>
+            <span class="chevron">${ICON_CHEVRON_DOWN}</span>
+          </button>
+          <div class="review-stage-body${reviewedCollapsed?' collapsed':''}" id="reviewedGroupBody"><div class="inner">
+            ${reviewedList.length ? renderGroupedCards(reviewedList, st, 'reviewed') : '<div class="empty-hint">暂无记录</div>'}
+          </div></div>
         </div>
       `;
+      const toggle = document.getElementById('reviewedGroupToggle');
+      const body = document.getElementById('reviewedGroupBody');
+      toggle.addEventListener('click', ()=>{
+        uiPrefs.reviewedCollapsed = !uiPrefs.reviewedCollapsed;
+        saveUiPrefs();
+        toggle.classList.toggle('collapsed', uiPrefs.reviewedCollapsed);
+        toggle.setAttribute('aria-expanded', uiPrefs.reviewedCollapsed ? 'false' : 'true');
+        body.classList.toggle('collapsed', uiPrefs.reviewedCollapsed);
+      });
     } else {
       col.innerHTML = renderGroupedCards(filtered, st);
     }
