@@ -1073,7 +1073,7 @@
   .reminder-row.done .reminder-company,
   .reminder-row.done .reminder-position{text-decoration:line-through;}
   .reminder-done-label{font-size:12px;color:var(--text-2);}
-  .reminder-meta{display:flex;align-items:flex-end;flex-direction:column;gap:4px;flex-shrink:0;margin-left:auto;}
+  .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;}
   .reminder-countdown-badge{
     padding:3px 10px;border-radius:var(--radius-pill);font-size:12px;font-weight:900;
   }
@@ -1342,6 +1342,10 @@
         <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
         <div class="progress-dates-list" id="progressDatesList"></div>
       </div>
+      <div class="field" id="stageDeadlinesField" style="display:none;">
+        <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
+        <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
+      </div>
       <div class="field">
         <label>网申链接</label>
         <input type="url" id="f-link" placeholder="https://…">
@@ -1351,10 +1355,6 @@
         <div id="checklistItems"></div>
         <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
         <div class="checklist-common-pills" id="checklistCommonPills"></div>
-      </div>
-      <div class="field" id="stageDeadlinesField" style="display:none;">
-        <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
-        <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
       </div>
     </div>
 
@@ -2282,16 +2282,35 @@ function computeTrack(progress, dates, stageDeadlines){
   }
   return {steps, lines};
 }
-function renderTrackHtml(p){
-  const progress = p.progress || {}, dates = p.progressDates || {}, deadlines = p.stageDeadlines || {};
-  const {steps, lines} = computeTrack(progress, dates, deadlines);
+// 公司级的环节提醒（比如"整个公司统一群面"）如果这个岗位自己没单独设置同一个
+// 环节的提醒，轨道也要按公司级那份时间显示——不然公司标题下面的胶囊已经在提醒了，
+// 下面每个岗位的轨道却还是一片空白，看着不一致。岗位自己设置过的优先于公司级的。
+function effectiveStageDeadlines(position, company){
+  const merged = {};
+  if(company){
+    PROGRESS_STAGES.forEach(s=>{
+      const entry = companyStageDeadlineEntry(company, s.key);
+      if(entry && entry.date && !entry.done) merged[s.key] = {date: entry.date, note: entry.note};
+    });
+  }
+  PROGRESS_STAGES.forEach(s=>{
+    const entry = stageDeadlineEntry(position.stageDeadlines||{}, s.key);
+    if(entry && entry.date) merged[s.key] = {date: entry.date, note: entry.note};
+  });
+  return merged;
+}
+function renderTrackHtml(p, company){
+  const progress = p.progress || {}, dates = p.progressDates || {};
+  const ownDeadlines = p.stageDeadlines || {};
+  const effectiveDeadlines = effectiveStageDeadlines(p, company);
+  const {steps, lines} = computeTrack(progress, dates, effectiveDeadlines);
   const linesHtml = lines.map(l=>`<span class="line ${l.cls}" style="--left:${l.left}%;--width:${l.width}%"></span>`).join('');
   const stepsHtml = steps.map(st=>`
     <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}">
       <span class="step-dot"></span>
       <div class="step-label">${st.label}</div>
       <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
-      <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${st.key}" value="${(stageDeadlineEntry(deadlines, st.key)||{}).date||''}" tabindex="-1">
+      <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${st.key}" value="${(stageDeadlineEntry(ownDeadlines, st.key)||{}).date||''}" tabindex="-1">
     </div>
   `).join('');
   return `<div class="track">${linesHtml}${stepsHtml}</div>`;
@@ -2395,7 +2414,7 @@ function renderSubmittedList(){
     return;
   }
 
-  function renderRole(p, defaultLink){
+  function renderRole(p, defaultLink, company){
     const ownLink = normalizeLink(p.link);
     const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
     return `
@@ -2408,7 +2427,7 @@ function renderSubmittedList(){
           </div>
           ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
         </div>
-        ${renderTrackHtml(p)}
+        ${renderTrackHtml(p, company)}
       </div>
     `;
   }
@@ -2439,7 +2458,7 @@ function renderSubmittedList(){
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </div>
         </div>
-        ${g.list.map(p=>renderRole(p, defaultLink)).join('')}
+        ${g.list.map(p=>renderRole(p, defaultLink, company)).join('')}
         ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
       </article>
     `;
