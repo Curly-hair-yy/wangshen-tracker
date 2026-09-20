@@ -87,10 +87,7 @@
     --chip-neutral:#eaf2fa;  --chip-neutral-ink:#7890aa;
     --overview-item:rgba(230,240,250,.78);
 
-    --page-bg:
-      radial-gradient(circle at 78% 0%, rgba(144,158,218,.17), transparent 28%),
-      radial-gradient(circle at 0% 18%, rgba(74,163,238,.10), transparent 34%),
-      linear-gradient(180deg,#f4f9ff 0%,#eaf3fb 48%,#e8f1f9 100%);
+    --page-bg:#eff4f9;
 
     --shadow:0 20px 48px rgba(55,86,122,.10);
     --shadow-hover:0 26px 58px rgba(47,76,110,.16);
@@ -412,7 +409,7 @@
   .favorite-star:hover{color:var(--text-2);}
   .favorite-star.active{color:var(--orange-ink);}
   .favorite-star.active:hover{color:var(--orange-ink);}
-  .card .position{font-size:14px;color:var(--text-2);font-weight:600;line-height:1.65;}
+  .card .position{font-size:14px;color:var(--text-2);font-weight:400;line-height:1.65;}
   .card .other-positions{
     font-size:11px;
     color:var(--text-3);
@@ -973,7 +970,7 @@
     padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
-  .role-name{font-size:14px;font-weight:950;color:#1d3450;display:flex;align-items:center;gap:5px;}
+  .role-name{font-size:14px;font-weight:400;color:var(--text-2);display:flex;align-items:center;gap:5px;}
   .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
   .role-name .position-link:hover{color:var(--blue);}
   .role-desc{color:#8194ad;font-size:12px;font-weight:750;margin-top:4px;}
