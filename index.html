@@ -2604,6 +2604,12 @@ function renderSubmittedList(){
         input.style.transform = 'translateX(-50%)';
         input.classList.add('editing');
         input.focus();
+        // 这个输入框是 position:fixed，按打开那一刻的屏幕坐标摆的——页面一旦
+        // 滚动，它不会跟着挪，摆的位置就会跟它本来该在的那个节点越离越远。
+        // 干脆滚动就直接收起来（跟大多数悬浮小窗一个做法），不去追着重新计算。
+        if(input._closeOnScroll) window.removeEventListener('scroll', input._closeOnScroll, true);
+        input._closeOnScroll = ()=>{ input.blur(); };
+        window.addEventListener('scroll', input._closeOnScroll, true);
         return;
       }
       if(!pos.progress) pos.progress = {};
@@ -2618,7 +2624,10 @@ function renderSubmittedList(){
   });
   list.querySelectorAll('.stage-deadline-input').forEach(inp=>{
     inp.addEventListener('click', e=>e.stopPropagation());
-    inp.addEventListener('blur', ()=>{ inp.classList.remove('editing'); });
+    inp.addEventListener('blur', ()=>{
+      inp.classList.remove('editing');
+      if(inp._closeOnScroll){ window.removeEventListener('scroll', inp._closeOnScroll, true); inp._closeOnScroll = null; }
+    });
     inp.addEventListener('change', ()=>{
       const pos = positions.find(x=>x.id===inp.dataset.id);
       if(!pos) return;
