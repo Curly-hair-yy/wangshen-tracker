@@ -1017,6 +1017,16 @@
   .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
   .track .step.ended .step-label,.track .step.ended .step-date{color:var(--gray-ink);}
   .track .stage-deadline-input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;}
+  /* 点环节文字/日期时，不再弹系统日历选择器（滚轮选时间不好用），改成让这个
+     输入框自己浮出来变成可以直接打字输入的小框，跟原生 datetime-local 输入框
+     一样支持键盘直接敲数字，输完点别处/切走焦点就自动收起。 */
+  .track .stage-deadline-input.editing{
+    position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    margin-top:6px;width:auto;height:auto;padding:5px 8px;
+    opacity:1;pointer-events:auto;overflow:visible;
+    background:var(--glass-strong);border:1.5px solid var(--blue);border-radius:8px;
+    font-size:12px;color:var(--ink);box-shadow:var(--shadow-hover);z-index:6;
+  }
   @media(max-width:860px){
     .progress-layout{grid-template-columns:1fr;}
     .overview{position:static;}
@@ -2558,8 +2568,10 @@ function renderSubmittedList(){
       }
     });
   });
-  // 轨道节点：点圆点/空白处标记到达（打勾等效），点文字或日期弹出这个环节自己的
-  // 日期选择框，用来单独设置/修改这个环节的提醒截止时间——两者是两回事。
+  // 轨道节点：点圆点/空白处标记到达（打勾等效），点文字或日期让这个环节自己的
+  // 日期输入框浮出来直接打字输入，用来单独设置/修改这个环节的提醒截止时间——
+  // 两者是两回事。原来这里调用 showPicker() 弹系统日历+滚轮选时间，用户反馈
+  // 滚轮选分钟很难用，改成让原生 datetime-local 输入框自己浮出来打字输入。
   list.querySelectorAll('.track .step').forEach(stepEl=>{
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -2569,7 +2581,8 @@ function renderSubmittedList(){
       if(e.target.closest('.step-label, .step-date')){
         const input = stepEl.querySelector('.stage-deadline-input');
         if(!input) return;
-        if(input.showPicker){ try{ input.showPicker(); }catch(err){ input.focus(); } } else { input.focus(); }
+        input.classList.add('editing');
+        input.focus();
         return;
       }
       if(!pos.progress) pos.progress = {};
@@ -2584,10 +2597,16 @@ function renderSubmittedList(){
   });
   list.querySelectorAll('.stage-deadline-input').forEach(inp=>{
     inp.addEventListener('click', e=>e.stopPropagation());
+    inp.addEventListener('blur', ()=>{ inp.classList.remove('editing'); });
     inp.addEventListener('change', ()=>{
       const pos = positions.find(x=>x.id===inp.dataset.id);
       if(!pos) return;
       const key = inp.dataset.key;
+      // 现在改成直接打字输入各个数字段（日/月/年/时/分），打到一半、还没填完
+      // 或者填出一个不存在的日期时，浏览器会把 value 直接清空——这种情况啥也
+      // 不做、重新渲染复原就行，不能真把已经存的提醒删掉（不是用户想清除，
+      // 只是还没打完）。
+      if(!inp.value){ renderAll(); return; }
       // 这里只是顺手改日期，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
       const existing = stageDeadlineEntry(pos.stageDeadlines||{}, key);
       setStageDeadline(pos, key, inp.value, existing?existing.note:'');
