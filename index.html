@@ -583,8 +583,6 @@
     padding:2px 6px;flex-shrink:0;
   }
   .position-group-del:hover{color:var(--red);}
-  .deadline-field{margin-top:8px;}
-  .deadline-quick-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
   .exclusive-toggle{
     margin-top:10px;font-size:12px;color:var(--text-2);background:none;border:none;
     cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:6px;
@@ -905,9 +903,14 @@
   .overview-grid{display:grid;gap:8px;}
   .overview-item{
     display:flex;justify-content:space-between;align-items:center;
-    min-height:42px;border-radius:var(--radius-overview);padding:0 12px;
-    background:var(--overview-item);color:#3d546d;font-weight:850;
+    width:100%;min-height:42px;border-radius:var(--radius-overview);padding:0 12px;
+    background:var(--overview-item);color:#3d546d;font-weight:850;font-size:14px;font-family:inherit;
+    border:none;cursor:pointer;text-align:left;
+    transition:background .15s ease, box-shadow .15s ease, transform .15s ease;
   }
+  .overview-item:hover{background:var(--blue-soft);}
+  .overview-item.active{background:var(--blue);color:#fff;box-shadow:0 0 0 2px var(--blue);}
+  .overview-item.active strong{color:#fff;}
   .overview-item strong{font-size:21px;color:var(--ink);font-variant-numeric:tabular-nums;}
 
   .date-line{
@@ -1251,22 +1254,6 @@
 
   <div class="toolbar" id="toolbar">
     <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
-    <select id="filterUrgent" style="display:none;">
-      <option value="all">全部截止情况</option>
-      <option value="urgent">3天内截止</option>
-      <option value="overdue">已逾期</option>
-    </select>
-    <select id="filterProgress" style="display:none;">
-      <option value="all">全部招聘进度</option>
-      <option value="assessment">测评</option>
-      <option value="groupInterview">群面</option>
-      <option value="aiInterview">AI面</option>
-      <option value="interview1">一面</option>
-      <option value="interview2">二面</option>
-      <option value="offered">Offered</option>
-      <option value="ended">结束</option>
-    </select>
-    <button class="btn btn-ghost" id="filterFavoriteBtn" type="button" style="display:none;">★ 只看收藏</button>
     <div id="dateFilterGroup" class="date-filter-group" style="display:none;">
       <select id="filterDateField">
         <option value="none">不按日期筛选</option>
@@ -1324,22 +1311,12 @@
       <div class="field-hint" id="companyDupHint" style="display:none;color:var(--orange);">已有同名公司</div>
     </div>
 
-    <div class="field deadline-field">
-      <label>截止时间</label>
-      <input type="date" id="f-company-deadline">
-      <div class="deadline-quick-pills" id="companyDeadlineQuickPills"></div>
-      <div class="field-hint">整个公司共用一个截止时间，不是某个岗位单独的</div>
-    </div>
-
     <div class="other-positions-box" id="otherPositionsBox" style="display:none;">
       <div class="op-title">这家公司已有的其他岗位</div>
       <div id="otherPositionsList"></div>
     </div>
 
-    <div id="positionItems"></div>
-    <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
-
-    <div id="sharedSettingsBlock" style="margin-top:18px;">
+    <div id="sharedSettingsBlock" style="margin-bottom:18px;">
       <label id="sharedSettingsLabel" style="display:block;font-size:13px;color:var(--text-2);margin-bottom:8px;">申请信息</label>
       <div class="shared-settings-hint" id="sharedSettingsHint" style="display:none;">可在各岗位的"专属设置"中单独修改</div>
       <div class="field">
@@ -1378,6 +1355,16 @@
         <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
       </div>
     </div>
+
+    <div id="positionItems"></div>
+    <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
+
+    <div class="field deadline-field" style="margin-top:18px;">
+      <label>截止时间</label>
+      <input type="date" id="f-company-deadline">
+      <div class="field-hint">整个公司共用一个截止时间，不是某个岗位单独的</div>
+    </div>
+
     <div class="close-confirm" id="closeConfirm">
       <p>放弃填写？</p>
       <div class="actions">
@@ -1882,6 +1869,10 @@ function renderTodayLabel(){
 // 看板页显示完整的统计卡片；已提交进度/提醒事项两页地方更紧张，压缩成一行细字，
 // 数字本身不变，只是换个更轻的呈现方式。currentView 由 setActiveView() 维护。
 let currentView = 'board';
+// 已提交页的筛选现在靠点"进度概览"里的数字，不再用下拉/按钮——点"收藏公司"或
+// 某个环节名字，见 computeSubmittedGroups() 和 renderProgressOverview()。
+let submittedFavoriteFilter = false;
+let submittedStageFilter = null;
 // 顶部四张统计卡片：待填写/待提交（=填报中，含待审核+待提交两个子组）/已提交
 // （按公司数，跟"已提交"标签页、分段控件右侧汇总行用的是同一个口径）/提醒事项
 // （未完成的提醒数量，跟提醒事项页显示的一致）。
@@ -1926,21 +1917,6 @@ function matchesFilters(r, opts){
   if(q){
     const hay = ((company?company.name:'') + ' ' + (r.position||'')).toLowerCase();
     if(!hay.includes(q)) return false;
-  }
-  // 截止情况/招聘进度/只看收藏这三个筛选控件已经从看板页的工具栏拿掉了，只留在
-  // 已提交页——看板那边调用时会传 ignoreExtraFilters，不受这三项筛选影响，
-  // 就算已提交页那边设了值也不会牵连看板。
-  if(!(opts && opts.ignoreExtraFilters)){
-    const urgent = document.getElementById('filterUrgent').value;
-    if(urgent!=='all'){
-      if(!r.deadline) return false;
-      const d = daysUntil(r.deadline);
-      if(urgent==='urgent' && !(d>=0 && d<=3)) return false;
-      if(urgent==='overdue' && !(d<0)) return false;
-    }
-    const progressFilter = document.getElementById('filterProgress').value;
-    if(progressFilter!=='all' && !(r.progress && r.progress[progressFilter])) return false;
-    if(filterFavoriteOnly && !(company && company.favorite)) return false;
   }
   // 日期区间筛选只在"已提交进度"页面生效——看板那边调用时会传 ignoreDateFilter，
   // 不受这个筛选影响（哪怕已提交进度那边设置了日期区间也不会牵连看板）。
@@ -2079,7 +2055,7 @@ function renderGroupedCards(list, status, reviewStage){
 function renderBoard(){
   const statuses = ['todo','inprogress'];
   statuses.forEach(st=>{
-    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r, {ignoreDateFilter:true, ignoreExtraFilters:true}));
+    const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r, {ignoreDateFilter:true}));
     document.getElementById('count-'+st).textContent = filtered.length;
     const col = document.getElementById('col-'+st);
     if(filtered.length===0){
@@ -2182,16 +2158,31 @@ function computeSubmittedGroups(){
   const orderedListGroups = [...groups].sort(bySortKeyThenTime);
 
   // 编号：当前排最前面的拿最大的号，往后依次递减——编号完全跟着这份顺序走，
-  // 拖拽调整了顺序，编号也跟着变。
+  // 拖拽调整了顺序，编号也跟着变。编号按"筛选前"的完整顺序算，点进度概览筛一下
+  // 不会让编号跟着重新跳动。
   const companySeqMap = new Map();
   const total = orderedListGroups.length;
   orderedListGroups.forEach((g,i)=>{ companySeqMap.set(g.companyId, total-i); });
 
-  // 收藏区只是这同一份顺序里挑出收藏了的公司显示的"快捷入口"，编号、相对先后
-  // 都跟下面完整列表一致，不会单独另算一套。
-  const orderedFavGroups = orderedListGroups.filter(g=>{ const c=getCompany(g.companyId); return c && c.favorite; });
+  // 进度概览左侧栏可以点着筛：点"收藏公司"只看收藏的公司；点某个环节（比如"测评"）
+  // 只看"当前最新进度就是这个环节"的公司——语义跟概览数字的统计口径完全一致，点哪个
+  // 数字就精确看到那几家。两个筛选可以同时生效（都是"必须满足"的关系）。
+  const overviewFilteredGroups = orderedListGroups.filter(g=>{
+    if(submittedFavoriteFilter){
+      const c = getCompany(g.companyId);
+      if(!(c && c.favorite)) return false;
+    }
+    if(submittedStageFilter){
+      const hasStage = g.list.some(p=>{
+        const statusMap = computeStepStatuses(p.progress||{}, p.progressDates||{});
+        return statusMap[submittedStageFilter]==='current';
+      });
+      if(!hasStage) return false;
+    }
+    return true;
+  });
 
-  return { filtered, groups, companySeqMap, orderedFavGroups, orderedListGroups };
+  return { filtered, groups, companySeqMap, orderedListGroups: overviewFilteredGroups };
 }
 
 // 七个节点固定顺序（跟 PROGRESS_STAGES 完全一致），轨道上"Offer"只是 Offered 的
@@ -2282,16 +2273,32 @@ function renderProgressOverview(){
     if(currentKey!==undefined && currentKey!==null) stageCounts[currentKey]++;
   });
   const items = [
-    {label:'收藏公司', num:favCount},
-    ...PROGRESS_STAGES.map(s=>({label:s.label, num:stageCounts[s.key]||0}))
+    {key:'favorite', label:'收藏公司', num:favCount},
+    ...PROGRESS_STAGES.map(s=>({key:s.key, label:s.label, num:stageCounts[s.key]||0}))
   ];
   const el = document.getElementById('progressOverview');
   el.innerHTML = `
     <h3>进度概览</h3>
     <div class="overview-grid">
-      ${items.map(it=>`<div class="overview-item"><span>${it.label}</span><strong>${it.num}</strong></div>`).join('')}
+      ${items.map(it=>{
+        const active = it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key;
+        return `<button type="button" class="overview-item${active?' active':''}" data-key="${it.key}"><span>${it.label}</span><strong>${it.num}</strong></button>`;
+      }).join('')}
     </div>
   `;
+  // 点一下按筛选条件显示，再点一下（或点另一个）取消/切换——语义跟数字本身
+  // 的统计口径完全一致（见上面 favCount/stageCounts 怎么数的）。
+  el.querySelectorAll('.overview-item').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.dataset.key;
+      if(key==='favorite'){
+        submittedFavoriteFilter = !submittedFavoriteFilter;
+      } else {
+        submittedStageFilter = submittedStageFilter===key ? null : key;
+      }
+      renderSubmittedList();
+    });
+  });
 }
 // 公司卡头部那一排最多 3 个的关键节点胶囊：蓝底实心 = 该公司某岗位当前最新已发生的
 // 步骤；橙色 = 已安排但还没到的步骤；红色 = 设了提醒但已经过期还没打勾的步骤。
@@ -3227,7 +3234,6 @@ function openDrawer(id){
   document.getElementById('f-link').value = r ? sharedLinkValue : '';
   companyDeadlineDraft = r ? (deadlineMajority.value||'') : '';
   document.getElementById('f-company-deadline').value = companyDeadlineDraft;
-  renderCompanyDeadlineQuickPills();
   setStatusToggle(r ? statusMajority.value : 'todo');
   reviewStageDraft = r ? (r.reviewStage||'') : '';
   setReviewStageToggle(reviewStageDraft);
@@ -3387,22 +3393,6 @@ function deleteStorageImage(path){
 }
 
 // 岗位列表编辑器：新增网申时每个岗位一块，各自可以展开填写自己的岗位要求 + 多张图片
-// 截止时间快捷胶囊：今天/明天/本周五/一周后，纯粹是往同一个日期字段里填值，
-// 跟手动选日期完全等价，不新增字段。
-function quickDateOptions(){
-  const pad = n=>String(n).padStart(2,'0');
-  const fmt = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
-  const friday = new Date(today); friday.setDate(friday.getDate() + ((5 - today.getDay() + 7) % 7));
-  const weekLater = new Date(today); weekLater.setDate(weekLater.getDate()+7);
-  return [
-    {key:'today', label:'今天', value:fmt(today)},
-    {key:'tomorrow', label:'明天', value:fmt(tomorrow)},
-    {key:'friday', label:'本周五', value:fmt(friday)},
-    {key:'week', label:'一周后', value:fmt(weekLater)},
-  ];
-}
 function renderPositionEditor(){
   const box = document.getElementById('positionItems');
   const showExclusive = positionDraft.length>1;
@@ -3628,25 +3618,9 @@ document.getElementById('addPositionBtn').addEventListener('click', ()=>{
   renderPositionEditor();
   updateSharedSettingsLabel();
 });
-// 截止时间是整个公司共用一份，跟状态/网申链接一样放在表单靠前的位置——不是每个
-// 岗位专属设置里的东西，所以这里的快捷胶囊也只有一份，不需要"同上"。
-function renderCompanyDeadlineQuickPills(){
-  const opts = quickDateOptions();
-  const pillsHtml = opts.map(o=>
-    `<button class="date-pill${companyDeadlineDraft===o.value?' active':''}" type="button" data-value="${o.value}">${o.label}</button>`
-  ).join('') + (companyDeadlineDraft ? `<button class="date-pill" type="button" data-value="">清除</button>` : '');
-  document.getElementById('companyDeadlineQuickPills').innerHTML = pillsHtml;
-  document.querySelectorAll('#companyDeadlineQuickPills .date-pill').forEach(pill=>{
-    pill.addEventListener('click', ()=>{
-      companyDeadlineDraft = pill.dataset.value;
-      document.getElementById('f-company-deadline').value = companyDeadlineDraft;
-      renderCompanyDeadlineQuickPills();
-    });
-  });
-}
+// 截止时间是整个公司共用一份，不需要快捷胶囊——手动在日期框里选就行。
 document.getElementById('f-company-deadline').addEventListener('input', e=>{
   companyDeadlineDraft = e.target.value;
-  renderCompanyDeadlineQuickPills();
 });
 
 function closeDrawer(){
@@ -4089,14 +4063,6 @@ function renderFilteredViews(){
   renderSubmittedList();
 }
 document.getElementById('searchInput').addEventListener('input', renderFilteredViews);
-document.getElementById('filterUrgent').addEventListener('change', renderFilteredViews);
-document.getElementById('filterProgress').addEventListener('change', renderFilteredViews);
-let filterFavoriteOnly = false;
-document.getElementById('filterFavoriteBtn').addEventListener('click', function(){
-  filterFavoriteOnly = !filterFavoriteOnly;
-  this.classList.toggle('active', filterFavoriteOnly);
-  renderFilteredViews();
-});
 
 document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
@@ -4134,11 +4100,6 @@ function setActiveView(view){
   document.getElementById('remindersView').style.display = view==='reminders' ? 'block' : 'none';
   document.getElementById('dateFilterGroup').style.display = view==='submitted' ? 'flex' : 'none';
   document.getElementById('toolbar').style.display = view==='reminders' ? 'none' : 'flex';
-  // 截止情况/招聘进度/只看收藏这三个筛选控件只在已提交页出现，看板页工具栏只留
-  // 搜索框和新增网申按钮（matchesFilters 那边同步用 ignoreExtraFilters 跳过它们的值）。
-  document.getElementById('filterUrgent').style.display = view==='board' ? 'none' : '';
-  document.getElementById('filterProgress').style.display = view==='board' ? 'none' : '';
-  document.getElementById('filterFavoriteBtn').style.display = view==='board' ? 'none' : '';
   renderStats();
   positionTabSlider();
   if(view==='reminders') renderRemindersList();
