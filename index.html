@@ -116,10 +116,21 @@
   body{
     margin:0;
     min-height:100vh;
-    background:var(--page-bg);
+    position:relative;
     color:var(--ink);
     font-family:var(--font);
     line-height:1.5;
+  }
+  /* 页面背景单独用一个铺满视口的固定图层画，不直接挂在 body 上——挂在 body 上时，
+     渐变的百分比位置是按 body 的完整可滚动高度算的，公司一多、页面很长，渐变
+     就被拉得面目全非，跟内容少的页面（待提交/提醒事项）看起来完全不是同一个
+     背景。固定在视口上就没有这个问题，不管页面多长，看到的背景都一样。 */
+  body:before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    background:var(--page-bg);
   }
   button,input,textarea,select{font:inherit;}
   h1,h2,h3{
@@ -761,9 +772,11 @@
     display:flex;align-items:center;gap:6px;flex-shrink:0;
     font-size:11px;color:var(--text-2);
   }
+  /* 删除按钮放在卡片外面（右上角，探出一半），不占卡片自己的内容区——之前贴在
+     卡片内右上角，悬停出现时会跟同一个角落的链接图标/截止胶囊挤在一起。 */
   .card-del-btn{
     display:none;
-    position:absolute;top:8px;right:8px;
+    position:absolute;top:-8px;right:-8px;
     width:20px;height:20px;
     border-radius:50%;
     border:none;
@@ -918,8 +931,8 @@
   .progress-company{
     position:relative;
     border-radius:var(--radius-panel);
-    padding:26px;
-    margin-bottom:28px;
+    padding:20px;
+    margin-bottom:18px;
     background:var(--glass-strong);
     border:1px solid var(--glass-border);
     box-shadow:var(--shadow-company);
@@ -932,31 +945,35 @@
      不好看。 */
   .progress-company .drag-handle{left:-22px;}
   .company-head{
-    display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
-    padding-bottom:20px;padding-right:34px;border-bottom:1px solid var(--line);margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+    padding-bottom:14px;padding-right:18px;border-bottom:1px solid var(--line);margin-bottom:4px;
   }
   .company-title{
-    font-size:22px;font-weight:950;letter-spacing:-.03em;
-    display:flex;align-items:center;gap:8px;color:var(--ink);
+    font-size:18px;font-weight:950;letter-spacing:-.02em;
+    display:flex;align-items:center;gap:7px;color:var(--ink);
   }
-  .company-title .favorite-star{font-size:18px;}
-  .company-title .seq{font-size:12px;font-weight:800;color:var(--text-3);}
-  .company-head-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-  .company-date{color:#4a6381;font-weight:950;font-size:13px;white-space:nowrap;}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .company-title .favorite-star{font-size:16px;}
+  .company-title .seq{
+    font-size:11px;font-weight:800;color:var(--gray-ink);background:var(--gray-soft);
+    padding:2px 7px;border-radius:var(--radius-pill);
+  }
+  .company-head-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .company-date{color:#4a6381;font-weight:950;font-size:12px;white-space:nowrap;}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+  .chips .chip{height:22px;padding:0 8px;font-size:11px;}
 
   .role{
     position:relative;
-    display:grid;grid-template-columns:250px 1fr;gap:24px;align-items:start;
-    padding:18px 0;border-bottom:1px solid var(--line);
+    display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start;
+    padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
-  .role-name{font-size:17px;font-weight:950;color:#1d3450;display:flex;align-items:center;gap:6px;}
+  .role-name{font-size:14px;font-weight:950;color:#1d3450;display:flex;align-items:center;gap:5px;}
   .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
   .role-name .position-link:hover{color:var(--blue);}
-  .role-desc{color:#8194ad;font-size:13px;font-weight:750;margin-top:6px;}
+  .role-desc{color:#8194ad;font-size:12px;font-weight:750;margin-top:4px;}
   .role-del-btn{
-    position:absolute;top:14px;right:0;opacity:0;
+    position:absolute;top:10px;right:0;opacity:0;
     background:none;border:none;color:var(--text-3);cursor:pointer;
     font-size:16px;line-height:1;padding:4px;
     transition:opacity .15s ease,color .15s ease;
@@ -964,23 +981,23 @@
   .role:hover .role-del-btn{opacity:1;}
   .role-del-btn:hover{color:var(--red);}
 
-  .track{position:relative;display:grid;grid-template-columns:repeat(7,1fr);min-height:82px;}
+  .track{position:relative;display:grid;grid-template-columns:repeat(7,1fr);min-height:62px;}
   .track:before{
-    content:"";position:absolute;top:16px;left:7%;right:7%;height:4px;
+    content:"";position:absolute;top:9px;left:7%;right:7%;height:3px;
     border-radius:999px;background:var(--gray);
   }
-  .track .line{position:absolute;top:16px;left:var(--left);width:var(--width);height:4px;border-radius:999px;z-index:1;}
+  .track .line{position:absolute;top:9px;left:var(--left);width:var(--width);height:3px;border-radius:999px;z-index:1;}
   .track .line.done-line{background:var(--blue-line);}
   .track .line.scheduled-line{background:var(--orange);}
   .track .line.ended-line{background:var(--ended);}
   .track .step{position:relative;z-index:2;display:grid;justify-items:center;cursor:pointer;}
-  .track .step-dot{width:25px;height:25px;border-radius:50%;background:#eef4fa;border:4px solid #fff;box-shadow:0 0 0 2px var(--gray);}
+  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#eef4fa;border:3px solid #fff;box-shadow:0 0 0 2px var(--gray);}
   .track .step.done .step-dot{background:var(--blue-2);box-shadow:0 0 0 2px var(--blue-2);}
-  .track .step.current .step-dot{background:var(--blue);box-shadow:0 0 0 2px var(--blue),0 0 0 8px var(--blue-soft);}
-  .track .step.scheduled .step-dot{background:var(--orange);box-shadow:0 0 0 2px var(--orange),0 0 0 8px var(--orange-soft);}
+  .track .step.current .step-dot{background:var(--blue);box-shadow:0 0 0 2px var(--blue),0 0 0 6px var(--blue-soft);}
+  .track .step.scheduled .step-dot{background:var(--orange);box-shadow:0 0 0 2px var(--orange),0 0 0 6px var(--orange-soft);}
   .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
-  .track .step-label{margin-top:10px;font-size:12px;font-weight:950;color:#8297ae;text-align:center;}
-  .track .step-date{margin-top:3px;font-size:11px;font-weight:850;color:#a0b0c2;white-space:nowrap;}
+  .track .step-label{margin-top:7px;font-size:11px;font-weight:950;color:#8297ae;text-align:center;}
+  .track .step-date{margin-top:2px;font-size:10px;font-weight:850;color:#a0b0c2;white-space:nowrap;}
   .track .step.done .step-label,.track .step.done .step-date{color:var(--blue-label);}
   .track .step.current .step-label,.track .step.current .step-date{color:var(--blue);}
   .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
