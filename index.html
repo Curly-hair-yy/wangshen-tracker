@@ -429,9 +429,9 @@
 
   .overlay{
     position:fixed;inset:0;
-    background:rgba(29,39,49,0.35);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
+    background:rgba(14,27,45,.28);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
     display:none;
     z-index:50;
   }
@@ -439,12 +439,13 @@
   .drawer{
     position:fixed;
     top:50%;left:50%;
-    width:460px;
+    width:520px;
     max-width:92vw;
     max-height:86vh;
-    background:var(--bg);
-    border-radius:var(--radius-lg);
-    box-shadow:var(--shadow-2);
+    background:rgba(255,255,255,.96);
+    border:1px solid rgba(255,255,255,.8);
+    border-radius:28px;
+    box-shadow:0 30px 80px rgba(40,70,110,.28);
     transform:translate(-50%,-50%) scale(.96);
     opacity:0;
     visibility:hidden;
@@ -462,63 +463,76 @@
     pointer-events:auto;
   }
   .drawer-head{
-    padding:18px 20px 14px;
+    padding:20px 24px 16px;
     border-bottom:1px solid var(--line);
     display:flex;
     justify-content:space-between;
     align-items:center;
+    flex-shrink:0;
   }
-  .drawer-head h3{margin:0;font-size:20px;font-weight:600;}
+  .drawer-head h3{margin:0;font-size:20px;font-weight:950;letter-spacing:-.02em;color:var(--ink);}
   .drawer-close{
-    background:var(--surface-2);border:none;font-size:16px;cursor:pointer;color:var(--text-2);
+    background:var(--gray-soft);border:none;font-size:16px;cursor:pointer;color:var(--gray-ink);
     line-height:1;width:28px;height:28px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;flex-shrink:0;
     transition:background .15s ease;
   }
   .drawer-close:hover{background:var(--line);}
-  .drawer-body{padding:16px 20px;overflow-y:auto;flex:1;}
+  .drawer-body{padding:18px 24px;overflow-y:auto;flex:1;}
   .field{margin-bottom:14px;}
   .field label{
     display:block;font-size:13px;color:var(--text-2);margin-bottom:5px;
   }
   .field input[type=text],.field input[type=date],.field input[type="datetime-local"],.field input[type=url],.field textarea,.field select{
     width:100%;
-    padding:9px 12px;
+    height:44px;
+    padding:0 14px;
     border:none;
-    border-radius:var(--radius-md);
-    background:var(--surface-2);
+    border-radius:16px;
+    background:var(--field);
     font-size:14px;
     font-family:inherit;
     color:var(--text);
     transition:background .15s ease, box-shadow .15s ease;
+    box-sizing:border-box;
   }
+  .field textarea{height:auto;padding:10px 14px;resize:vertical;min-height:56px;}
   .field input[type=text]:focus,.field input[type=date]:focus,.field input[type="datetime-local"]:focus,.field input[type=url]:focus,.field textarea:focus,.field select:focus{
-    background:var(--surface);
+    background:var(--glass-strong); box-shadow:0 0 0 3px var(--blue-soft); outline:none;
   }
-  .field textarea{resize:vertical;min-height:56px;}
   #reminderNoteInput,.position-note-input{
     font-family:"Kaiti SC","STKaiti","KaiTi",serif;
   }
   .field-hint{font-size:12px;color:var(--text-2);margin-top:4px;}
-  .status-toggle{display:flex;flex-wrap:wrap;gap:3px;background:var(--surface-2);padding:3px;border-radius:var(--radius-md);}
+  .status-toggle{display:flex;flex-wrap:wrap;gap:3px;background:var(--field);padding:4px;border-radius:16px;}
   .status-toggle button{
     flex:1;
     min-width:64px;
-    padding:8px 6px;
+    padding:9px 6px;
     border:none;
     background:transparent;
-    border-radius:calc(var(--radius-md) - 3px);
+    border-radius:12px;
     font-size:13px;
+    font-weight:800;
     cursor:pointer;
     color:var(--text-2);
+    display:flex;align-items:center;justify-content:center;gap:6px;
     transition:background .15s ease, color .15s ease;
   }
   .status-toggle button.active{
-    background:var(--surface);
-    color:var(--text);
-    font-weight:600;
-    box-shadow:var(--shadow-1);
+    background:var(--glass-strong);
+    color:var(--ink);
+    font-weight:900;
+    box-shadow:var(--shadow);
   }
+  .status-toggle button::before{
+    content:"";width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--gray);
+  }
+  .status-toggle button[data-v="todo"]::before{background:var(--blue);}
+  .status-toggle button[data-v="inprogress"]::before{background:var(--orange);}
+  .status-toggle button[data-v="submitted"]::before{background:var(--green);}
+  .status-toggle button[data-v="pending"]::before{background:var(--orange);}
+  .status-toggle button[data-v="reviewed"]::before{background:var(--green);}
   .checklist-editor .item-row{
     display:flex;
     align-items:center;
@@ -543,8 +557,10 @@
      不再是一条扁平的列表行——公司下面岗位一多，需要看得出这是几个各自独立的
      单元，不是同一份表单字段的重复。 */
   .position-group{
-    background:var(--surface-2);border-radius:var(--radius-md);
-    padding:12px;margin-bottom:10px;
+    background:linear-gradient(180deg,rgba(239,246,253,.84),rgba(228,238,248,.72));
+    border:1px solid var(--glass-border);
+    border-radius:20px;
+    padding:14px;margin-bottom:10px;
   }
   .position-group:last-child{margin-bottom:0;}
   .position-group .item-row{margin-bottom:4px;}
@@ -555,11 +571,11 @@
   .position-group input[type=date],
   .position-group input[type=url],
   .position-group textarea{
-    width:100%;padding:9px 12px;border:none;border-radius:var(--radius-md);
-    background:var(--surface);font-size:14px;font-family:inherit;color:var(--text);
-    transition:background .15s ease;
+    width:100%;height:44px;padding:0 14px;border:none;border-radius:16px;
+    background:var(--field);font-size:14px;font-family:inherit;color:var(--text);
+    transition:background .15s ease;box-sizing:border-box;
   }
-  .position-group textarea{resize:vertical;min-height:56px;}
+  .position-group textarea{height:auto;padding:10px 14px;resize:vertical;min-height:56px;}
   .position-group .exclusive-checklist input[type=text]{background:transparent;padding:6px 0;width:auto;flex:1;}
   .position-jd-body{margin-top:6px;}
   .position-group-del{
@@ -1308,6 +1324,13 @@
       <div class="field-hint" id="companyDupHint" style="display:none;color:var(--orange);">已有同名公司</div>
     </div>
 
+    <div class="field deadline-field">
+      <label>截止时间</label>
+      <input type="date" id="f-company-deadline">
+      <div class="deadline-quick-pills" id="companyDeadlineQuickPills"></div>
+      <div class="field-hint">整个公司共用一个截止时间，不是某个岗位单独的</div>
+    </div>
+
     <div class="other-positions-box" id="otherPositionsBox" style="display:none;">
       <div class="op-title">这家公司已有的其他岗位</div>
       <div id="otherPositionsList"></div>
@@ -1748,6 +1771,9 @@ let progressDraft = {};
 let progressDatesDraft = {};
 let stageDeadlinesDraft = {};
 let stageDeadlinesSectionOpen = false;
+// 截止时间是整个公司共用一份，不是每个岗位各自的——跟状态/链接/待办清单不一样，
+// 这个字段没有"专属设置"选项，保存时统一写到这家公司名下的每一个岗位上。
+let companyDeadlineDraft = '';
 
 function loadData(){
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -3168,6 +3194,7 @@ function openDrawer(id){
   const sharedLinkValue = r ? companyLevelLink(allPositions) : '';
   const statusMajority = r ? majorityValue(allPositions, p=>p.status, (a,b)=>a===b) : null;
   const checklistMajority = r ? majorityValue(allPositions, p=>JSON.stringify(p.checklist||[]), (a,b)=>a===b) : null;
+  const deadlineMajority = r ? majorityValue(allPositions, p=>p.deadline||'', (a,b)=>a===b) : null;
   function toDraftEntry(p){
     // 一个岗位的链接如果跟公司统一那个默认链接不一样，才算是这个岗位自己单独
     // 设置过的——草稿里记下来、专属设置里默认展开显示；一样的话就当没设置过。
@@ -3184,7 +3211,6 @@ function openDrawer(id){
       requirement: p.requirement||'',
       images: (p.requirementImages||[]).map(path=>({path})),
       _jdOpen: !!(p.requirement || (p.requirementImages||[]).length),
-      deadline: p.deadline||'',
       _statusOverride: hasOwnStatus,
       _ownStatus: hasOwnStatus ? p.status : statusMajority.value,
       _checklistOverride: hasOwnChecklist,
@@ -3195,10 +3221,13 @@ function openDrawer(id){
   if(r){
     positionDraft = allPositions.map(toDraftEntry);
   } else {
-    positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false, deadline:'',
+    positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false,
       _statusOverride:false, _ownStatus:'todo', _checklistOverride:false, _ownChecklist:[], _exclusiveOpen:false}];
   }
   document.getElementById('f-link').value = r ? sharedLinkValue : '';
+  companyDeadlineDraft = r ? (deadlineMajority.value||'') : '';
+  document.getElementById('f-company-deadline').value = companyDeadlineDraft;
+  renderCompanyDeadlineQuickPills();
   setStatusToggle(r ? statusMajority.value : 'todo');
   reviewStageDraft = r ? (r.reviewStage||'') : '';
   setReviewStageToggle(reviewStageDraft);
@@ -3388,12 +3417,6 @@ function renderPositionEditor(){
         <button class="req-img-del" type="button" data-idx="${idx}" data-img-idx="${imgIdx}">&times;</button>
       </div>`;
     }).join('');
-    const quickOpts = quickDateOptions();
-    const deadlinePillsHtml = quickOpts.map(o=>
-      `<button class="date-pill${item.deadline===o.value?' active':''}" type="button" data-idx="${idx}" data-value="${o.value}">${o.label}</button>`
-    ).join('')
-      + (idx>0 ? `<button class="date-pill" type="button" data-idx="${idx}" data-copy-prev="1">同上</button>` : '')
-      + (item.deadline ? `<button class="date-pill" type="button" data-idx="${idx}" data-value="">清除</button>` : '');
     const exclusiveHtml = !showExclusive ? '' : `
       <button class="exclusive-toggle${item._exclusiveOpen?' open':''}" type="button" data-idx="${idx}">
         <span class="chevron">${ICON_CHEVRON_DOWN.replace('13" height="13"','11" height="11"')}</span>
@@ -3443,11 +3466,6 @@ function renderPositionEditor(){
           <input type="file" class="position-jd-file" data-idx="${idx}" accept="image/*" multiple style="display:none;">
           <div class="field-hint position-jd-hint" data-idx="${idx}">${escapeHtml(item._imageError||'')}</div>
         </div>
-        <div class="field deadline-field">
-          <label>截止时间</label>
-          <input type="date" class="position-deadline-input" data-idx="${idx}" value="${item.deadline||''}">
-          <div class="deadline-quick-pills">${deadlinePillsHtml}</div>
-        </div>
         ${exclusiveHtml}
       </div>
     `;
@@ -3460,16 +3478,6 @@ function renderPositionEditor(){
     });
     block.querySelector('.position-note-input').addEventListener('input', e=>{
       positionDraft[idx].note = e.target.value;
-    });
-    block.querySelector('.position-deadline-input').addEventListener('input', e=>{
-      positionDraft[idx].deadline = e.target.value;
-      renderPositionEditor();
-    });
-    block.querySelectorAll('.deadline-quick-pills .date-pill').forEach(pill=>{
-      pill.addEventListener('click', ()=>{
-        positionDraft[idx].deadline = pill.dataset.copyPrev ? (positionDraft[idx-1].deadline||'') : pill.dataset.value;
-        renderPositionEditor();
-      });
     });
     const linkAddBtn = block.querySelector('.position-link-add');
     if(linkAddBtn){
@@ -3614,11 +3622,31 @@ function renderPositionEditor(){
   });
 }
 document.getElementById('addPositionBtn').addEventListener('click', ()=>{
-  positionDraft.push({name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false, deadline:'',
+  positionDraft.push({name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false,
     _statusOverride:false, _ownStatus:document.querySelector('#statusToggle button.active')?.dataset.v||'todo',
     _checklistOverride:false, _ownChecklist:[], _exclusiveOpen:false});
   renderPositionEditor();
   updateSharedSettingsLabel();
+});
+// 截止时间是整个公司共用一份，跟状态/网申链接一样放在表单靠前的位置——不是每个
+// 岗位专属设置里的东西，所以这里的快捷胶囊也只有一份，不需要"同上"。
+function renderCompanyDeadlineQuickPills(){
+  const opts = quickDateOptions();
+  const pillsHtml = opts.map(o=>
+    `<button class="date-pill${companyDeadlineDraft===o.value?' active':''}" type="button" data-value="${o.value}">${o.label}</button>`
+  ).join('') + (companyDeadlineDraft ? `<button class="date-pill" type="button" data-value="">清除</button>` : '');
+  document.getElementById('companyDeadlineQuickPills').innerHTML = pillsHtml;
+  document.querySelectorAll('#companyDeadlineQuickPills .date-pill').forEach(pill=>{
+    pill.addEventListener('click', ()=>{
+      companyDeadlineDraft = pill.dataset.value;
+      document.getElementById('f-company-deadline').value = companyDeadlineDraft;
+      renderCompanyDeadlineQuickPills();
+    });
+  });
+}
+document.getElementById('f-company-deadline').addEventListener('input', e=>{
+  companyDeadlineDraft = e.target.value;
+  renderCompanyDeadlineQuickPills();
 });
 
 function closeDrawer(){
@@ -3634,9 +3662,10 @@ let drawerOpenSnapshot = null;
 function captureDrawerSnapshot(){
   return JSON.stringify({
     company: document.getElementById('f-company').value.trim(),
+    deadline: companyDeadlineDraft||'',
     positions: positionDraft.map(p=>({
       name:p.name, note:p.note, link:p._linkOpen?p.link:'', requirement:p.requirement,
-      images:(p.images||[]).map(i=>i.path||null), deadline:p.deadline||'',
+      images:(p.images||[]).map(i=>i.path||null),
       statusOverride:!!p._statusOverride, ownStatus:p._ownStatus,
       checklistOverride:!!p._checklistOverride, ownChecklist:p._ownChecklist,
     })),
@@ -3898,7 +3927,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       companyId: company.id,
       position: entry.name.trim(),
       status,
-      deadline: entry.deadline||'',
+      deadline: companyDeadlineDraft||'',
       link: (entry.link && entry.link.trim()) ? entry.link.trim() : link,
       note: (entry.note||'').trim(),
       checklist: JSON.parse(JSON.stringify(effectiveChecklist(entry, cleanSharedChecklist))),
@@ -3923,11 +3952,12 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   if(editingId){
     // positionDraft 里带 _existingId 的，是编辑时一起拉进来的已有岗位（可能不止
     // 当初点开的那一个）——状态/网申链接/待办清单默认整家公司共用，统一套到每
-    // 一个上；某个岗位如果开了"专属设置"，那三项改用它自己的值。截止时间现在
-    // 每个岗位各自一份，直接用它自己的。岗位名/备注/岗位要求各自独立。"招聘
-    // 进度"只认真对待最初点开、正在编辑的那一个，其他捎带手编辑的岗位不动它们
-    // 各自原来记的进度，避免顺手把兄弟岗位自己攒的进度记录覆盖掉。没有
-    // _existingId 的是这次顺手新增的岗位，按新增处理。
+    // 一个上；某个岗位如果开了"专属设置"，那三项改用它自己的值。截止时间整个
+    // 公司共用一份（companyDeadlineDraft），没有"专属设置"这一说，每个岗位都
+    // 写同一个值。岗位名/备注/岗位要求各自独立。"招聘进度"只认真对待最初点开、
+    // 正在编辑的那一个，其他捎带手编辑的岗位不动它们各自原来记的进度，避免
+    // 顺手把兄弟岗位自己攒的进度记录覆盖掉。没有 _existingId 的是这次顺手
+    // 新增的岗位，按新增处理。
     positionDraft.forEach((entry, i)=>{
       if(entry._existingId){
         const r = positions.find(x=>x.id===entry._existingId);
@@ -3938,7 +3968,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
         r.companyId = company.id;
         r.position = (entry.name||'').trim();
         r.status = status;
-        r.deadline = entry.deadline||'';
+        r.deadline = companyDeadlineDraft||'';
         r.link = (entry.link && entry.link.trim()) ? entry.link.trim() : link;
         r.note = (entry.note||'').trim();
         r.requirement = (entry.requirement||'').trim();
@@ -3963,7 +3993,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     });
   } else {
     const validEntries = positionDraft.filter(e=>e.name.trim()!=='');
-    const entriesToUse = validEntries.length ? validEntries : [positionDraft[0] || {name:'', requirement:'', images:[], deadline:''}];
+    const entriesToUse = validEntries.length ? validEntries : [positionDraft[0] || {name:'', requirement:'', images:[]}];
     entriesToUse.forEach((entry, i)=>{
       const newPos = buildNewPosition(entry, i);
       positions.push(newPos);
