@@ -205,6 +205,16 @@
   }
   .toolbar input[type=text]::placeholder{color:#8095ac;}
   .toolbar input[type=text]:focus{background:var(--glass-strong); box-shadow:0 0 0 3px var(--blue-soft);}
+  .search-wrap{position:relative;flex:1;min-width:280px;}
+  .search-wrap input[type=text]{width:100%;min-width:0;padding-right:36px;}
+  .search-clear-btn{
+    display:none;align-items:center;justify-content:center;
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    width:26px;height:26px;border:none;background:none;cursor:pointer;
+    color:var(--text-3);font-size:18px;line-height:1;border-radius:50%;
+  }
+  .search-clear-btn.visible{display:flex;}
+  .search-clear-btn:hover{background:var(--gray-soft);color:var(--gray-ink);}
   .toolbar select{
     height:44px;
     padding:0 16px;
@@ -1019,13 +1029,15 @@
   .track .stage-deadline-input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;}
   /* 点环节文字/日期时，不再弹系统日历选择器（滚轮选时间不好用），改成让这个
      输入框自己浮出来变成可以直接打字输入的小框，跟原生 datetime-local 输入框
-     一样支持键盘直接敲数字，输完点别处/切走焦点就自动收起。 */
+     一样支持键盘直接敲数字，输完点别处/切走焦点就自动收起。用 fixed 定位、
+     top/left 由 JS 按点击节点的实际屏幕位置现算（见 renderSubmittedList 里的
+     点击处理），不用 CSS 写死"相对自己往下"——一张卡里好几个岗位挨着的时候，
+     写死往下会盖到下一个岗位那一行，改成算好了再摆就不会挡到别的内容。 */
   .track .stage-deadline-input.editing{
-    position:absolute;top:100%;left:50%;transform:translateX(-50%);
-    margin-top:6px;width:auto;height:auto;padding:5px 8px;
+    position:fixed;width:auto;height:auto;padding:5px 8px;
     opacity:1;pointer-events:auto;overflow:visible;
     background:var(--glass-strong);border:1.5px solid var(--blue);border-radius:8px;
-    font-size:12px;color:var(--ink);box-shadow:var(--shadow-hover);z-index:6;
+    font-size:12px;color:var(--ink);box-shadow:var(--shadow-hover);z-index:200;
   }
   @media(max-width:860px){
     .progress-layout{grid-template-columns:1fr;}
@@ -1291,7 +1303,10 @@
   </div>
 
   <div class="toolbar" id="toolbar">
-    <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="搜索公司或岗位…">
+      <button type="button" id="searchClearBtn" class="search-clear-btn" title="清空搜索" aria-label="清空搜索">&times;</button>
+    </div>
     <div id="dateFilterGroup" class="date-filter-group" style="display:none;">
       <select id="filterDateField">
         <option value="none">不按日期筛选</option>
@@ -2581,6 +2596,12 @@ function renderSubmittedList(){
       if(e.target.closest('.step-label, .step-date')){
         const input = stepEl.querySelector('.stage-deadline-input');
         if(!input) return;
+        const rect = stepEl.getBoundingClientRect();
+        const estHeight = 34;
+        const top = (window.innerHeight - rect.bottom < estHeight + 10) ? (rect.top - estHeight - 6) : (rect.bottom + 6);
+        input.style.top = Math.round(top) + 'px';
+        input.style.left = Math.round(rect.left + rect.width/2) + 'px';
+        input.style.transform = 'translateX(-50%)';
         input.classList.add('editing');
         input.focus();
         return;
@@ -4146,7 +4167,20 @@ function renderFilteredViews(){
   renderBoard();
   renderSubmittedList();
 }
-document.getElementById('searchInput').addEventListener('input', renderFilteredViews);
+function updateSearchClearBtn(){
+  document.getElementById('searchClearBtn').classList.toggle('visible', !!document.getElementById('searchInput').value);
+}
+document.getElementById('searchInput').addEventListener('input', ()=>{
+  updateSearchClearBtn();
+  renderFilteredViews();
+});
+document.getElementById('searchClearBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('searchInput');
+  input.value = '';
+  updateSearchClearBtn();
+  renderFilteredViews();
+  input.focus();
+});
 
 document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
@@ -4184,6 +4218,14 @@ function setActiveView(view){
   document.getElementById('remindersView').style.display = view==='reminders' ? 'block' : 'none';
   document.getElementById('dateFilterGroup').style.display = view==='submitted' ? 'flex' : 'none';
   document.getElementById('toolbar').style.display = view==='reminders' ? 'none' : 'flex';
+  // 切换标签页时，把搜索框也顺手清空——不然换到另一个标签页还带着上一个
+  // 标签页的搜索词，容易让人以为"怎么这里也搜不出东西/是不是搜索坏了"。
+  const searchInput = document.getElementById('searchInput');
+  if(searchInput.value){
+    searchInput.value = '';
+    updateSearchClearBtn();
+    renderFilteredViews();
+  }
   renderStats();
   positionTabSlider();
   if(view==='reminders') renderRemindersList();
