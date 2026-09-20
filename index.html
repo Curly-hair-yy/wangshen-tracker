@@ -4153,15 +4153,30 @@ document.getElementById('filterDateField').addEventListener('change', renderSubm
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
 
-/* ---- 进度轨道上单个环节的"提醒截止时间"快速编辑：全页面只有这一个输入框
+/* ---- 进度轨道上单个环节的日期快速编辑：全页面只有这一个输入框
    （见 HTML 里的 #stageDeadlineQuickEdit），谁点了哪个岗位的哪个环节，就把这
    一份输入框的值/位置/data-id/data-key 现改现摆过去，而不是每个岗位每个环节
    各自摆一个隐藏输入框——position:absolute 挂在 body 下面，页面滚动的时候
-   会跟着内容一起走，不用另外监听 scroll 事件去关它。 ---- */
+   会跟着内容一起走，不用另外监听 scroll 事件去关它。
+   这个环节如果已经打勾完成了，轨道上显示的那个日期其实是 progressDates（真正
+   完成的那天，"9/20"这种只有日期没有时间），不是 stageDeadlines（提醒截止
+   时间）——这两个是不同的字段。之前不管打没打勾都统一去改 stageDeadlines，
+   结果对一个已经打勾完成的环节，不管怎么改这个隐藏的 stageDeadlines，轨道上
+   显示的日期永远不变，用户会以为"怎么改了不生效/保存不了"。现在改成按这个
+   环节是否已经打勾来分别编辑对应的字段：打勾了就编辑 progressDates（用
+   date 类型，只到日）；没打勾就还是编辑 stageDeadlines（用 datetime-local
+   类型，到分钟）——编辑哪个字段，轨道上显示的日期就真的会跟着变。 ---- */
 const stageDeadlineQuickEdit = document.getElementById('stageDeadlineQuickEdit');
 function openStageDeadlineQuickEdit(stepEl, pos, key){
-  const entry = stageDeadlineEntry(pos.stageDeadlines||{}, key);
-  stageDeadlineQuickEdit.value = entry ? entry.date : '';
+  const happened = !!pos.progress[key];
+  stageDeadlineQuickEdit.type = happened ? 'date' : 'datetime-local';
+  stageDeadlineQuickEdit.dataset.mode = happened ? 'progress' : 'deadline';
+  if(happened){
+    stageDeadlineQuickEdit.value = (pos.progressDates && pos.progressDates[key]) || '';
+  } else {
+    const entry = stageDeadlineEntry(pos.stageDeadlines||{}, key);
+    stageDeadlineQuickEdit.value = entry ? entry.date : '';
+  }
   stageDeadlineQuickEdit.dataset.id = pos.id;
   stageDeadlineQuickEdit.dataset.key = key;
   const rect = stepEl.getBoundingClientRect();
@@ -4179,13 +4194,18 @@ stageDeadlineQuickEdit.addEventListener('change', ()=>{
   const pos = positions.find(x=>x.id===stageDeadlineQuickEdit.dataset.id);
   if(!pos) return;
   const key = stageDeadlineQuickEdit.dataset.key;
-  // 直接打字输入各个数字段（日/月/年/时/分），打到一半、还没填完或者填出一个
-  // 不存在的日期时，浏览器会把 value 直接清空——这种情况啥也不做就行，不能
-  // 真把已经存的提醒删掉（不是用户想清除，只是还没打完）。
+  // 直接打字输入各个数字段，打到一半、还没填完或者填出一个不存在的日期时，
+  // 浏览器会把 value 直接清空——这种情况啥也不做就行，不能真把已经存的日期
+  // 删掉（不是用户想清除，只是还没打完）。
   if(!stageDeadlineQuickEdit.value) return;
-  // 这里只是顺手改日期，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
-  const existing = stageDeadlineEntry(pos.stageDeadlines||{}, key);
-  setStageDeadline(pos, key, stageDeadlineQuickEdit.value, existing?existing.note:'');
+  if(stageDeadlineQuickEdit.dataset.mode==='progress'){
+    if(!pos.progressDates) pos.progressDates = {};
+    pos.progressDates[key] = stageDeadlineQuickEdit.value;
+  } else {
+    // 这里只是顺手改日期，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
+    const existing = stageDeadlineEntry(pos.stageDeadlines||{}, key);
+    setStageDeadline(pos, key, stageDeadlineQuickEdit.value, existing?existing.note:'');
+  }
   pos.updatedAt = new Date().toISOString();
   saveData();
   queueUpsert('positions', pos.id);
