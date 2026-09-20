@@ -134,7 +134,7 @@
     font-family:inherit;
     font-weight:600;
   }
-  .wrap{width:min(1580px, calc(100vw - 64px));margin:0 auto;padding:38px 0 80px;}
+  .wrap{width:min(1800px, calc(100vw - 32px));margin:0 auto;padding:38px 0 80px;}
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
   }
@@ -2077,7 +2077,9 @@ function renderBoard(){
   const statuses = ['todo','inprogress'];
   statuses.forEach(st=>{
     const filtered = positions.filter(r=>!r.deleted && r.status===st && matchesFilters(r, {ignoreDateFilter:true}));
-    document.getElementById('count-'+st).textContent = filtered.length;
+    // 列标题的数字口径要跟顶部统计卡片一致——数"有几家公司"，不是"有几个岗位"，
+    // 不然同一个状态在两个地方会看到不一样的数字。
+    document.getElementById('count-'+st).textContent = new Set(filtered.map(p=>p.companyId)).size;
     const col = document.getElementById('col-'+st);
     if(filtered.length===0){
       col.innerHTML = `<div class="empty-hint">暂无记录</div>`;
@@ -2088,13 +2090,15 @@ function renderBoard(){
       // v3：不再默认折叠"已审核"，两个分组都始终展开显示（decision #5）。
       const pendingList = filtered.filter(p=>reviewStageOf(p)==='pending');
       const reviewedList = filtered.filter(p=>reviewStageOf(p)==='reviewed');
+      const pendingCompanyCount = new Set(pendingList.map(p=>p.companyId)).size;
+      const reviewedCompanyCount = new Set(reviewedList.map(p=>p.companyId)).size;
       col.innerHTML = `
         <div class="review-stage-group">
-          <div class="review-stage-label"><span class="review-stage-dot pending"></span><span>待审核</span><span class="count-inline">${pendingList.length}</span></div>
+          <div class="review-stage-label"><span class="review-stage-dot pending"></span><span>待审核</span><span class="count-inline">${pendingCompanyCount}</span></div>
           ${pendingList.length ? renderGroupedCards(pendingList, st, 'pending') : '<div class="empty-hint">暂无记录</div>'}
         </div>
         <div class="review-stage-group">
-          <div class="review-stage-label"><span class="review-stage-dot reviewed"></span><span>待提交</span><span class="count-inline">${reviewedList.length}</span></div>
+          <div class="review-stage-label"><span class="review-stage-dot reviewed"></span><span>待提交</span><span class="count-inline">${reviewedCompanyCount}</span></div>
           ${reviewedList.length ? renderGroupedCards(reviewedList, st, 'reviewed') : '<div class="empty-hint">暂无记录</div>'}
         </div>
       `;
