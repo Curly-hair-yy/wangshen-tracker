@@ -862,8 +862,9 @@
     opacity:0;pointer-events:none;border:0;
   }
   .progress-dates-list{
-    margin-top:10px;display:flex;flex-direction:column;gap:6px;
+    display:flex;flex-direction:column;gap:6px;
   }
+  .progress-dates-list:not(:empty){margin-top:10px;}
   .progress-date-row{
     display:flex;align-items:center;gap:10px;
     background:var(--surface);border:1px solid var(--line);border-radius:6px;
@@ -1312,7 +1313,6 @@
     </div>
 
     <div id="sharedSettingsBlock" style="margin-bottom:18px;">
-      <label id="sharedSettingsLabel" style="display:block;font-size:13px;color:var(--text-2);margin-bottom:8px;">申请信息</label>
       <div class="field">
         <label>状态</label>
         <div class="status-toggle" id="statusToggle">
@@ -1329,12 +1329,12 @@
         </div>
         <div class="field-hint">待审核：填完了但你还没检查；待提交：检查过没问题，只差投递</div>
       </div>
-      <div class="field" id="progressField" style="display:none;margin-bottom:4px;">
+      <div class="field" id="progressField" style="display:none;margin-bottom:0;">
         <label>招聘进度</label>
         <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
         <div class="progress-dates-list" id="progressDatesList"></div>
       </div>
-      <div class="field" id="stageDeadlinesField" style="display:none;">
+      <div class="field" id="stageDeadlinesField" style="display:none;margin-top:5px;">
         <button class="add-item-btn" id="stageDeadlinesToggleBtn" type="button">+ 设置环节提醒</button>
         <div class="progress-dates-list" id="stageDeadlinesDraftList" style="display:none;"></div>
       </div>
@@ -3317,10 +3317,9 @@ function openDrawer(id){
   drawerOpenSnapshot = captureDrawerSnapshot();
 }
 
-function updateSharedSettingsLabel(){
-  const multi = positionDraft.length>1;
-  document.getElementById('sharedSettingsLabel').textContent = multi ? '所有岗位共用' : '申请信息';
-}
+// "申请信息"/"所有岗位共用"这行说明文字去掉了，这个函数留空——不用挨个删掉
+// 原来那几处调用它的地方。
+function updateSharedSettingsLabel(){}
 
 function renderOtherPositionsBox(){
   const box = document.getElementById('otherPositionsBox');
