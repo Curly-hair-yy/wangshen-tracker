@@ -894,10 +894,6 @@
   .company-stage-reminder:hover{text-decoration:underline dotted;}
   .company-stage-reminder.stage-date-pending{color:var(--orange);}
   .company-stage-reminder.stage-date-overdue{color:var(--red);}
-  .stage-deadline-input{
-    position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
-    opacity:0;pointer-events:none;border:0;
-  }
   .progress-dates-list{
     display:flex;flex-direction:column;gap:6px;
   }
@@ -1026,19 +1022,20 @@
   .track .step.current .step-label,.track .step.current .step-date{color:var(--blue);}
   .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
   .track .step.ended .step-label,.track .step.ended .step-date{color:var(--gray-ink);}
-  .track .stage-deadline-input{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;}
-  /* 点环节文字/日期时，不再弹系统日历选择器（滚轮选时间不好用），改成让这个
-     输入框自己浮出来变成可以直接打字输入的小框，跟原生 datetime-local 输入框
-     一样支持键盘直接敲数字，输完点别处/切走焦点就自动收起。用 fixed 定位、
-     top/left 由 JS 按点击节点的实际屏幕位置现算（见 renderSubmittedList 里的
-     点击处理），不用 CSS 写死"相对自己往下"——一张卡里好几个岗位挨着的时候，
-     写死往下会盖到下一个岗位那一行，改成算好了再摆就不会挡到别的内容。 */
-  .track .stage-deadline-input.editing{
-    position:fixed;width:auto;height:auto;padding:5px 8px;
-    opacity:1;pointer-events:auto;overflow:visible;
+  /* 点环节文字/日期时，不再弹系统日历选择器（滚轮选时间不好用），改成让一个
+     全局共用的输入框浮出来变成可以直接打字输入的小框，跟原生 datetime-local
+     输入框一样支持键盘直接敲数字，输完点别处/切走焦点就自动收起。用普通的
+     position:absolute（挂在 body 下面，不在任何 .step 里面），top/left 由
+     JS 按点击节点的实际页面坐标现算（含 scrollY/scrollX，见 renderSubmittedList
+     里的点击处理）——这样页面滚动的时候它会跟着内容一起挪动，不会跟原来的
+     节点越离越远；也不会因为挂在具体某个岗位的轨道节点里，在好几个岗位挨着
+     的时候盖到下一行。 */
+  .stage-deadline-quick-edit{
+    display:none;position:absolute;padding:5px 8px;
     background:var(--glass-strong);border:1.5px solid var(--blue);border-radius:8px;
     font-size:12px;color:var(--ink);box-shadow:var(--shadow-hover);z-index:200;
   }
+  .stage-deadline-quick-edit.open{display:inline-block;}
   @media(max-width:860px){
     .progress-layout{grid-template-columns:1fr;}
     .overview{position:static;}
@@ -1595,6 +1592,8 @@
     </div>
   </div>
 </div>
+
+<input type="datetime-local" id="stageDeadlineQuickEdit" class="stage-deadline-quick-edit" tabindex="-1">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -2364,7 +2363,6 @@ function effectiveStageDeadlines(position, company){
 }
 function renderTrackHtml(p, company){
   const progress = p.progress || {}, dates = p.progressDates || {};
-  const ownDeadlines = p.stageDeadlines || {};
   const effectiveDeadlines = effectiveStageDeadlines(p, company);
   const {steps, lines} = computeTrack(progress, dates, effectiveDeadlines);
   const linesHtml = lines.map(l=>`<span class="line ${l.cls}" style="--left:${l.left}%;--width:${l.width}%"></span>`).join('');
@@ -2373,7 +2371,6 @@ function renderTrackHtml(p, company){
       <span class="step-dot"></span>
       <div class="step-label">${st.label}</div>
       <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
-      <input type="datetime-local" class="stage-deadline-input" data-id="${p.id}" data-key="${st.key}" value="${(stageDeadlineEntry(ownDeadlines, st.key)||{}).date||''}" tabindex="-1">
     </div>
   `).join('');
   return `<div class="track">${linesHtml}${stepsHtml}</div>`;
@@ -2583,10 +2580,11 @@ function renderSubmittedList(){
       }
     });
   });
-  // 轨道节点：点圆点/空白处标记到达（打勾等效），点文字或日期让这个环节自己的
-  // 日期输入框浮出来直接打字输入，用来单独设置/修改这个环节的提醒截止时间——
-  // 两者是两回事。原来这里调用 showPicker() 弹系统日历+滚轮选时间，用户反馈
-  // 滚轮选分钟很难用，改成让原生 datetime-local 输入框自己浮出来打字输入。
+  // 轨道节点：点圆点/空白处标记到达（打勾等效），点文字或日期让全局共用的那个
+  // 日期输入框浮出来、摆到点击节点旁边，直接打字输入，用来单独设置/修改这个
+  // 环节的提醒截止时间——两者是两回事。原来这里调用 showPicker() 弹系统日历+
+  // 滚轮选时间，用户反馈滚轮选分钟很难用，改成打字输入；见 stageDeadlineQuickEdit
+  // 相关代码（不在这个函数里，是页面级别只有一份，挂在 body 下面，随内容滚动）。
   list.querySelectorAll('.track .step').forEach(stepEl=>{
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -2594,52 +2592,12 @@ function renderSubmittedList(){
       if(!pos) return;
       const key = stepEl.dataset.key;
       if(e.target.closest('.step-label, .step-date')){
-        const input = stepEl.querySelector('.stage-deadline-input');
-        if(!input) return;
-        const rect = stepEl.getBoundingClientRect();
-        const estHeight = 34;
-        const top = (window.innerHeight - rect.bottom < estHeight + 10) ? (rect.top - estHeight - 6) : (rect.bottom + 6);
-        input.style.top = Math.round(top) + 'px';
-        input.style.left = Math.round(rect.left + rect.width/2) + 'px';
-        input.style.transform = 'translateX(-50%)';
-        input.classList.add('editing');
-        input.focus();
-        // 这个输入框是 position:fixed，按打开那一刻的屏幕坐标摆的——页面一旦
-        // 滚动，它不会跟着挪，摆的位置就会跟它本来该在的那个节点越离越远。
-        // 干脆滚动就直接收起来（跟大多数悬浮小窗一个做法），不去追着重新计算。
-        if(input._closeOnScroll) window.removeEventListener('scroll', input._closeOnScroll, true);
-        input._closeOnScroll = ()=>{ input.blur(); };
-        window.addEventListener('scroll', input._closeOnScroll, true);
+        openStageDeadlineQuickEdit(stepEl, pos, key);
         return;
       }
       if(!pos.progress) pos.progress = {};
       if(!pos.progressDates) pos.progressDates = {};
       setProgressChecked(pos.progress, pos.progressDates, key, !pos.progress[key]);
-      pos.updatedAt = new Date().toISOString();
-      saveData();
-      queueUpsert('positions', pos.id);
-      flushQueue();
-      renderAll();
-    });
-  });
-  list.querySelectorAll('.stage-deadline-input').forEach(inp=>{
-    inp.addEventListener('click', e=>e.stopPropagation());
-    inp.addEventListener('blur', ()=>{
-      inp.classList.remove('editing');
-      if(inp._closeOnScroll){ window.removeEventListener('scroll', inp._closeOnScroll, true); inp._closeOnScroll = null; }
-    });
-    inp.addEventListener('change', ()=>{
-      const pos = positions.find(x=>x.id===inp.dataset.id);
-      if(!pos) return;
-      const key = inp.dataset.key;
-      // 现在改成直接打字输入各个数字段（日/月/年/时/分），打到一半、还没填完
-      // 或者填出一个不存在的日期时，浏览器会把 value 直接清空——这种情况啥也
-      // 不做、重新渲染复原就行，不能真把已经存的提醒删掉（不是用户想清除，
-      // 只是还没打完）。
-      if(!inp.value){ renderAll(); return; }
-      // 这里只是顺手改日期，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
-      const existing = stageDeadlineEntry(pos.stageDeadlines||{}, key);
-      setStageDeadline(pos, key, inp.value, existing?existing.note:'');
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
@@ -4194,6 +4152,46 @@ document.getElementById('searchClearBtn').addEventListener('click', ()=>{
 document.getElementById('filterDateField').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
+
+/* ---- 进度轨道上单个环节的"提醒截止时间"快速编辑：全页面只有这一个输入框
+   （见 HTML 里的 #stageDeadlineQuickEdit），谁点了哪个岗位的哪个环节，就把这
+   一份输入框的值/位置/data-id/data-key 现改现摆过去，而不是每个岗位每个环节
+   各自摆一个隐藏输入框——position:absolute 挂在 body 下面，页面滚动的时候
+   会跟着内容一起走，不用另外监听 scroll 事件去关它。 ---- */
+const stageDeadlineQuickEdit = document.getElementById('stageDeadlineQuickEdit');
+function openStageDeadlineQuickEdit(stepEl, pos, key){
+  const entry = stageDeadlineEntry(pos.stageDeadlines||{}, key);
+  stageDeadlineQuickEdit.value = entry ? entry.date : '';
+  stageDeadlineQuickEdit.dataset.id = pos.id;
+  stageDeadlineQuickEdit.dataset.key = key;
+  const rect = stepEl.getBoundingClientRect();
+  const estHeight = 34;
+  const top = (window.innerHeight - rect.bottom < estHeight + 10) ? (rect.top - estHeight - 6) : (rect.bottom + 6);
+  stageDeadlineQuickEdit.style.top = Math.round(top + window.scrollY) + 'px';
+  stageDeadlineQuickEdit.style.left = Math.round(rect.left + rect.width/2 + window.scrollX) + 'px';
+  stageDeadlineQuickEdit.style.transform = 'translateX(-50%)';
+  stageDeadlineQuickEdit.classList.add('open');
+  stageDeadlineQuickEdit.focus();
+}
+stageDeadlineQuickEdit.addEventListener('click', e=>e.stopPropagation());
+stageDeadlineQuickEdit.addEventListener('blur', ()=>{ stageDeadlineQuickEdit.classList.remove('open'); });
+stageDeadlineQuickEdit.addEventListener('change', ()=>{
+  const pos = positions.find(x=>x.id===stageDeadlineQuickEdit.dataset.id);
+  if(!pos) return;
+  const key = stageDeadlineQuickEdit.dataset.key;
+  // 直接打字输入各个数字段（日/月/年/时/分），打到一半、还没填完或者填出一个
+  // 不存在的日期时，浏览器会把 value 直接清空——这种情况啥也不做就行，不能
+  // 真把已经存的提醒删掉（不是用户想清除，只是还没打完）。
+  if(!stageDeadlineQuickEdit.value) return;
+  // 这里只是顺手改日期，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
+  const existing = stageDeadlineEntry(pos.stageDeadlines||{}, key);
+  setStageDeadline(pos, key, stageDeadlineQuickEdit.value, existing?existing.note:'');
+  pos.updatedAt = new Date().toISOString();
+  saveData();
+  queueUpsert('positions', pos.id);
+  flushQueue();
+  renderAll();
+});
 
 /* ---- 页面切换：看板 / 已提交进度 / 提醒事项 ---- */
 // 分段控件的白色滑块：量一下当前激活的标签按钮相对轨道的位置和宽度，写到滑块的
