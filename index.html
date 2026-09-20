@@ -598,7 +598,6 @@
   .exclusive-restore-btn{
     font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;padding:2px 0;
   }
-  .shared-settings-hint{font-size:12px;color:var(--text-2);margin:-8px 0 14px;}
   .meta-readonly{
     font-size:12px;
     color:var(--text-2);
@@ -622,12 +621,6 @@
   .field-error{font-size:12px;color:var(--red);margin-top:4px;display:none;}
   .field.has-error input{box-shadow:0 0 0 1.5px var(--red);}
   .field.has-error .field-error{display:block;}
-  .checklist-common-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-  .checklist-common-pill{
-    font-size:12px;padding:5px 11px;border-radius:var(--radius-pill);
-    background:var(--surface-2);color:var(--text-2);border:none;cursor:pointer;
-  }
-  .checklist-common-pill.added{background:var(--primary-soft);color:var(--primary);}
   /* 待办清单 iOS 风格：圆形勾选框 + 左缩进实线分隔；删除图标悬停才出现。 */
   .item-row{position:relative;}
   .item-row .ios-check{
@@ -1320,7 +1313,6 @@
 
     <div id="sharedSettingsBlock" style="margin-bottom:18px;">
       <label id="sharedSettingsLabel" style="display:block;font-size:13px;color:var(--text-2);margin-bottom:8px;">申请信息</label>
-      <div class="shared-settings-hint" id="sharedSettingsHint" style="display:none;">可在各岗位的"专属设置"中单独修改</div>
       <div class="field">
         <label>状态</label>
         <div class="status-toggle" id="statusToggle">
@@ -1337,7 +1329,7 @@
         </div>
         <div class="field-hint">待审核：填完了但你还没检查；待提交：检查过没问题，只差投递</div>
       </div>
-      <div class="field" id="progressField" style="display:none;">
+      <div class="field" id="progressField" style="display:none;margin-bottom:4px;">
         <label>招聘进度</label>
         <div class="progress-checkboxes" id="progressCheckboxes" style="margin-top:0;padding-top:0;border-top:none;"></div>
         <div class="progress-dates-list" id="progressDatesList"></div>
@@ -1350,12 +1342,6 @@
         <label>网申链接</label>
         <input type="url" id="f-link" placeholder="https://…">
       </div>
-      <div class="field checklist-editor">
-        <label>待办清单</label>
-        <div id="checklistItems"></div>
-        <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
-        <div class="checklist-common-pills" id="checklistCommonPills"></div>
-      </div>
     </div>
 
     <div id="positionItems"></div>
@@ -1364,7 +1350,12 @@
     <div class="field deadline-field" style="margin-top:18px;">
       <label>截止时间</label>
       <input type="date" id="f-company-deadline">
-      <div class="field-hint">整个公司共用一个截止时间，不是某个岗位单独的</div>
+    </div>
+
+    <div class="field checklist-editor" style="margin-top:18px;">
+      <label>待办清单</label>
+      <div id="checklistItems"></div>
+      <button class="add-item-btn" id="addItemBtn" type="button">+ 添加一项</button>
     </div>
 
     <div class="close-confirm" id="closeConfirm">
@@ -3329,7 +3320,6 @@ function openDrawer(id){
 function updateSharedSettingsLabel(){
   const multi = positionDraft.length>1;
   document.getElementById('sharedSettingsLabel').textContent = multi ? '所有岗位共用' : '申请信息';
-  document.getElementById('sharedSettingsHint').style.display = multi ? 'block' : 'none';
 }
 
 function renderOtherPositionsBox(){
@@ -3465,7 +3455,7 @@ function renderPositionEditor(){
     const exclusiveHtml = !showExclusive ? '' : `
       <button class="exclusive-toggle${item._exclusiveOpen?' open':''}" type="button" data-idx="${idx}">
         <span class="chevron">${ICON_CHEVRON_DOWN.replace('13" height="13"','11" height="11"')}</span>
-        <span>${item._exclusiveOpen ? '专属设置' : '沿用公司统一设置'}</span>
+        <span>${item._exclusiveOpen ? '专属设置' : '设置'}</span>
       </button>
       <div class="exclusive-body${item._exclusiveOpen?' open':''}"><div class="inner"><div class="inner-pad">
         <div class="field" style="margin-bottom:10px;">
@@ -3502,7 +3492,7 @@ function renderPositionEditor(){
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
-        <textarea class="position-note-input" data-idx="${idx}" placeholder="这个岗位的备注：笔试时间、内推码、联系人…">${escapeHtml(item.note||'')}</textarea>
+        <textarea class="position-note-input" data-idx="${idx}" placeholder="备注">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
           <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
@@ -3831,10 +3821,6 @@ document.getElementById('reviewStageToggle').addEventListener('click', e=>{
   setReviewStageToggle(reviewStageDraft);
 });
 
-// 常用待办快捷项：点一下就在清单里加一条同名待办（已经有同名的就不重复加，
-// 胶囊会显示成"已添加"状态）。纯粹是快速录入的辅助，加进去之后就是普通待办项，
-// 跟手打的没有任何区别。改这个数组就能调整以后要放哪些常用项。
-const CHECKLIST_COMMON_ITEMS = ['性格测试', '实习经历', '证书', '照片'];
 // 焦点转移是"回车新建下一行"体验的关键——不然每次都要重新点一下新出现的输入框，
 // 跟"图个快"的初衷背道而驰。用一个变量记一下这次 render 完该把光标放哪。
 let checklistFocusIdx = -1;
@@ -3882,24 +3868,6 @@ function renderChecklistEditor(){
     if(target) target.focus();
     checklistFocusIdx = -1;
   }
-  renderChecklistCommonPills();
-}
-function renderChecklistCommonPills(){
-  const box = document.getElementById('checklistCommonPills');
-  box.innerHTML = CHECKLIST_COMMON_ITEMS.map(label=>{
-    const added = checklistDraft.some(i=>i.text.trim()===label);
-    return `<button class="checklist-common-pill${added?' added':''}" type="button" data-label="${escapeHtml(label)}">${added?'✓ ':'+ '}${escapeHtml(label)}</button>`;
-  }).join('');
-  box.querySelectorAll('.checklist-common-pill').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const label = btn.dataset.label;
-      if(checklistDraft.some(i=>i.text.trim()===label)) return;
-      // 常用项加进去的时候，如果清单里就一条空的占位行，直接用那一行，不留空行在上面。
-      if(checklistDraft.length===1 && checklistDraft[0].text.trim()==='') checklistDraft[0].text = label;
-      else checklistDraft.push({text:label, done:false});
-      renderChecklistEditor();
-    });
-  });
 }
 document.getElementById('addItemBtn').addEventListener('click', ()=>{
   checklistDraft.push({text:'', done:false});
@@ -3914,7 +3882,7 @@ document.getElementById('cancelBtn').addEventListener('click', attemptCloseDrawe
 
 // 每个岗位实际生效的状态/待办清单：专属设置开着就用它自己的值，没开就用共用值——
 // 状态/网申链接/待办清单这三个字段都是这套"共用为主、可专属覆盖"的规则，截止
-// 时间是每个岗位自己一份、不走这套规则。
+// 时间是整个公司共用一份（companyDeadlineDraft），没有专属覆盖这一说，不走这套规则。
 function effectiveStatus(entry, sharedStatus){
   return entry._statusOverride ? entry._ownStatus : sharedStatus;
 }
