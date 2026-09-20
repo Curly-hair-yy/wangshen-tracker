@@ -35,6 +35,10 @@
     --red:#9B2C2C;       --red-ink:#7A2222;    --red-soft:#F3E0DE;
     --green:#2E7D4F;     --green-soft:#E1F0E6;
     --gray:#CBDCEA;      --gray-ink:#5D7488;   --gray-soft:#EEF3F8;
+    --teal:#1F6E63;      --teal-soft:#DCEEEA;
+    --purple:#5B4A8A;    --purple-soft:#E7E1F2;
+    --pink:#9C3F63;      --pink-soft:#F3E0E9;
+    --indigo:#38427A;    --indigo-soft:#E2E4F2;
     --ended:#9AAABB;
 
     --glass:#FFFFFF; --glass-strong:#FFFFFF; --glass-border:#CBDCEA;
@@ -77,6 +81,10 @@
     --red:#c73745;    --red-ink:#ad2431;    --red-soft:#ffe9eb;
     --green:#17895b;  --green-soft:#ddf6eb;
     --gray:#dce7f2;   --gray-ink:#7b8fa5;   --gray-soft:#eef3f8;
+    --teal:#0f9b8e;   --teal-soft:#dcf5f2;
+    --purple:#7c5cbf; --purple-soft:#efe8fa;
+    --pink:#d1487a;   --pink-soft:#fbe4ed;
+    --indigo:#5865c9; --indigo-soft:#e8eafb;
     --ended:#aab8c7;
 
     --glass:rgba(255,255,255,.76);
@@ -336,6 +344,10 @@
   .chip.red{background:var(--red-soft);color:var(--red);}
   .chip.green{background:var(--green-soft);color:var(--green);}
   .chip.gray{background:var(--gray-soft);color:var(--gray-ink);}
+  .chip.teal{background:var(--teal-soft);color:var(--teal);}
+  .chip.purple{background:var(--purple-soft);color:var(--purple);}
+  .chip.pink{background:var(--pink-soft);color:var(--pink);}
+  .chip.indigo{background:var(--indigo-soft);color:var(--indigo);}
   /* 计数徽标（参考稿 7.6）：列标题、分组标题旁边的数量。 */
   .count{
     min-width:32px;height:32px;
@@ -983,7 +995,7 @@
   .role:hover .role-del-btn{opacity:1;}
   .role-del-btn:hover{color:var(--red);}
 
-  .track{position:relative;display:grid;grid-template-columns:repeat(7,1fr);min-height:62px;}
+  .track{position:relative;display:grid;grid-template-columns:repeat(8,1fr);min-height:62px;}
   .track:before{
     content:"";position:absolute;top:9px;left:7%;right:7%;height:3px;
     border-radius:999px;background:var(--gray);
@@ -1580,7 +1592,7 @@
                   ''表示这条记录是功能上线前就有的老数据、还没被手动归到待审核/已审核，
                   看板显示时会把它当"待审核"处理，但不会自动写回数据，只有手动编辑保存过才会真正写入),
                 deleted, deletedAt,
-                progress({assessment,groupInterview,aiInterview,interview1,interview2,offered,ended}
+                progress({assessment,written,groupInterview,aiInterview,interview1,interview2,offered,ended}
                   各自 true/false，只在 status==='submitted' 时有意义，招聘进入的几个阶段可以
                   同时打勾——公司可能同时走了测评和群面，不是互斥的单选；只有 ended(结束/被拒或
                   放弃)和 offered(拿到offer)这两个算"流程终点"，互斥，勾一个会自动取消另一个),
@@ -1612,6 +1624,7 @@ const REVIEW_STAGE_LABEL = {pending:'待审核', reviewed:'待提交'};
 // 其余几项可以同时打勾。
 const PROGRESS_STAGES = [
   {key:'assessment', label:'测评'},
+  {key:'written', label:'笔试'},
   {key:'groupInterview', label:'群面'},
   {key:'aiInterview', label:'AI面'},
   {key:'interview1', label:'一面'},
@@ -1620,14 +1633,16 @@ const PROGRESS_STAGES = [
   {key:'ended', label:'结束'},
 ];
 // 提醒事项页类型胶囊的颜色映射，集中写在这一处：直接复用共用的 .chip 组件色系
-// （blue/green/orange/gray），以后台账再加新的招聘环节，在这里给它挑一个就行；
+// （blue/teal/purple/pink/indigo/green/orange/gray），每个招聘环节各自一个颜色，
+// 一眼就能分清是哪个环节；以后台账再加新的招聘环节，在这里给它挑一个就行；
 // 漏了映射的环节会自动落到 gray（不报错，只是不出彩）。
 const REMINDER_STAGE_TAG = {
   assessment: 'blue',
-  aiInterview: 'blue',
+  written: 'teal',
+  aiInterview: 'purple',
   groupInterview: 'green',
-  interview1: 'orange',
-  interview2: 'orange',
+  interview1: 'pink',
+  interview2: 'indigo',
   offered: 'gray',
   ended: 'gray',
 };
@@ -3141,7 +3156,7 @@ reminderSaveBtn.addEventListener('click', ()=>{
    自己再点开这条提醒改就行）。走的是本地这套正常的保存/同步流程，不直接碰数据库，
    不会有本地浏览器和外部写入互相冲突的问题。 ---- */
 const STAGE_TEXT_MAP = [
-  ['在线测评','assessment'], ['综合能力测试','assessment'], ['测评','assessment'], ['笔试','assessment'],
+  ['在线测评','assessment'], ['综合能力测试','assessment'], ['测评','assessment'], ['笔试','written'],
   ['无领导小组','groupInterview'], ['群面','groupInterview'],
   ['AI面试','aiInterview'], ['AI面','aiInterview'],
   ['初面','interview1'], ['一面','interview1'],
