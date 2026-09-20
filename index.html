@@ -907,7 +907,7 @@
   .overview-item:hover{background:var(--blue-soft);}
   .overview-item.active{background:var(--blue);color:#fff;box-shadow:0 0 0 2px var(--blue);}
   .overview-item.active strong{color:#fff;}
-  .overview-item strong{font-size:21px;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .overview-item strong{font-size:16px;color:inherit;font-weight:800;font-variant-numeric:tabular-nums;}
 
   .date-line{
     display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;
@@ -918,7 +918,7 @@
   .progress-company{
     position:relative;
     border-radius:var(--radius-panel);
-    padding:26px 26px 26px 36px;
+    padding:26px;
     margin-bottom:28px;
     background:var(--glass-strong);
     border:1px solid var(--glass-border);
@@ -928,10 +928,12 @@
   .progress-company:hover{transform:none;background:var(--glass-strong);box-shadow:var(--shadow-company);}
   .progress-company.ended{opacity:.6;}
   .progress-company.ended .company-title,.progress-company.ended .role-name{color:var(--gray-ink);}
-  .progress-company .drag-handle{left:10px;}
+  /* 拖拽把手放在卡片外面（左边），不占卡片自己的内边距——用户反馈放在卡片里面
+     不好看。 */
+  .progress-company .drag-handle{left:-22px;}
   .company-head{
     display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
-    padding-bottom:20px;padding-right:22px;border-bottom:1px solid var(--line);margin-bottom:8px;
+    padding-bottom:20px;padding-right:34px;border-bottom:1px solid var(--line);margin-bottom:8px;
   }
   .company-title{
     font-size:22px;font-weight:950;letter-spacing:-.03em;
@@ -1085,7 +1087,6 @@
   .reminder-row:hover .reminder-delete-btn,
   .reminder-row:focus-within .reminder-delete-btn{opacity:1;}
   .reminder-delete-btn:hover{background:var(--red-soft);color:var(--red);}
-  #submittedList .card{background:#FFFFFF;cursor:default;padding-left:28px;}
   .drag-handle{
     position:absolute;left:6px;top:50%;transform:translateY(-50%);
     width:16px;height:16px;display:flex;align-items:center;justify-content:center;
@@ -1866,19 +1867,27 @@ let currentView = 'board';
 // 某个环节名字，见 computeSubmittedGroups() 和 renderProgressOverview()。
 let submittedFavoriteFilter = false;
 let submittedStageFilter = null;
-// 顶部四张统计卡片：待填写/待提交（=填报中，含待审核+待提交两个子组）/已提交
-// （按公司数，跟"已提交"标签页、分段控件右侧汇总行用的是同一个口径）/提醒事项
-// （未完成的提醒数量，跟提醒事项页显示的一致）。
-function renderStats(){
+// 顶部四张统计卡片、分段控件右侧汇总行共用的口径：待填写/待提交/已提交都数
+// "有多少家公司"，不是"有多少个岗位"——一家公司名下不管挂几个岗位，只要有一个
+// 岗位处在这个状态，这家公司就算一个；同一家公司可能同时数进好几个桶里
+// （比如一半岗位待填写、一半已提交），这是符合预期的。提醒事项数的是未完成的
+// 提醒条数，跟公司/岗位数量无关，不受这个影响。
+function computeTopStats(){
   const active = positions.filter(r=>!r.deleted);
-  const todo = active.filter(r=>r.status==='todo').length;
-  const inprogress = active.filter(r=>r.status==='inprogress').length;
-  const submittedCompanyCount = new Set(active.filter(p=>p.status==='submitted').map(p=>p.companyId)).size;
-  const remindersCount = getActiveReminders().filter(i=>!i.done).length;
+  const companyCountOf = status => new Set(active.filter(p=>p.status===status).map(p=>p.companyId)).size;
+  return {
+    todoCompanyCount: companyCountOf('todo'),
+    inprogressCompanyCount: companyCountOf('inprogress'),
+    submittedCompanyCount: companyCountOf('submitted'),
+    remindersCount: getActiveReminders().filter(i=>!i.done).length,
+  };
+}
+function renderStats(){
+  const {todoCompanyCount, inprogressCompanyCount, submittedCompanyCount, remindersCount} = computeTopStats();
 
   const stats = [
-    {label:'待填写', num:todo, cls:''},
-    {label:'待提交', num:inprogress, cls:'warn'},
+    {label:'待填写', num:todoCompanyCount, cls:''},
+    {label:'待提交', num:inprogressCompanyCount, cls:'warn'},
     {label:'已提交', num:submittedCompanyCount, cls:'blue'},
     {label:'提醒事项', num:remindersCount, cls:'danger'},
   ];
@@ -2658,13 +2667,9 @@ function companyLevelLink(list){
 // 分段控件右侧那行汇总文字，数字跟三个标签页自己的计数用的是同一套口径，
 // 不引入新的统计逻辑。
 function renderNavSummary(){
-  const active = positions.filter(r=>!r.deleted);
-  const todo = active.filter(r=>r.status==='todo').length;
-  const inprogress = active.filter(r=>r.status==='inprogress').length;
-  const submittedCompanyCount = new Set(active.filter(p=>p.status==='submitted').map(p=>p.companyId)).size;
-  const remindersCount = getActiveReminders().filter(i=>!i.done).length;
+  const {todoCompanyCount, inprogressCompanyCount, submittedCompanyCount, remindersCount} = computeTopStats();
   document.getElementById('navSummary').innerHTML =
-    `${todo} 待填写 · <span class="orange">${inprogress} 填报中</span> · <span class="blue">${submittedCompanyCount} 已提交</span> · <span class="red">${remindersCount} 提醒事项</span>`;
+    `${todoCompanyCount} 待填写 · <span class="orange">${inprogressCompanyCount} 填报中</span> · <span class="blue">${submittedCompanyCount} 已提交</span> · <span class="red">${remindersCount} 提醒事项</span>`;
 }
 function renderAll(){
   renderTodayLabel();
