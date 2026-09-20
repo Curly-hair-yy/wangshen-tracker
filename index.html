@@ -231,6 +231,8 @@
     font-size:14px;
     cursor:pointer;
     font-weight:900;
+    white-space:nowrap;
+    flex-shrink:0;
     transition:transform .18s ease, box-shadow .18s ease;
   }
   .btn:active{transform:scale(.98);}
@@ -4874,6 +4876,8 @@ document.addEventListener('keydown', (e)=>{
   else if(syncDrawer.classList.contains('active')) closeSyncDrawer();
   else if(companyDetailDrawer.classList.contains('active')) closeCompanyDetail();
   else if(recycleBinDrawer.classList.contains('active')) closeRecycleBin();
+  else if(reminderDrawer.classList.contains('active')) closeReminderDrawer();
+  else if(document.getElementById('pasteImportDrawer').classList.contains('active')) closePasteImportDrawer();
 });
 document.getElementById('drawer').addEventListener('keydown', (e)=>{
   // Cmd/Ctrl+Enter 无论光标在哪个字段（包括文本域）都直接保存。
@@ -4890,6 +4894,26 @@ document.getElementById('drawer').addEventListener('keydown', (e)=>{
   e.preventDefault();
   document.getElementById('saveBtn').click();
 });
+// 弹窗内 Tab 焦点不外逃：在最后一个可聚焦元素上按 Tab 跳回第一个，在第一个上
+// 按 Shift+Tab 跳到最后一个——每个弹窗都要遍历一遍所有可聚焦元素，用当前弹窗
+// 打开时那一刻的 DOM 现算，不是打开前算好缓存的（内容会动态变化，比如岗位数量）。
+function trapFocusWithin(container){
+  container.addEventListener('keydown', (e)=>{
+    if(e.key!=='Tab') return;
+    const focusable = [...container.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(el=>el.offsetParent!==null);
+    if(focusable.length===0) return;
+    const first = focusable[0], last = focusable[focusable.length-1];
+    if(e.shiftKey && document.activeElement===first){
+      e.preventDefault(); last.focus();
+    } else if(!e.shiftKey && document.activeElement===last){
+      e.preventDefault(); first.focus();
+    }
+  });
+}
+[drawer, syncDrawer, companyDetailDrawer, reminderDrawer, recycleBinDrawer, document.getElementById('pasteImportDrawer')]
+  .forEach(trapFocusWithin);
 
 /* =========================================================
    一次性历史数据导入（2026-09-12）
