@@ -2174,7 +2174,7 @@ function computeSubmittedGroups(){
     }
     if(submittedStageFilter){
       const hasStage = g.list.some(p=>{
-        const statusMap = computeStepStatuses(p.progress||{}, p.progressDates||{});
+        const statusMap = effectiveStepStatusMap(p.progress||{}, p.progressDates||{});
         return statusMap[submittedStageFilter]==='current';
       });
       if(!hasStage) return false;
@@ -2192,9 +2192,37 @@ function trackStepLabel(key){
   const s = PROGRESS_STAGES.find(x=>x.key===key);
   return s ? s.label : key;
 }
+// 一个环节勾没勾，跟它算不算"已经真的发生了"是两码事——勾了、但日期手滑填成了
+// 还没到的未来某天，不能算已完成：happened=false、futureChecked=true，这种按
+// "已安排未发生"（橙色）处理，不算完成，也不能被当成"当前进度"。
+function progressStepState(key, progress, dates){
+  if(!progress[key]) return {happened:false, futureChecked:false, t:0};
+  const dateStr = dates[key];
+  const t = dateStr ? new Date(dateStr+'T00:00:00').getTime() : 0;
+  const isFuture = !!dateStr && t > Date.now();
+  return {happened:!isFuture, futureChecked:isFuture, t};
+}
+// 一个岗位所有"已经真的发生了"的环节里，哪个是 current（最新的），其余是 done——
+// 进度轨道、公司头部胶囊、进度概览的统计都用这一份判断，不直接用旧的
+// computeStepStatuses()（那个不看日期是不是在未来，勾了就算数，已经证实会把
+// 手滑填了未来日期的环节误判成"已完成"）。
+function effectiveStepStatusMap(progress, dates){
+  const keys = PROGRESS_STAGES.map(s=>s.key);
+  let currentKey = null, currentTime = -Infinity;
+  const happenedKeys = [];
+  keys.forEach(key=>{
+    const st = progressStepState(key, progress, dates);
+    if(!st.happened) return;
+    happenedKeys.push(key);
+    if(st.t>=currentTime){ currentTime = st.t; currentKey = key; }
+  });
+  const map = {};
+  happenedKeys.forEach(key=>{ map[key] = key===currentKey ? 'current' : 'done'; });
+  return map;
+}
 // 算一条岗位轨道上七个节点各自的状态、以及要画哪几段连接线。纯展示层推导，
 // 不改任何存储字段。节点状态：done/current/scheduled/empty/ended，规则见
-// wangshen-tracker-ui-redesign-v3.md 的 9.4。
+// wangshen-tracker-ui-redesign-v3.md 的 9.4（含"勾了但日期在未来不算已完成"）。
 function computeTrack(progress, dates, stageDeadlines){
   progress = progress || {}; dates = dates || {}; stageDeadlines = stageDeadlines || {};
   const keys = PROGRESS_STAGES.map(s=>s.key);
@@ -2202,7 +2230,7 @@ function computeTrack(progress, dates, stageDeadlines){
   const cx = i => (i + 0.5) / N * 100;
   const nowTs = Date.now();
   const isEnded = !!progress.ended;
-  const statusMap = computeStepStatuses(progress, dates); // {key:'current'|'done'}，只有已到达的节点才有值
+  const statusMap = effectiveStepStatusMap(progress, dates); // {key:'current'|'done'}，只有真的已发生的节点才有值
 
   let currentIdx = -1, firstDoneIdx = -1;
   keys.forEach((key,i)=>{
@@ -2221,10 +2249,17 @@ function computeTrack(progress, dates, stageDeadlines){
       status = statusMap[key];
       if(dates[key]) dateLabel = shortDateLabel(dates[key]);
     } else {
-      const entry = stageDeadlineEntry(stageDeadlines, key);
-      if(entry && entry.date){
-        const entryTs = entry.date.includes('T') ? new Date(entry.date).getTime() : new Date(entry.date+'T00:00:00').getTime();
-        if(entryTs > nowTs){ status = 'scheduled'; dateLabel = shortDateTimeLabel(entry.date); }
+      const pst = progressStepState(key, progress, dates);
+      if(pst.futureChecked){
+        // 勾了，但日期还没到——当"已安排未发生"，用它自己记的这个日期当预计时间
+        status = 'scheduled';
+        dateLabel = shortDateLabel(dates[key]);
+      } else {
+        const entry = stageDeadlineEntry(stageDeadlines, key);
+        if(entry && entry.date){
+          const entryTs = entry.date.includes('T') ? new Date(entry.date).getTime() : new Date(entry.date+'T00:00:00').getTime();
+          if(entryTs > nowTs){ status = 'scheduled'; dateLabel = shortDateTimeLabel(entry.date); }
+        }
       }
     }
     return {key, label: trackStepLabel(key), status, dateLabel};
@@ -2268,7 +2303,7 @@ function renderProgressOverview(){
   const stageCounts = {};
   PROGRESS_STAGES.forEach(s=>{ stageCounts[s.key] = 0; });
   submitted.forEach(p=>{
-    const statusMap = computeStepStatuses(p.progress||{}, p.progressDates||{});
+    const statusMap = effectiveStepStatusMap(p.progress||{}, p.progressDates||{});
     const currentKey = Object.keys(statusMap).find(k=>statusMap[k]==='current');
     if(currentKey!==undefined && currentKey!==null) stageCounts[currentKey]++;
   });
@@ -2300,24 +2335,23 @@ function renderProgressOverview(){
     });
   });
 }
-// 公司卡头部那一排最多 3 个的关键节点胶囊：蓝底实心 = 该公司某岗位当前最新已发生的
-// 步骤；橙色 = 已安排但还没到的步骤；红色 = 设了提醒但已经过期还没打勾的步骤。
-// 同一个环节键（key）只留优先级最高的一条（current > overdue > scheduled），
+// 公司卡头部那一排最多 3 个的关键节点胶囊：只放"还没发生、需要留意"的事——
+// 橙色 = 已安排但还没到的步骤；红色 = 设了提醒但已经过期还没打勾的步骤。已经
+// 真的发生了的步骤（done/current）不放在这里，轨道里已经看得到，这里再写一遍
+// 是重复信息。同一个环节键（key）只留优先级最高的一条（overdue > scheduled），
 // 按时间从早到晚排序，最多显示 3 个，推导不出就整行不显示。
 function computeCompanyChips(g, company){
   const candidates = [];
   g.list.forEach(p=>{
     const progress = p.progress||{}, dates = p.progressDates||{}, deadlines = p.stageDeadlines||{};
     if(progress.ended) return;
-    const statusMap = computeStepStatuses(progress, dates);
-    Object.keys(statusMap).forEach(k=>{
-      if(statusMap[k]==='current'){
-        const ts = dates[k] ? new Date(dates[k]+'T00:00:00').getTime() : 0;
-        candidates.push({key:k, date: dates[k]||'', type:'current', ts});
-      }
-    });
     PROGRESS_STAGES.forEach(s=>{
-      if(progress[s.key]) return;
+      const pst = progressStepState(s.key, progress, dates);
+      if(pst.happened) return; // 已经真的发生了，轨道里已经显示，胶囊不重复放
+      if(pst.futureChecked){
+        candidates.push({key:s.key, date:dates[s.key], type:'scheduled', ts:pst.t});
+        return;
+      }
       const entry = stageDeadlineEntry(deadlines, s.key);
       if(entry && entry.date){
         const ts = entry.date.includes('T') ? new Date(entry.date).getTime() : new Date(entry.date+'T00:00:00').getTime();
@@ -2334,7 +2368,7 @@ function computeCompanyChips(g, company){
       }
     });
   }
-  const priority = {current:0, overdue:1, scheduled:2};
+  const priority = {overdue:0, scheduled:1};
   const byKey = new Map();
   candidates.forEach(c=>{
     const existing = byKey.get(c.key);
@@ -2344,7 +2378,7 @@ function computeCompanyChips(g, company){
   return sorted.slice(0,3).map(c=>{
     const label = trackStepLabel(c.key);
     const dateText = c.date ? shortDateTimeLabel(c.date) : '';
-    const cls = c.type==='current' ? 'blue-solid' : (c.type==='overdue' ? 'red' : 'orange');
+    const cls = c.type==='overdue' ? 'red' : 'orange';
     return `<span class="chip ${cls}">${label}${dateText?' '+dateText:''}</span>`;
   }).join('');
 }
