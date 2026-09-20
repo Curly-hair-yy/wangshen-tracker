@@ -577,6 +577,11 @@
   }
   .position-group:last-child{margin-bottom:0;}
   .position-group .item-row{margin-bottom:4px;}
+  /* 岗位名输入框那一行之前也叫 .item-row，跟待办清单那个通用选择器
+     （.item-row input[type=text]{background:none}）撞了，导致这个输入框
+     看不出是个输入框——改用专门的类名，不再共用那份待办清单专属的样式。 */
+  .position-name-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .position-name-row input[type=text]{flex:1;}
   /* #positionItems 不再套在外层 .field 里了（每个岗位现在自己是一张小卡片），
      所以这里把原本靠 ".field input" 这种祖先选择器才有的基础样式，直接在
      .position-group 范围内重新声明一遍——不然这些输入框会掉回浏览器原生样式。 */
@@ -938,7 +943,7 @@
     box-shadow:var(--shadow-company);
     cursor:default;
   }
-  .progress-company:hover{transform:none;background:var(--glass-strong);box-shadow:var(--shadow-company);}
+  .progress-company:hover{transform:translateY(-4px);background:var(--glass-strong);box-shadow:var(--shadow-hover);}
   .progress-company.ended{opacity:.6;}
   .progress-company.ended .company-title,.progress-company.ended .role-name{color:var(--gray-ink);}
   /* 拖拽把手放在卡片外面（左边），不占卡片自己的内边距——用户反馈放在卡片里面
@@ -954,7 +959,7 @@
   }
   .company-title .favorite-star{font-size:16px;}
   .company-title .seq{
-    font-size:11px;font-weight:800;color:var(--gray-ink);background:var(--gray-soft);
+    font-size:11px;font-weight:800;color:var(--blue);background:var(--blue-soft);
     padding:2px 7px;border-radius:var(--radius-pill);
   }
   .company-head-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
@@ -2464,8 +2469,8 @@ function renderSubmittedList(){
           <div>
             <div class="company-title">
               <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+              <span class="seq">${seqNum}</span>
               <span>${escapeHtml(company?company.name:'（未知公司）')}</span>
-              <span class="seq">#${seqNum}</span>
             </div>
             ${chipsHtml ? `<div class="chips">${chipsHtml}</div>` : ''}
           </div>
@@ -3509,7 +3514,7 @@ function renderPositionEditor(){
     `;
     return `
       <div class="position-group" data-idx="${idx}">
-        <div class="item-row">
+        <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
