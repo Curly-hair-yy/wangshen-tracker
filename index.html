@@ -2891,10 +2891,26 @@ function renderRemindersList(){
       if(btn.dataset.scope==='company'){
         const c = getCompany(btn.dataset.id);
         if(!c) return;
-        setCompanyStageDone(c, btn.dataset.key, nowDone);
+        const key = btn.dataset.key;
+        setCompanyStageDone(c, key, nowDone);
         c.updatedAt = new Date().toISOString();
-        saveData();
         queueUpsert('companies', c.id);
+        // 公司级提醒（全部岗位通用）标记完成时，顺手把这家公司名下所有已提交、
+        // 这个环节自己还没打勾的岗位也一起打勾——不然已提交页面的进度轨道
+        // 只看每个岗位自己的 progress，不知道公司级这条提醒已经完成了，轨道
+        // 上永远不会变蓝。只在"标记完成"这个方向顺带打勾；取消完成不连带撤销
+        // 各个岗位已经打的勾，因为分不清哪些是当时被这里带过去的、哪些是
+        // 岗位自己独立打的，贸然全部撤销风险更大。
+        if(nowDone){
+          positions.filter(p=>!p.deleted && p.companyId===c.id && p.status==='submitted' && !(p.progress && p.progress[key])).forEach(p=>{
+            if(!p.progress) p.progress = {};
+            if(!p.progressDates) p.progressDates = {};
+            setProgressChecked(p.progress, p.progressDates, key, true);
+            p.updatedAt = new Date().toISOString();
+            queueUpsert('positions', p.id);
+          });
+        }
+        saveData();
         flushQueue();
         renderAll();
         return;
