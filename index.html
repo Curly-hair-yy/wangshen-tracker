@@ -2237,8 +2237,10 @@ function computeSubmittedGroups(){
       if(!(c && c.favorite)) return false;
     }
     if(submittedStageFilter){
+      const c = getCompany(g.companyId);
       const hasStage = g.list.some(p=>{
-        const statusMap = effectiveStepStatusMap(p.progress||{}, p.progressDates||{});
+        const {progress, dates} = effectiveProgress(p, c);
+        const statusMap = effectiveStepStatusMap(progress, dates);
         return statusMap[submittedStageFilter]==='current';
       });
       if(!hasStage) return false;
@@ -2361,8 +2363,31 @@ function effectiveStageDeadlines(position, company){
   });
   return merged;
 }
+// 公司级提醒标记完成后（"全部岗位通用"，比如统一测评），这家公司名下的岗位
+// 就算自己没打勾，也应该在轨道/进度概览上显示成"这个环节已完成"——不然刚
+// 标记完成的那一刻是靠 reminder-check 的点击处理顺手给岗位打勾（见
+// renderRemindersList 里的联动），但用户之前就已经标记过完成的老数据，
+// 那时候还没有这个联动，进度轨道会一直显示空白。这里用"读的时候现算"来
+// 兜底，不管是不是新标记的，读的时候都会把公司级已完成的环节算进去，不用
+// 额外写一次性的数据迁移。只在岗位自己没打勾这个环节时才用公司级的兜底，
+// 岗位自己的记录一律优先。纯用于展示，不会写回 position.progress。
+function effectiveProgress(position, company){
+  const progress = {...(position.progress||{})};
+  const dates = {...(position.progressDates||{})};
+  if(company){
+    PROGRESS_STAGES.forEach(s=>{
+      if(progress[s.key]) return;
+      const entry = companyStageDeadlineEntry(company, s.key);
+      if(entry && entry.done){
+        progress[s.key] = true;
+        if(!dates[s.key] && entry.doneDate) dates[s.key] = entry.doneDate;
+      }
+    });
+  }
+  return {progress, dates};
+}
 function renderTrackHtml(p, company){
-  const progress = p.progress || {}, dates = p.progressDates || {};
+  const {progress, dates} = effectiveProgress(p, company);
   const effectiveDeadlines = effectiveStageDeadlines(p, company);
   const {steps, lines} = computeTrack(progress, dates, effectiveDeadlines);
   const linesHtml = lines.map(l=>`<span class="line ${l.cls}" style="--left:${l.left}%;--width:${l.width}%"></span>`).join('');
@@ -2384,7 +2409,8 @@ function renderProgressOverview(){
   const stageCounts = {};
   PROGRESS_STAGES.forEach(s=>{ stageCounts[s.key] = 0; });
   submitted.forEach(p=>{
-    const statusMap = effectiveStepStatusMap(p.progress||{}, p.progressDates||{});
+    const {progress, dates} = effectiveProgress(p, getCompany(p.companyId));
+    const statusMap = effectiveStepStatusMap(progress, dates);
     const currentKey = Object.keys(statusMap).find(k=>statusMap[k]==='current');
     if(currentKey!==undefined && currentKey!==null) stageCounts[currentKey]++;
   });
