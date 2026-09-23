@@ -864,6 +864,8 @@
     margin-top:4px;
   }
   .position-link:hover{text-decoration:underline;}
+  .reminder-top-row .position-link{display:inline-flex;margin-top:0;flex-shrink:0;color:var(--text-3);}
+  .reminder-top-row .position-link:hover{color:var(--blue);}
   .position-line-meta .position-link{margin-top:0;}
   .detail-checklist{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
   .detail-checklist-item{
@@ -1570,6 +1572,7 @@
     </div>
     <button class="add-item-btn" id="pasteImportParseBtn" type="button">识别</button>
     <div id="pasteImportResults"></div>
+    <div id="pasteImportStatus" class="field-hint" style="display:none;"></div>
   </div>
   <div class="drawer-foot">
     <div class="right" style="margin-left:auto;">
@@ -2743,6 +2746,20 @@ function companyLevelLink(list){
   counts.forEach((count, link)=>{ if(count>bestCount){ best = link; bestCount = count; } });
   return best;
 }
+// 提醒事项卡片上的网申链接：公司级提醒（全部岗位通用）直接取这家公司名下
+// 已提交岗位的公司默认链接；岗位级提醒优先用这个岗位自己的链接，自己没填
+// 就退回公司默认链接——跟已提交页面"公司默认链接 + 岗位自己单独的"是同一套
+// 逻辑，不用户在提醒事项里也能一键点进官网/网申系统，不用再跑去已提交页面找。
+function reminderLinkFor(item){
+  const companyId = item.scope==='company' ? item.company.id : item.position.companyId;
+  const siblings = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status==='submitted');
+  const defaultLink = companyLevelLink(siblings);
+  if(item.scope==='position'){
+    const ownLink = normalizeLink(item.position.link);
+    if(ownLink) return ownLink;
+  }
+  return defaultLink;
+}
 // 分段控件右侧那行汇总文字，数字跟三个标签页自己的计数用的是同一套口径，
 // 不引入新的统计逻辑。
 function renderNavSummary(){
@@ -2830,6 +2847,8 @@ function renderReminderRow(item){
   const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
   const tag = REMINDER_STAGE_TAG[item.stage.key] || 'gray';
   const stageHtml = `<span class="chip ${tag}">${item.stage.label}</span>`;
+  const linkHref = reminderLinkFor(item);
+  const linkHtml = linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : '';
   if(item.done){
     return `
       <div class="reminder-row done" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" tabindex="0" title="点这里可以改日期、加备注">
@@ -2838,6 +2857,7 @@ function renderReminderRow(item){
           <div class="reminder-top-row">
             <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
             ${stageHtml}
+            ${linkHtml}
           </div>
           <span class="reminder-position">${escapeHtml(positionText)}</span>
           ${noteHtml}
@@ -2859,6 +2879,7 @@ function renderReminderRow(item){
         <div class="reminder-top-row">
           <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
           ${stageHtml}
+          ${linkHtml}
         </div>
         <span class="reminder-position">${escapeHtml(positionText)}</span>
         ${noteHtml}
@@ -2912,7 +2933,7 @@ function renderRemindersList(){
 
   list.querySelectorAll('.reminder-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.reminder-check, .reminder-delete-btn')) return;
+      if(e.target.closest('.reminder-check, .reminder-delete-btn, .position-link')) return;
       openReminderDrawerForEdit(row.dataset.scope, row.dataset.id, row.dataset.key);
     });
   });
@@ -3258,10 +3279,16 @@ function renderPasteImportResults(items){
   }).join('');
 }
 let pasteImportParsed = [];
+function setPasteImportStatus(text){
+  const status = document.getElementById('pasteImportStatus');
+  status.textContent = text;
+  status.style.display = text ? 'block' : 'none';
+}
 function openPasteImportDrawer(){
   document.getElementById('pasteImportInput').value = '';
   pasteImportParsed = [];
   renderPasteImportResults([]);
+  setPasteImportStatus('');
   document.getElementById('pasteImportOverlay').classList.add('active');
   document.getElementById('pasteImportDrawer').classList.add('active');
 }
@@ -3274,12 +3301,20 @@ document.getElementById('pasteImportClose').addEventListener('click', closePaste
 document.getElementById('pasteImportCancelBtn').addEventListener('click', closePasteImportDrawer);
 document.getElementById('pasteImportOverlay').addEventListener('click', closePasteImportDrawer);
 document.getElementById('pasteImportParseBtn').addEventListener('click', ()=>{
+  setPasteImportStatus('');
   pasteImportParsed = parsePasteText(document.getElementById('pasteImportInput').value);
   renderPasteImportResults(pasteImportParsed);
 });
+// 之前这里用 alert() 报告"格式不对/没东西能导/导入完成"，在手机上（尤其是
+// "添加到主屏幕"之后当成 App 打开、或者被套壳在别的 App 内置浏览器里）
+// window.alert() 经常会被浏览器直接吞掉、什么都不弹——用户反馈"点了没反应"，
+// 其实是原来成功了，只是没弹出提示看不到（也可能是弹窗本身就被吞掉了，
+// 无法区分）。改成把提示直接写在抽屉里这个 pasteImportStatus 区域，不再依赖
+// alert，也不再点完就自动关掉抽屉——让用户自己看完提示再手动关闭，不给一个
+// "咦，窗口自己没了，也不知道有没有导进去"的观感。
 document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
   const text = document.getElementById('pasteImportInput').value;
-  if(!text.trim()){ alert('先把文字粘贴进来，再点确认导入'); return; }
+  if(!text.trim()){ setPasteImportStatus('先把文字粘贴进来，再点确认导入'); return; }
   // 没点过"识别"就直接点"确认导入"，这里顺手先识别一遍，不然按钮跟没反应似的，
   // 用户搞不清楚是没识别还是真的没东西能导。
   if(pasteImportParsed.length===0){
@@ -3288,7 +3323,7 @@ document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
   }
   const checkedIdxs = [...document.querySelectorAll('.paste-import-check:checked')].map(cb=>Number(cb.dataset.idx));
   if(checkedIdxs.length===0){
-    alert('没有能导入的内容——看看下面列出来的提示，可能是格式没对上，或者这家公司在台账里还没有已提交的岗位。');
+    setPasteImportStatus('没有能导入的内容——看看上面列出来的提示，可能是格式没对上，或者这家公司在台账里还没有已提交的岗位。');
     return;
   }
   let count = 0;
@@ -3302,9 +3337,8 @@ document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
     count++;
   });
   flushQueue();
-  closePasteImportDrawer();
   renderAll();
-  if(count>0) alert(`导入完成，加了 ${count} 条提醒。`);
+  setPasteImportStatus(count>0 ? `已导入 ${count} 条提醒，看完可以点右上角关闭。` : '没有能导入的内容。');
 });
 
 /* ---- 抽屉表单 ---- */
