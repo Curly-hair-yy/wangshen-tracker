@@ -2037,21 +2037,29 @@ function cardDeadlineBadge(list){
 // 把一组岗位按创建日期分组，同一天内再按公司合并成一张卡，返回 HTML 字符串。
 // reviewStage 只在渲染"填报中"栏的某个审核子分组时传入，用来给卡片打标记。
 function renderGroupedCards(list, status, reviewStage){
-  const dayMap = new Map();
+  // 先按公司分组（不看日期）——同一家公司哪怕是不同天分两次加的岗位，也要
+  // 合并显示成一张卡，不要因为加的日子不一样就拆成两张卡。用户反馈："昨天
+  // 加了一个岗位，今天又给同一家公司加了一个岗位"，之前会被拆成两张同名
+  // 公司的卡片，看着很奇怪。卡片归到哪一天的日期标题下面，看这家公司最早
+  // 那个岗位是哪天加的（不是最新那个），加了新岗位不会把整张卡"挪到今天"。
+  const companyMap = new Map();
   list.forEach(r=>{
-    const key = dayKeyOf(r.createdAt);
-    if(!dayMap.has(key)) dayMap.set(key, []);
-    dayMap.get(key).push(r);
+    if(!companyMap.has(r.companyId)) companyMap.set(r.companyId, []);
+    companyMap.get(r.companyId).push(r);
+  });
+  const allGroups = [...companyMap.entries()].map(([companyId, list])=>{
+    const earliest = list.reduce((a,b)=> new Date(b.createdAt).getTime() < new Date(a.createdAt).getTime() ? b : a);
+    return {companyId, list, dayKey: dayKeyOf(earliest.createdAt)};
+  });
+  const dayMap = new Map();
+  allGroups.forEach(g=>{
+    if(!dayMap.has(g.dayKey)) dayMap.set(g.dayKey, []);
+    dayMap.get(g.dayKey).push(g);
   });
   const dayKeys = [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
 
   return dayKeys.map(dayKey=>{
-    const companyMap = new Map();
-    dayMap.get(dayKey).forEach(r=>{
-      if(!companyMap.has(r.companyId)) companyMap.set(r.companyId, []);
-      companyMap.get(r.companyId).push(r);
-    });
-    const groups = [...companyMap.entries()].map(([companyId, list])=>({companyId, list}));
+    const groups = dayMap.get(dayKey);
     groups.sort((a,b)=>{
       const aDeadlines = a.list.map(x=>x.deadline).filter(Boolean).sort();
       const bDeadlines = b.list.map(x=>x.deadline).filter(Boolean).sort();
