@@ -641,6 +641,20 @@
     display:flex;align-items:center;gap:6px;
   }
   .meta-readonly .icon{display:flex;color:var(--text-3);flex-shrink:0;}
+  .sync-gen-confirm{
+    background:var(--orange-soft);border-radius:var(--radius-md);padding:12px 14px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .sync-gen-confirm-text{font-size:13px;line-height:1.6;color:var(--orange-ink);}
+  .sync-gen-confirm-btns{display:flex;gap:8px;}
+  .sync-history-list{display:flex;flex-direction:column;gap:8px;}
+  .sync-history-row{
+    display:flex;align-items:center;gap:8px;
+    background:var(--field);border-radius:var(--radius-md);padding:8px 10px;
+  }
+  .sync-history-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .sync-history-code{font-size:12px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sync-history-time{font-size:11px;color:var(--text-3);}
   /* 公司名联想：自己做的下拉建议列表，键盘上下键选、回车确认，跟原生 datalist
      比起来可以自己控制样式、键盘导航和"已有同名公司"提示。 */
   .company-field{position:relative;}
@@ -1451,8 +1465,21 @@
 
     <div class="field">
       <label>生成一个新的同步空间</label>
-      <div><button class="btn btn-ghost" id="syncGenNewBtn" type="button">生成新同步码</button></div>
+      <div id="syncGenNormal"><button class="btn btn-ghost" id="syncGenNewBtn" type="button">生成新同步码</button></div>
+      <div id="syncGenConfirm" class="sync-gen-confirm" style="display:none;">
+        <div class="sync-gen-confirm-text">确定要换成一个全新的同步码吗？换了之后，其他设备上用旧码的数据不会再跟这里同步。当前这个码会自动留在下面"之前用过的同步码"里，随时可以切回去。</div>
+        <div class="sync-gen-confirm-btns">
+          <button class="btn btn-ghost" id="syncGenCancelBtn" type="button">先不换</button>
+          <button class="btn btn-primary" id="syncGenConfirmBtn" type="button">确定换新的</button>
+        </div>
+      </div>
       <div class="field-hint">会切换到一个全新的空间，当前设备上的数据会自动上传过去。如果只是想在新设备上接入已有数据，不要点这个，用下面的"连接到已有同步码"。</div>
+    </div>
+
+    <div class="field" id="syncHistoryField" style="display:none;">
+      <label>之前用过的同步码</label>
+      <div id="syncHistoryList" class="sync-history-list"></div>
+      <div class="field-hint">换码或者连接别的码之前，旧的同步码会自动记在这里（最多留 10 条）。点"切回"就能换回去，当前这个码也会同样被记下来，不会丢。</div>
     </div>
 
     <div class="field">
@@ -4943,6 +4970,8 @@ function openSyncDrawer(){
   document.getElementById('syncUrlInput').value = syncConfig.url || '';
   document.getElementById('syncKeyInput').value = syncConfig.key || '';
   document.getElementById('syncJoinInput').value = '';
+  hideSyncGenConfirm();
+  renderSyncHistory();
   renderSyncIndicator();
   syncOverlay.classList.add('active');
   syncDrawer.classList.add('active');
@@ -4975,19 +5004,80 @@ document.getElementById('firstRunDismissBtn').addEventListener('click', ()=>{
   document.getElementById('firstRunBanner').style.display = 'none';
 });
 
-document.getElementById('syncGenNewBtn').addEventListener('click', ()=>{
-  syncId = genSyncId();
+// 换同步码之前，把旧的同步码记到"之前用过的同步码"里（localStorage 新增一个独立的
+// key，不动原来的 SYNC_ID_KEY），误点了或者换错了，随时能从列表里切回去。
+// "生成新同步码""连接到已有同步码""切回旧的"三个入口都走 switchSyncId，旧码一律先记下来。
+const SYNC_HISTORY_KEY = 'wangshen_sync_id_history';
+const SYNC_HISTORY_MAX = 10;
+function loadSyncHistory(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(SYNC_HISTORY_KEY) || '[]');
+    return Array.isArray(arr) ? arr.filter(x=>x && typeof x.code==='string' && x.code) : [];
+  }catch(err){ return []; }
+}
+function saveSyncHistory(list){
+  safeSetItem(SYNC_HISTORY_KEY, JSON.stringify(list.slice(0, SYNC_HISTORY_MAX)));
+}
+function switchSyncId(newCode){
+  if(syncId && syncId!==newCode){
+    const list = loadSyncHistory().filter(x=>x.code!==syncId);
+    list.unshift({code: syncId, replacedAt: new Date().toISOString()});
+    saveSyncHistory(list);
+  }
+  saveSyncHistory(loadSyncHistory().filter(x=>x.code!==newCode));
+  syncId = newCode;
   safeSetItem(SYNC_ID_KEY, syncId);
   document.getElementById('syncCodeDisplay').value = syncId;
+  renderSyncHistory();
   startSync();
+}
+function renderSyncHistory(){
+  const list = loadSyncHistory();
+  document.getElementById('syncHistoryField').style.display = list.length ? 'block' : 'none';
+  document.getElementById('syncHistoryList').innerHTML = list.map((x,i)=>`
+    <div class="sync-history-row">
+      <div class="sync-history-main">
+        <span class="sync-history-code" title="${escapeHtml(x.code)}">${escapeHtml(x.code)}</span>
+        <span class="sync-history-time">${x.replacedAt ? '换下来的时间：'+escapeHtml(fmtDateTime(x.replacedAt)) : ''}</span>
+      </div>
+      <button class="btn btn-ghost sync-history-copy" type="button" data-idx="${i}">复制</button>
+      <button class="btn btn-ghost sync-history-restore" type="button" data-idx="${i}">切回</button>
+    </div>
+  `).join('');
+}
+document.getElementById('syncHistoryList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-idx]');
+  if(!btn) return;
+  const item = loadSyncHistory()[Number(btn.dataset.idx)];
+  if(!item) return;
+  if(btn.classList.contains('sync-history-copy')){
+    copyText(item.code);
+    const old = btn.textContent;
+    btn.textContent = '已复制';
+    setTimeout(()=>{ btn.textContent = old; }, 1200);
+  } else {
+    switchSyncId(item.code);
+  }
+});
+
+// 防误点：点"生成新同步码"不会直接换，先展开一段说明 + "确定换新的"，再点一次才真换。
+function hideSyncGenConfirm(){
+  document.getElementById('syncGenConfirm').style.display = 'none';
+  document.getElementById('syncGenNormal').style.display = 'block';
+}
+document.getElementById('syncGenNewBtn').addEventListener('click', ()=>{
+  document.getElementById('syncGenNormal').style.display = 'none';
+  document.getElementById('syncGenConfirm').style.display = 'flex';
+});
+document.getElementById('syncGenCancelBtn').addEventListener('click', hideSyncGenConfirm);
+document.getElementById('syncGenConfirmBtn').addEventListener('click', ()=>{
+  hideSyncGenConfirm();
+  switchSyncId(genSyncId());
 });
 document.getElementById('syncJoinBtn').addEventListener('click', ()=>{
   const code = document.getElementById('syncJoinInput').value.trim();
   if(!code) return;
-  syncId = code;
-  safeSetItem(SYNC_ID_KEY, syncId);
-  document.getElementById('syncCodeDisplay').value = syncId;
-  startSync();
+  switchSyncId(code);
 });
 document.getElementById('syncSaveConfigBtn').addEventListener('click', ()=>{
   const url = document.getElementById('syncUrlInput').value.trim();
