@@ -1183,46 +1183,54 @@
   .tree-branch{grid-column:4;position:relative;padding:12px 24px 12px 0;z-index:2;cursor:pointer;}
   .tree-branch .role-del-btn{top:12px;}
   .tree-fork{grid-column:3;position:relative;}
-  /* 连线：竖线在 x=12px，横线在节点圆心高度（12px 上边距 + 9px 半径 = 21px） */
-  .tree-fork:before,.tree-fork:after{content:"";position:absolute;background:var(--gray);}
+  /* 连线：竖线在 x=12px，横线在箭头的中线高度（12px 上边距 + 箭头一半高 20px） */
+  .tree-fork:before,.tree-fork:after{content:"";position:absolute;background:var(--text-4);border-radius:2px;}
   .tree-fork:before{left:12px;width:2px;}
-  .tree-fork:after{top:20px;height:2px;left:12px;right:-30px;}
-  .tree-fork.fork-first:before{top:20px;bottom:0;}
+  .tree-fork:after{top:31px;height:2px;left:12px;right:0;}
+  .tree-fork.fork-first:before{top:31px;bottom:0;}
   .tree-fork.fork-mid:before{top:0;bottom:0;}
-  .tree-fork.fork-last:before{top:0;height:22px;}
-  .tree-fork.fork-first:after{left:-30px;}
+  .tree-fork.fork-last:before{top:0;height:33px;}
+  .tree-fork.fork-first:after{left:0;}
   .role-del-btn:hover{color:var(--red);}
 
-  .track{display:flex;align-items:flex-start;flex-wrap:wrap;row-gap:10px;}
-  .track .step{position:relative;z-index:1;display:grid;justify-items:center;cursor:pointer;width:64px;}
-  .track .seg{flex:0 0 72px;height:3px;border-radius:999px;margin:7.5px -23px 0;background:var(--gray);}
-  /* 节点颜色 = 环节自己的颜色（--sc，跟提醒事项、进度概览里的圆点同色），一眼认出是
-     哪个环节；状态靠形状区分：实心 = 已完成（最新那个外面多一圈光晕），空心 = 还没
-     发生的提醒（日期橙色，过期变红），结束的整条变灰。 */
-  .track .seg-done,.track .seg-current{background:var(--blue-line);opacity:.6;}
-  .track .seg-scheduled,.track .seg-overdue{background:none;height:0;border-top:2px dashed var(--orange);}
-  .track .seg-overdue{border-top-color:var(--red);opacity:.6;}
-  .track .seg-ended{background:var(--ended);}
-  .track .seg-add{background:none;border-top:2px dashed var(--gray);height:0;opacity:.8;}
-  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 0 0 2px var(--sc,var(--gray));box-sizing:border-box;}
-  .track .step.done .step-dot{background:var(--sc);}
-  .track .step.current .step-dot{background:var(--sc);box-shadow:0 0 0 2px var(--sc),0 0 0 6px var(--sc-soft);}
-  .track .step.scheduled .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--orange-soft);}
-  .track .step.overdue .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--red-soft);}
-  .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
-  .track .step-label{margin-top:7px;font-size:11px;font-weight:900;text-align:center;white-space:nowrap;
-    padding:1px 7px;border-radius:999px;background:var(--sc-soft,var(--gray-soft));color:var(--sc,var(--gray-ink));}
-  .track .step-date{margin-top:3px;font-size:10px;font-weight:850;color:var(--text-2);white-space:nowrap;}
-  .track .step.scheduled .step-date{color:var(--orange-ink);}
-  .track .step.overdue .step-date{color:var(--red-ink);}
-  .track .step.ended .step-label{background:var(--gray-soft);color:var(--gray-ink);}
-  .track .step.ended .step-date{color:var(--gray-ink);}
-  .track-add{position:relative;z-index:1;display:grid;justify-items:center;width:64px;border:none;background:none;cursor:pointer;padding:0;font-family:inherit;}
-  .track-add-dot{width:18px;height:18px;border-radius:50%;border:2px dashed var(--blue-line);color:var(--blue-line);
+  /* 进度轨道 = 一串首尾咬合的箭头（参考 pipeline 样式）。每一段用这个环节自己的颜色：
+     已完成 = 环节浅色底；最新完成的那段 = 环节实色底白字；还没发生的提醒 = 环节色斜条纹，
+     日期紫色（过期变红）；结束 = 灰。最后一段灰色"+"用来加环节。 */
+  .track{display:flex;align-items:stretch;flex-wrap:wrap;row-gap:8px;}
+  .track .seg{display:none;}
+  .track .step-dot{display:none;}
+  .track .step,
+  .track > .track-add{
+    --notch:10px;
+    position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    min-width:76px;height:40px;padding:0 16px 0 20px;margin-left:-6px;box-sizing:border-box;cursor:pointer;
+    clip-path:polygon(0 0, calc(100% - var(--notch)) 0, 100% 50%, calc(100% - var(--notch)) 100%, 0 100%, var(--notch) 50%);
+    background:var(--sc-soft, var(--gray-soft));color:var(--sc, var(--gray-ink));
+    transition:filter .12s ease;
+  }
+  .track > :first-child{margin-left:0;padding-left:14px;
+    clip-path:polygon(0 0, calc(100% - var(--notch)) 0, 100% 50%, calc(100% - var(--notch)) 100%, 0 100%);}
+  .track .step:hover,.track > .track-add:hover{filter:brightness(.95);}
+  .track .step.dp-anchor{filter:brightness(.9);}
+  .track .step-label{margin:0;padding:0;background:none;color:inherit;font-size:12px;font-weight:850;line-height:1.25;white-space:nowrap;}
+  .track .step-date{margin:1px 0 0;font-size:10px;font-weight:750;color:inherit;opacity:.75;line-height:1.15;white-space:nowrap;}
+  .track .step.current{background:var(--sc);color:#fff;}
+  .track .step.current .step-date{opacity:.9;}
+  .track .step.scheduled,
+  .track .step.overdue{background:repeating-linear-gradient(135deg, var(--sc-soft) 0 6px, #fff 6px 10px);}
+  .track .step.scheduled .step-date{color:var(--orange-ink);opacity:1;}
+  .track .step.overdue .step-date{color:var(--red-ink);opacity:1;}
+  .track .step.ended{background:var(--gray-soft);color:var(--gray-ink);}
+  .track > .track-add{min-width:44px;padding:0 12px 0 18px;background:var(--field);color:var(--text-3);border:none;font-family:inherit;}
+  .track > .track-add:first-child{padding-left:12px;}
+  .track > .track-add .track-add-dot{border:none;width:auto;height:auto;background:none;color:inherit;font-size:16px;font-weight:900;}
+  .track > .track-add .track-add-label{display:none;}
+  .track > .track-add:hover{background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));filter:none;}
+  /* 岗位名前面的小"+"（还没有任何环节时）保持小圆圈样式 */
+  .track-add-inline{position:relative;z-index:1;border:none;background:none;cursor:pointer;padding:0;font-family:inherit;}
+  .track-add-inline .track-add-dot{width:18px;height:18px;border-radius:50%;border:2px dashed var(--blue-line);color:var(--blue-line);
     display:grid;place-items:center;font-size:13px;font-weight:900;line-height:1;box-sizing:border-box;}
-  .track-add-label{margin-top:7px;font-size:11px;font-weight:850;color:var(--text-3);}
-  .track-add:hover .track-add-dot{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
-  .track-add:hover .track-add-label{color:var(--blue);}
+  .track-add-inline:hover .track-add-dot{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
   .track-add.track-add-inline{width:auto;display:inline-grid;opacity:.55;transition:opacity .15s ease;}
   .role:hover .track-add-inline{opacity:1;}
   .dp-stage-list{display:flex;flex-wrap:wrap;gap:6px;}
