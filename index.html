@@ -390,6 +390,12 @@
   .col-dot.todo{background:var(--blue);}
   .col-dot.inprogress{background:var(--orange-ink);}
   .column-body{display:flex;flex-direction:column;gap:0;flex:1;}
+  /* 宽屏下两栏各自滚动：整栏吸顶、高度=一屏，栏里的内容在栏内滚，页面本身只滚掉
+     顶部那一点头部。手机单栏时还是整页滚。 */
+  @media(min-width:861px){
+    .board .column{position:sticky;top:12px;height:calc(100vh - 24px);min-height:0;box-sizing:border-box;}
+    .board .column-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 6px 12px;margin:-6px -6px 0;}
+  }
   .empty-hint{
     color:var(--text-3);
     font-size:13px;
@@ -1051,24 +1057,27 @@
   .track{display:flex;align-items:flex-start;flex-wrap:wrap;row-gap:10px;}
   .track .step{position:relative;z-index:1;display:grid;justify-items:center;cursor:pointer;width:64px;}
   .track .seg{flex:0 0 72px;height:3px;border-radius:999px;margin:7.5px -23px 0;background:var(--gray);}
-  .track .seg-done,.track .seg-current{background:var(--blue-line);}
-  .track .seg-scheduled{background:var(--orange);}
-  .track .seg-overdue{background:var(--red);opacity:.5;}
+  /* 节点颜色 = 环节自己的颜色（--sc，跟提醒事项、进度概览里的圆点同色），一眼认出是
+     哪个环节；状态靠形状区分：实心 = 已完成（最新那个外面多一圈光晕），空心 = 还没
+     发生的提醒（日期橙色，过期变红），结束的整条变灰。 */
+  .track .seg-done,.track .seg-current{background:var(--blue-line);opacity:.6;}
+  .track .seg-scheduled,.track .seg-overdue{background:none;height:0;border-top:2px dashed var(--orange);}
+  .track .seg-overdue{border-top-color:var(--red);opacity:.6;}
   .track .seg-ended{background:var(--ended);}
   .track .seg-add{background:none;border-top:2px dashed var(--gray);height:0;opacity:.8;}
-  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#eef4fa;border:3px solid #fff;box-shadow:0 0 0 2px var(--gray);box-sizing:border-box;}
-  .track .step.done .step-dot{background:var(--blue-2);box-shadow:0 0 0 2px var(--blue-2);}
-  .track .step.current .step-dot{background:var(--blue);box-shadow:0 0 0 2px var(--blue),0 0 0 6px var(--blue-soft);}
-  .track .step.scheduled .step-dot{background:var(--orange);box-shadow:0 0 0 2px var(--orange),0 0 0 6px var(--orange-soft);}
-  .track .step.overdue .step-dot{background:var(--red);box-shadow:0 0 0 2px var(--red),0 0 0 6px var(--red-soft);}
+  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 0 0 2px var(--sc,var(--gray));box-sizing:border-box;}
+  .track .step.done .step-dot{background:var(--sc);}
+  .track .step.current .step-dot{background:var(--sc);box-shadow:0 0 0 2px var(--sc),0 0 0 6px var(--sc-soft);}
+  .track .step.scheduled .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--orange-soft);}
+  .track .step.overdue .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--red-soft);}
   .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
-  .track .step-label{margin-top:7px;font-size:11px;font-weight:950;color:#8297ae;text-align:center;}
-  .track .step-date{margin-top:2px;font-size:10px;font-weight:850;color:#a0b0c2;white-space:nowrap;}
-  .track .step.done .step-label,.track .step.done .step-date{color:var(--blue-label);}
-  .track .step.current .step-label,.track .step.current .step-date{color:var(--blue);}
-  .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
-  .track .step.overdue .step-label,.track .step.overdue .step-date{color:var(--red-ink);}
-  .track .step.ended .step-label,.track .step.ended .step-date{color:var(--gray-ink);}
+  .track .step-label{margin-top:7px;font-size:11px;font-weight:900;text-align:center;white-space:nowrap;
+    padding:1px 7px;border-radius:999px;background:var(--sc-soft,var(--gray-soft));color:var(--sc,var(--gray-ink));}
+  .track .step-date{margin-top:3px;font-size:10px;font-weight:850;color:var(--text-2);white-space:nowrap;}
+  .track .step.scheduled .step-date{color:var(--orange-ink);}
+  .track .step.overdue .step-date{color:var(--red-ink);}
+  .track .step.ended .step-label{background:var(--gray-soft);color:var(--gray-ink);}
+  .track .step.ended .step-date{color:var(--gray-ink);}
   .track-add{position:relative;z-index:1;display:grid;justify-items:center;width:64px;border:none;background:none;cursor:pointer;padding:0;font-family:inherit;}
   .track-add-dot{width:18px;height:18px;border-radius:50%;border:2px dashed var(--blue-line);color:var(--blue-line);
     display:grid;place-items:center;font-size:13px;font-weight:900;line-height:1;box-sizing:border-box;}
@@ -1803,6 +1812,8 @@ const BUILTIN_STAGES = [
 const PROGRESS_STAGES = BUILTIN_STAGES.slice();
 let STAGE_USED = new Set(); // 数据里真的用到过的环节键（进度概览只列这些）
 const STAGE_COLOR_POOL = ['blue','teal','purple','green','pink','indigo','orange'];
+// 环节颜色对应的 CSS 变量名（gray 没有同名的 --gray 实色，用 --gray-ink）
+function stageColorVar(key){ const c = stageColor(key); return c==='gray' ? 'gray-ink' : c; }
 function isBuiltinStage(key){ return BUILTIN_STAGES.some(s=>s.key===key); }
 function refreshStageRegistry(){
   const used = new Set();
@@ -2437,11 +2448,7 @@ function computeSubmittedGroups(){
     }
     if(submittedStageFilter){
       const c = getCompany(g.companyId);
-      const hasStage = g.list.some(p=>{
-        const {progress, dates} = effectiveProgress(p, c);
-        const statusMap = effectiveStepStatusMap(progress, dates);
-        return statusMap[submittedStageFilter]==='current';
-      });
+      const hasStage = g.list.some(p=>trackVisibleSteps(p, c).some(st=>st.key===submittedStageFilter));
       if(!hasStage) return false;
     }
     return true;
@@ -2627,7 +2634,7 @@ function renderTrackHtml(p, company){
   if(!steps.length) return `<div class="track">${addBtn}</div>`;
   const html = steps.map((st,i)=>`
     ${i>0 ? `<span class="seg seg-${st.status||'none'}"></span>` : ''}
-    <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}">
+    <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}" style="--sc:var(--${stageColorVar(st.key)});--sc-soft:var(--${stageColorVar(st.key)}-soft)">
       <span class="step-dot"></span>
       <div class="step-label">${st.label}</div>
       <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
@@ -2642,18 +2649,15 @@ function renderProgressOverview(){
   // 岗位数是同样条件下满足的岗位本身。
   const submitted = positions.filter(p=>!p.deleted && p.status==='submitted');
   const countOf = list=>({companies: new Set(list.map(p=>p.companyId)).size, positions: list.length});
-  const currentKeyOf = p=>{
-    const {progress, dates} = effectiveProgress(p, getCompany(p.companyId));
-    const statusMap = effectiveStepStatusMap(progress, dates);
-    return Object.keys(statusMap).find(k=>statusMap[k]==='current');
-  };
-  const currentKeys = new Map(submitted.map(p=>[p.id, currentKeyOf(p)]));
+  // 环节统计：岗位轨道上出现的每个环节都算（测评、笔试、AI面都走过就三项各算一次），
+  // 不只算最新那一个——跟点进去筛选的口径一致（见 computeSubmittedGroups）。
+  const stageKeys = new Map(submitted.map(p=>[p.id, new Set(trackVisibleSteps(p, getCompany(p.companyId)).map(st=>st.key))]));
   const items = [
     {key:'all', label:'全部', ...countOf(submitted)},
     {key:'attention', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
       ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
     {key:'favorite', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
-    ...PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key)).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), ...countOf(submitted.filter(p=>currentKeys.get(p.id)===s.key))}))
+    ...PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key)).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), ...countOf(submitted.filter(p=>stageKeys.get(p.id).has(s.key)))}))
   ];
   const noFilter = !submittedAttentionFilter && !submittedFavoriteFilter && !submittedStageFilter;
   const el = document.getElementById('progressOverview');
@@ -4746,10 +4750,27 @@ function openStageNodePop(stepEl, pos, initialKey){
   let suggestions = [];
   let err = '';
   const labelOf = k=>{ const st = PROGRESS_STAGES.find(s=>s.key===k); return st ? st.label : k; };
-  const toolsHtml = p=>positionHasOwnStage(p, key) ? `<div class="dp-tools">
-      <button type="button" class="dp-tool" data-action="relabel">换成别的环节</button>
-      <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${armedRemove?'再点一下确认删除':'从这个岗位删掉'}</button>
-    </div>` : '';
+  // 这个环节如果是公司级"全部岗位通用"的（比如统一测评），删的时候整家公司一起删：
+  // 公司那条提醒本身 + 当初标记完成时顺带给各岗位打的勾（日期跟公司完成日期一致的）。
+  const companyScope = p=>{
+    const c = getCompany(p.companyId);
+    const entry = c ? companyStageDeadlineEntry(c, key) : null;
+    if(!entry) return null;
+    const siblings = positions.filter(x=>!x.deleted && x.companyId===c.id && x.status==='submitted');
+    return {company:c, entry, siblings};
+  };
+  const toolsHtml = p=>{
+    const own = positionHasOwnStage(p, key);
+    const cs = companyScope(p);
+    if(!own && !cs) return '';
+    const removeLabel = armedRemove
+      ? (cs ? `再点一下确认（全公司 ${cs.siblings.length} 个岗位都去掉）` : '再点一下确认删除')
+      : (cs ? '删掉这个环节（全公司）' : '从这个岗位删掉');
+    return `<div class="dp-tools">
+      ${own && !cs ? `<button type="button" class="dp-tool" data-action="relabel">换成别的环节</button>` : ''}
+      <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${removeLabel}</button>
+    </div>`;
+  };
   openDatePop(stepEl, {
     build(){
       const p = positions.find(x=>x.id===pos.id);
@@ -4786,7 +4807,7 @@ function openStageNodePop(stepEl, pos, initialKey){
         ? `<div class="dp-done-row"><span>✓ 已完成</span></div>`
         : (value ? `<div class="dp-done-row dp-remind-row"><span>⏰ 提醒中</span></div>` : '');
       let note = '';
-      if(done && !own) note = '这是"全部岗位通用"的公司级提醒标记的完成，要撤销请去"提醒事项"里改。';
+      if(done && !own) note = '这是"全部岗位通用"的公司级环节，点错了可以用上面的按钮整家公司一起删掉。';
       else if(!done && !ownEntry && effEntry) note = '当前显示的是公司级通用提醒；在这里改只改这个岗位。';
       return {
         title: labelOf(key), sub, mode:'datetime', value, quick: dpQuickAll(),
@@ -4806,11 +4827,31 @@ function openStageNodePop(stepEl, pos, initialKey){
       if(action==='relabel-cancel'){ mode = 'normal'; return; }
       if(action==='remove'){
         if(!armedRemove){ armedRemove = true; return; }
-        delete p.progress[key];
-        delete p.progressDates[key];
-        if(p.stageDeadlines) delete p.stageDeadlines[key];
+        const cs = companyScope(p);
+        const now = new Date().toISOString();
+        const wipe = x=>{
+          if(x.progress) delete x.progress[key];
+          if(x.progressDates) delete x.progressDates[key];
+          if(x.stageDeadlines) delete x.stageDeadlines[key];
+          x.updatedAt = now;
+          queueUpsert('positions', x.id);
+        };
+        if(cs){
+          delete cs.company.stageDeadlines[key];
+          cs.company.updatedAt = now;
+          queueUpsert('companies', cs.company.id);
+          cs.siblings.forEach(x=>{
+            if(x.id===p.id) return;
+            const d = (x.progressDates||{})[key];
+            const synced = x.progress && x.progress[key] && (!d || d===cs.entry.doneDate);
+            if(synced && !(x.stageDeadlines||{})[key]) wipe(x);
+          });
+        }
+        wipe(p);
         closeDatePop();
-        saveStagePosition(p);
+        saveData();
+        flushQueue();
+        renderAll();
         return;
       }
       if(action==='relabel-to' || action.startsWith('relabel-pick:')){
