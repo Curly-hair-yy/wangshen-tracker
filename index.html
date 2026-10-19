@@ -130,8 +130,10 @@
     --text-4:#b9b9bd;
     --line:rgba(0,0,0,.07);
 
-    --blue:#0a84ff;   --blue-2:#68b7ff;  --blue-soft:#e6f2ff;
-    --blue-line:#9cc8f5;  --blue-label:#2f7fd6;
+    /* 这套皮肤不用蓝色：原来所有"蓝色强调"（主按钮、选中、链接、测评环节等）统一换成
+       参考稿的炭黑；需要彩色的地方用青柠 / 薰衣草 / 鼠尾草绿 / 玫瑰 / 赭石这几种低饱和色。 */
+    --blue:#262628;   --blue-2:#5a5a5f;  --blue-soft:#e8e8e5;
+    --blue-line:#c6c6c1;  --blue-label:#262628;
     --orange:#e39a3b; --orange-ink:#a8650f; --orange-soft:#fbf0de;
     --red:#d0505c;    --red-ink:#b0303d;    --red-soft:#fbe7e8;
     --green:#86a032;  --green-soft:#eef4d6;
@@ -139,7 +141,7 @@
     --teal:#4f978a;   --teal-soft:#e2f0eb;
     --purple:#7d75c6; --purple-soft:#ecebf8;
     --pink:#c8658c;   --pink-soft:#f8e6ee;
-    --indigo:#3b3b41; --indigo-soft:#e8e8ea;
+    --indigo:#6b7183; --indigo-soft:#e9eaef;
     --ended:#b5b5b8;
 
     --lime:#cfdc8e;   --lime-soft:#f2f5df;
@@ -1465,11 +1467,12 @@
   :root[data-theme="lime"] .toolbar input[type=text]::placeholder{color:var(--text-3);}
   :root[data-theme="lime"] .view-tab.active,
   :root[data-theme="lime"] .btn-ghost{color:var(--ink);}
-  :root[data-theme="lime"] .btn-primary{background:var(--blue);box-shadow:0 10px 22px rgba(10,132,255,.22);}
+  :root[data-theme="lime"] .btn-primary{background:var(--charcoal);box-shadow:0 10px 22px rgba(0,0,0,.18);}
   :root[data-theme="lime"] .stat-card{backdrop-filter:none;-webkit-backdrop-filter:none;border:none;}
   :root[data-theme="lime"] .stat-card:nth-child(1){background:var(--lime) repeating-linear-gradient(135deg,rgba(255,255,255,.22) 0 2px,transparent 2px 11px);}
   :root[data-theme="lime"] .stat-card:nth-child(2){background:var(--lavender) repeating-linear-gradient(135deg,rgba(255,255,255,.2) 0 2px,transparent 2px 11px);}
-  :root[data-theme="lime"] .stat-card:nth-child(3){background:var(--charcoal);}
+  :root[data-theme="lime"] .stat-card:nth-child(3){background:var(--charcoal) repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 2px,transparent 2px 11px);}
+  :root[data-theme="lime"] .stat-card:nth-child(4){background:#fff repeating-linear-gradient(135deg,rgba(0,0,0,.035) 0 2px,transparent 2px 11px);}
   :root[data-theme="lime"] .stat-card:nth-child(1) .num,
   :root[data-theme="lime"] .stat-card:nth-child(2) .num{color:var(--ink);}
   :root[data-theme="lime"] .stat-card:nth-child(1) .label,
@@ -1483,6 +1486,7 @@
   :root[data-theme="lime"] .col-dot.inprogress{background:var(--purple);}
   :root[data-theme="lime"] .overview-item.active{background:var(--charcoal);box-shadow:0 0 0 2px var(--charcoal);color:#fff;}
   :root[data-theme="lime"] .progress-company{border-color:rgba(0,0,0,.04);}
+  :root[data-theme="lime"] .reminder-check{border-color:var(--gray);}
   .theme-btn{display:inline-flex;align-items:center;gap:6px;}
   .theme-btn .swatch{width:12px;height:12px;border-radius:50%;background:conic-gradient(#cfdc8e 0 33%,#aaa4d9 0 66%,#262628 0);}
 </style>
