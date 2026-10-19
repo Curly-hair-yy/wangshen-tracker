@@ -419,6 +419,31 @@
   .chip.purple{background:var(--purple-soft);color:var(--purple);}
   .chip.pink{background:var(--pink-soft);color:var(--pink);}
   .chip.indigo{background:var(--indigo-soft);color:var(--indigo);}
+  /* 环节色板：默认（apple 皮肤）沿用原来那几种颜色；青柠皮肤在下面另配一套同色系的 */
+  :root{
+    --st1:var(--blue);   --st1-soft:var(--blue-soft);
+    --st2:var(--teal);   --st2-soft:var(--teal-soft);
+    --st3:var(--green);  --st3-soft:var(--green-soft);
+    --st4:var(--purple); --st4-soft:var(--purple-soft);
+    --st5:var(--pink);   --st5-soft:var(--pink-soft);
+    --st6:var(--indigo); --st6-soft:var(--indigo-soft);
+    --st7:var(--orange); --st7-soft:var(--orange-soft);
+  }
+  /* 青柠皮肤的环节色：只用薰衣草紫、青柠橄榄绿、鼠尾草绿这三个色相，深浅交替排开，
+     相邻环节看得出区别，整体又是一个色调，不再出现黑、粉这种跳出来的颜色。 */
+  :root[data-theme="lime"]{
+    --st1:#8a80cf; --st1-soft:#eeecfa;
+    --st2:#8ea43a; --st2-soft:#f0f5da;
+    --st3:#4f9585; --st3-soft:#e1f0ec;
+    --st4:#6457ad; --st4-soft:#e8e5f6;
+    --st5:#6f8c2e; --st5-soft:#e9f0d9;
+    --st6:#3f7a6e; --st6-soft:#dcebe6;
+    --st7:#a593d6; --st7-soft:#f1edfa;
+  }
+  .chip.st1{background:var(--st1-soft);color:var(--st1);} .chip.st2{background:var(--st2-soft);color:var(--st2);}
+  .chip.st3{background:var(--st3-soft);color:var(--st3);} .chip.st4{background:var(--st4-soft);color:var(--st4);}
+  .chip.st5{background:var(--st5-soft);color:var(--st5);} .chip.st6{background:var(--st6-soft);color:var(--st6);}
+  .chip.st7{background:var(--st7-soft);color:var(--st7);}
   /* 计数徽标（参考稿 7.6）：列标题、分组标题旁边的数量。 */
   .count{
     min-width:32px;height:32px;
@@ -1041,9 +1066,9 @@
   .overview-all{margin-bottom:6px;}
   .overview-item span{display:inline-flex;align-items:center;gap:7px;}
   .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--ended);}
-  .sdot.blue{background:var(--blue);} .sdot.teal{background:var(--teal);} .sdot.purple{background:var(--purple);}
-  .sdot.green{background:var(--green);} .sdot.pink{background:var(--pink);} .sdot.indigo{background:var(--indigo);}
-  .sdot.orange{background:var(--orange);}
+  .sdot.st1{background:var(--st1);} .sdot.st2{background:var(--st2);} .sdot.st3{background:var(--st3);}
+  .sdot.st4{background:var(--st4);} .sdot.st5{background:var(--st5);} .sdot.st6{background:var(--st6);}
+  .sdot.st7{background:var(--st7);}
   /* 进度概览里的环节行：整行用这个环节的浅色底、文字用环节色（跟提醒事项的环节标签同一
      套颜色），不在行里再套一个胶囊；选中时不变成黑底，而是加一圈环节色描边、字加粗。 */
   .overview-item.ov-stage{background:var(--sc-soft);color:var(--sc);}
@@ -1992,7 +2017,7 @@ const BUILTIN_STAGES = [
 ];
 const PROGRESS_STAGES = BUILTIN_STAGES.slice();
 let STAGE_USED = new Set(); // 数据里真的用到过的环节键（进度概览只列这些）
-const STAGE_COLOR_POOL = ['blue','teal','purple','green','pink','indigo','orange'];
+const STAGE_COLOR_POOL = ['st1','st2','st3','st4','st5','st6','st7'];
 // 环节颜色对应的 CSS 变量名（gray 没有同名的 --gray 实色，用 --gray-ink）
 function stageColorVar(key){ const c = stageColor(key); return c==='gray' ? 'gray-ink' : c; }
 function isBuiltinStage(key){ return BUILTIN_STAGES.some(s=>s.key===key); }
@@ -2040,13 +2065,15 @@ function resolveStageKey(raw){
 // （blue/teal/purple/pink/indigo/green/orange/gray），每个招聘环节各自一个颜色，
 // 一眼就能分清是哪个环节；以后台账再加新的招聘环节，在这里给它挑一个就行；
 // 漏了映射的环节会自动落到 gray（不报错，只是不出彩）。
+// 环节色板 st1–st7：颜色本身定义在 CSS 变量里（--st1…，各皮肤各自一套），这里只决定
+// 哪个环节用第几号色；Offered / 结束固定灰色。
 const REMINDER_STAGE_TAG = {
-  assessment: 'blue',
-  written: 'teal',
-  aiInterview: 'purple',
-  groupInterview: 'green',
-  interview1: 'pink',
-  interview2: 'indigo',
+  assessment: 'st1',
+  written: 'st2',
+  groupInterview: 'st3',
+  aiInterview: 'st4',
+  interview1: 'st5',
+  interview2: 'st6',
   offered: 'gray',
   ended: 'gray',
 };
