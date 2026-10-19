@@ -948,6 +948,28 @@
   .overview-unit{font-size:11px;font-weight:750;color:var(--text-3);letter-spacing:0;}
   .overview-item strong small{font-size:12px;font-weight:700;opacity:.55;}
   .overview-all{margin-bottom:6px;}
+  .overview-item span{display:inline-flex;align-items:center;gap:7px;}
+  .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--ended);}
+  .sdot.blue{background:var(--blue);} .sdot.teal{background:var(--teal);} .sdot.purple{background:var(--purple);}
+  .sdot.green{background:var(--green);} .sdot.pink{background:var(--pink);} .sdot.indigo{background:var(--indigo);}
+  .sdot.orange{background:var(--orange);}
+  .overview-item.active .sdot{box-shadow:0 0 0 2px #fff;}
+  .overview-manage{margin-top:12px;width:100%;border:none;background:none;color:var(--text-3);font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;padding:6px;border-radius:10px;}
+  .overview-manage:hover{color:var(--blue);background:var(--blue-soft);}
+  .dp-stage-input-row{display:flex;gap:6px;margin-bottom:10px;}
+  .dp-stage-input{flex:1;min-width:0;height:34px;border:none;border-radius:10px;background:var(--field);padding:0 10px;font-size:13px;font-family:inherit;color:var(--ink);}
+  .dp-stage-input:focus{outline:none;box-shadow:0 0 0 2px var(--blue-soft);background:var(--glass-strong);}
+  .dp-mini-btn{border:none;border-radius:10px;background:var(--blue);color:#fff;font-size:12px;font-weight:850;padding:0 12px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .dp-mini-btn:hover{filter:brightness(1.08);}
+  .dp-chip .sdot{display:inline-block;margin-right:5px;vertical-align:1px;}
+  .dp-hint{font-size:11px;color:var(--text-3);margin:8px 0 6px;font-weight:750;}
+  .dp-manage-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto;}
+  .dp-manage-row{display:flex;align-items:center;gap:6px;}
+  .dp-manage-row .sdot{margin:0 2px;}
+  .dp-manage-row .dp-stage-input{height:30px;}
+  .dp-manage-row small{font-size:11px;color:var(--text-3);white-space:nowrap;min-width:34px;text-align:right;}
+  .dp-msg{font-size:12px;color:var(--green);background:var(--green-soft);border-radius:10px;padding:6px 9px;margin-bottom:10px;}
+  .dp-msg.err{color:var(--red-ink);background:var(--red-soft);}
   .overview-grid{display:grid;gap:8px;}
   .overview-item{
     display:flex;justify-content:space-between;align-items:center;
@@ -1647,6 +1669,7 @@
     <div class="field">
       <label>环节</label>
       <select id="reminderStageSelect"></select>
+      <input type="text" id="reminderNewStageInput" maxlength="16" placeholder="输入新环节名，比如 HR电话" style="display:none;margin-top:8px;">
     </div>
     <div class="field">
       <label>提醒截止时间</label>
@@ -1756,9 +1779,13 @@ const STORAGE_KEY = 'wangshen_tracker_v2';
 const LEGACY_KEY = 'wangshen_tracker_v1';
 const REQUIREMENT_BUCKET = 'position-attachments';
 const REVIEW_STAGE_LABEL = {pending:'待审核', reviewed:'待提交'};
-// 招聘进度可选项，顺序就是显示顺序。ended/offered 互斥（见上面数据模型说明），
-// 其余几项可以同时打勾。
-const PROGRESS_STAGES = [
+// 招聘环节：内置这 8 个 + 用户自己起名的自定义环节。自定义环节不另外存一份"环节
+// 列表"，环节名本身就是 progress / progressDates / stageDeadlines 里的键（跟内置的
+// assessment 这种英文键并列，存在原来的字段里，表结构不变）；每次 renderAll 前
+// 用 refreshStageRegistry() 扫一遍数据，把出现过的自定义键补进 PROGRESS_STAGES
+// （原地改这个数组，所有遍历它的老代码自动认识自定义环节）。ended/offered 互斥
+// （见上面数据模型说明），其余可以同时打勾。
+const BUILTIN_STAGES = [
   {key:'assessment', label:'测评'},
   {key:'written', label:'笔试'},
   {key:'groupInterview', label:'群面'},
@@ -1768,6 +1795,50 @@ const PROGRESS_STAGES = [
   {key:'offered', label:'Offered'},
   {key:'ended', label:'结束'},
 ];
+const PROGRESS_STAGES = BUILTIN_STAGES.slice();
+let STAGE_USED = new Set(); // 数据里真的用到过的环节键（进度概览只列这些）
+const STAGE_COLOR_POOL = ['blue','teal','purple','green','pink','indigo','orange'];
+function isBuiltinStage(key){ return BUILTIN_STAGES.some(s=>s.key===key); }
+function refreshStageRegistry(){
+  const used = new Set();
+  const scan = obj=>{ if(obj) Object.keys(obj).forEach(k=>used.add(k)); };
+  positions.forEach(p=>{
+    if(p.deleted) return;
+    Object.keys(p.progress||{}).forEach(k=>{ if(p.progress[k]) used.add(k); });
+    scan(p.progressDates); scan(p.stageDeadlines);
+  });
+  companies.forEach(c=>{ if(!c.deleted) scan(c.stageDeadlines); });
+  const custom = [...used].filter(k=>!isBuiltinStage(k)).sort((a,b)=>a.localeCompare(b,'zh'));
+  PROGRESS_STAGES.length = 0;
+  BUILTIN_STAGES.forEach(s=>PROGRESS_STAGES.push(s));
+  custom.forEach(k=>PROGRESS_STAGES.push({key:k, label:k, custom:true}));
+  STAGE_USED = used;
+}
+// 内置环节用下面 REMINDER_STAGE_TAG 里定好的颜色；自定义环节按名字算一个固定颜色，
+// 同一个名字在哪台设备上都是同一个颜色，不用另外存。
+function stageColor(key){
+  if(REMINDER_STAGE_TAG[key]) return REMINDER_STAGE_TAG[key];
+  let h = 0;
+  for(const ch of String(key)) h = (h*31 + ch.codePointAt(0)) >>> 0;
+  return STAGE_COLOR_POOL[h % STAGE_COLOR_POOL.length];
+}
+// 用户输入的环节名 -> 存储用的键：跟内置环节同名（或常见别名，比如"初面"）就落到
+// 内置键上，避免出现两个"一面"；否则名字本身就是键。去掉引号/尖括号这类字符，
+// 这样名字直接拼进 HTML 和 data- 属性也不会出问题。
+function normalizeStageName(raw){
+  return String(raw||'').replace(/[<>"'`&\\]/g,'').replace(/\s+/g,' ').trim().slice(0,16);
+}
+function resolveStageKey(raw){
+  const name = normalizeStageName(raw);
+  if(!name || ['__proto__','constructor','prototype','__new__'].includes(name)) return '';
+  const lower = name.toLowerCase();
+  const builtin = BUILTIN_STAGES.find(s=>s.label.toLowerCase()===lower || s.key.toLowerCase()===lower);
+  if(builtin) return builtin.key;
+  const alias = STAGE_TEXT_MAP.find(([text])=>text.toLowerCase()===lower);
+  if(alias) return alias[1];
+  if(lower==='offer') return 'offered';
+  return name;
+}
 // 提醒事项页类型胶囊的颜色映射，集中写在这一处：直接复用共用的 .chip 组件色系
 // （blue/teal/purple/pink/indigo/green/orange/gray），每个招聘环节各自一个颜色，
 // 一眼就能分清是哪个环节；以后台账再加新的招聘环节，在这里给它挑一个就行；
@@ -2528,7 +2599,14 @@ function trackVisibleSteps(p, company){
   const {progress, dates} = effectiveProgress(p, company);
   const deadlines = effectiveStageDeadlines(p, company);
   const {steps} = computeTrack(progress, dates, deadlines);
-  return steps.filter(st=>progress[st.key] || deadlines[st.key]).map(st=>{
+  // 按发生时间排：完成的看完成日期，没完成的看提醒时间；打了勾但没填日期的排最前。
+  const tsOf = st=>{
+    if(progress[st.key]) return dates[st.key] ? new Date(dates[st.key]+'T00:00:00').getTime() : -Infinity;
+    const e = deadlines[st.key];
+    if(e && e.date) return e.date.includes('T') ? new Date(e.date).getTime() : new Date(e.date+'T00:00:00').getTime();
+    return Infinity;
+  };
+  return steps.filter(st=>progress[st.key] || deadlines[st.key]).sort((a,b)=>tsOf(a)-tsOf(b)).map(st=>{
     if(st.status && st.status!=='ended') return st;
     const entry = deadlines[st.key];
     if(!progress[st.key] && entry && entry.date){
@@ -2570,7 +2648,7 @@ function renderProgressOverview(){
     {key:'attention', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
       ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
     {key:'favorite', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
-    ...PROGRESS_STAGES.map(s=>({key:s.key, label:s.label, ...countOf(submitted.filter(p=>currentKeys.get(p.id)===s.key))}))
+    ...PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key)).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), ...countOf(submitted.filter(p=>currentKeys.get(p.id)===s.key))}))
   ];
   const noFilter = !submittedAttentionFilter && !submittedFavoriteFilter && !submittedStageFilter;
   const el = document.getElementById('progressOverview');
@@ -2579,10 +2657,12 @@ function renderProgressOverview(){
     <div class="overview-grid">
       ${items.map(it=>{
         const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
+        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.color?`<i class="sdot ${it.color}"></i>`:''}${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
+    <button type="button" class="overview-manage" id="manageStagesBtn">管理环节 · 改名</button>
   `;
+  document.getElementById('manageStagesBtn').addEventListener('click', e=>{ e.stopPropagation(); openStageManagePop(e.currentTarget); });
   // 点一下按筛选条件显示，再点一下（或点另一个）取消/切换——语义跟数字本身
   // 的统计口径完全一致（见上面 favCount/stageCounts 怎么数的）。
   el.querySelectorAll('.overview-item').forEach(btn=>{
@@ -2922,6 +3002,7 @@ function renderNavSummary(){
     `${todoCompanyCount} 待填写 · <span class="orange">${inprogressCompanyCount} 填报中</span> · <span class="blue">${submittedCompanyCount} 已提交</span> · <span class="red">${remindersCount} 提醒事项</span>`;
 }
 function renderAll(){
+  refreshStageRegistry();
   renderTodayLabel();
   renderStats();
   renderBoard();
@@ -2999,7 +3080,7 @@ function renderReminderRow(item){
   const id = isCompanyScope ? item.company.id : item.position.id;
   const positionText = isCompanyScope ? '全部岗位通用' : (item.position.position||'（未命名岗位）');
   const noteHtml = item.note ? `<span class="reminder-note">${escapeHtml(item.note)}</span>` : '';
-  const tag = REMINDER_STAGE_TAG[item.stage.key] || 'gray';
+  const tag = stageColor(item.stage.key);
   const stageHtml = `<span class="chip ${tag}">${item.stage.label}</span>`;
   const linkHref = reminderLinkFor(item);
   const linkHtml = linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : '';
@@ -3213,6 +3294,18 @@ function reminderRefreshPositions(){
   reminderPositionSelect.innerHTML = `<option value="">不选具体岗位（整个公司通用）</option>${positionOptions}`;
   reminderRefreshStages();
 }
+// 环节下拉最后一项"＋ 新环节…"：选了它就在下面露出一个输入框，自己起名字。
+const REMINDER_NEW_STAGE_OPTION = '<option value="__new__">＋ 新环节…</option>';
+const reminderNewStageInput = document.getElementById('reminderNewStageInput');
+function syncReminderNewStageInput(){
+  const isNew = reminderStageSelect.value==='__new__';
+  reminderNewStageInput.style.display = isNew ? '' : 'none';
+  if(!isNew) reminderNewStageInput.value = '';
+}
+reminderStageSelect.addEventListener('change', ()=>{
+  syncReminderNewStageInput();
+  if(reminderStageSelect.value==='__new__') reminderNewStageInput.focus();
+});
 function reminderRefreshStages(){
   const isCompanyWide = reminderPositionSelect.value==='';
   if(isCompanyWide){
@@ -3223,8 +3316,9 @@ function reminderRefreshStages(){
       const entry = c ? companyStageDeadlineEntry(c, s.key) : null;
       return !(entry && entry.done) || s.key===keepKey;
     });
-    reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
-    const noStages = !c || stages.length===0;
+    reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('') + REMINDER_NEW_STAGE_OPTION;
+    syncReminderNewStageInput();
+    const noStages = !c;
     reminderStageSelect.disabled = noStages;
     reminderDateInput.disabled = noStages;
     reminderSaveBtn.disabled = noStages;
@@ -3236,8 +3330,9 @@ function reminderRefreshStages(){
   // 只是不能拿它去挑别的已经完成的环节——所以只保留正在编辑的这一条自己的 key。
   const keepKey = (reminderEditTarget && reminderEditTarget.scope==='position' && pos && reminderEditTarget.positionId===pos.id) ? reminderEditTarget.stageKey : null;
   const stages = PROGRESS_STAGES.filter(s=>!progress[s.key] || s.key===keepKey);
-  reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('');
-  const noStages = !pos || stages.length===0;
+  reminderStageSelect.innerHTML = stages.map(s=>`<option value="${s.key}">${s.label}</option>`).join('') + REMINDER_NEW_STAGE_OPTION;
+  syncReminderNewStageInput();
+  const noStages = !pos;
   reminderStageSelect.disabled = noStages;
   reminderDateInput.disabled = noStages;
   reminderSaveBtn.disabled = noStages;
@@ -3284,6 +3379,7 @@ function openReminderDrawerForEdit(scope, id, stageKey){
   reminderPositionSelect.value = scope==='company' ? '' : id;
   reminderRefreshStages();
   reminderStageSelect.value = stageKey;
+  syncReminderNewStageInput();
   reminderDateInput.value = entry.date;
   reminderNoteInput.value = entry.note;
   reminderOverlay.classList.add('active');
@@ -3327,7 +3423,16 @@ reminderDeleteBtn.addEventListener('click', ()=>{
 reminderSaveBtn.addEventListener('click', ()=>{
   const date = reminderDateInput.value;
   const note = reminderNoteInput.value.trim();
-  const key = reminderStageSelect.value;
+  let key = reminderStageSelect.value;
+  if(key==='__new__'){
+    key = resolveStageKey(reminderNewStageInput.value);
+    if(!key){
+      reminderEmptyHint.textContent = '请填写新环节的名字。';
+      reminderEmptyHint.style.display = 'block';
+      reminderNewStageInput.focus();
+      return;
+    }
+  }
   const isCompanyWide = reminderPositionSelect.value==='';
   const companyId = reminderResolveCompanyId();
   if(!companyId || !key || !date){ alert('请把公司、环节、日期都选好'); return; }
@@ -3396,13 +3501,22 @@ const STAGE_TEXT_MAP = [
   ['Offered','offered'], ['offered','offered'],
   ['结束','ended'],
 ];
+function pasteLineRe(){
+  // 内置的别名 + 已经用过的自定义环节名，长的排前面（"AI面试"要先于"AI面"匹配）
+  const names = [...STAGE_TEXT_MAP.map(([t])=>t), ...PROGRESS_STAGES.filter(s=>s.custom).map(s=>s.label)]
+    .sort((a,b)=>b.length-a.length)
+    .map(t=>t.replace(/[.*+?^${}()|[\]\\\/]/g,'\\$&'));
+  return new RegExp(PASTE_LINE_RE.source.replace(PASTE_STAGE_GROUP, `(${names.join('|')})`));
+}
+const PASTE_STAGE_GROUP = '(在线测评|综合能力测试|测评|笔试|无领导小组|群面|AI面试|AI面|初面|一面|终面|二面|Offered|offered|结束)';
 const PASTE_LINE_RE = /^[\s•\-\*]*([一-鿿A-Za-z0-9()（）·&.,\/]+?)\s*(?:[（(]全部岗位[)）])?\s*(在线测评|综合能力测试|测评|笔试|无领导小组|群面|AI面试|AI面|初面|一面|终面|二面|Offered|offered|结束)\s*(?:截止)?\s*[:：]?\s*(\d{4}-\d{2}-\d{2})[T\s]+(\d{1,2}:\d{2})/;
 function parsePasteText(text){
+  const re = pasteLineRe();
   return text.split('\n').map(l=>l.trim()).filter(l=>l).map(line=>{
-    const m = line.match(PASTE_LINE_RE);
+    const m = line.match(re);
     if(!m) return {raw:line, ok:false};
     const companyText = m[1].trim().replace(/[·:：\-]+$/, '');
-    const stageKey = (STAGE_TEXT_MAP.find(([text])=>text===m[2])||[])[1];
+    const stageKey = (STAGE_TEXT_MAP.find(([text])=>text===m[2])||[])[1] || resolveStageKey(m[2]);
     const timePart = m[4].length===4 ? '0'+m[4] : m[4];
     const dateTime = `${m[3]}T${timePart}`;
     const candidates = companies.filter(c=>!c.deleted && (c.name===companyText || c.name.includes(companyText) || companyText.includes(c.name)));
@@ -4564,6 +4678,13 @@ datePop.addEventListener('click', e=>{
   if(t.dataset.time){ dpPick(`${curDate||dpAddDays(0)}T${t.dataset.time}`); }
 });
 datePop.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.dataset.enterAction && datePopState && datePopState.onAction){
+    e.preventDefault();
+    const st = datePopState;
+    st.onAction(e.target.dataset.enterAction);
+    if(datePopState===st) renderDatePop();
+    return;
+  }
   if(!e.target.classList.contains('dp-time-input') || e.key!=='Enter') return;
   e.preventDefault();
   const tm = dpParseTime(e.target.value);
@@ -4663,22 +4784,110 @@ function openStageNodePop(stepEl, pos, key){
 // 轨道末尾的"+"：先选要加哪个环节（已经在轨道上的不再列出），选完直接切到那个
 // 环节的小菜单里去标记完成或设提醒——什么都不做就关掉的话，什么也不会存下来。
 function openStageAddPop(btn, pos){
+  let suggestions = [];
+  let err = '';
   openDatePop(btn, {
     build(){
       const p = positions.find(x=>x.id===pos.id);
       if(!p) return null;
       const company = getCompany(p.companyId);
       const shown = new Set(trackVisibleSteps(p, company).map(st=>st.key));
-      const left = PROGRESS_STAGES.filter(s=>!shown.has(s.key));
+      // 用过的环节排前面，没用过的内置环节放后面当备选
+      suggestions = PROGRESS_STAGES.filter(s=>!shown.has(s.key))
+        .sort((a,b)=>(STAGE_USED.has(b.key)?1:0)-(STAGE_USED.has(a.key)?1:0));
       return {
         title: '添加环节',
         sub: `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`,
-        bodyHtml: left.length
-          ? `<div class="dp-stage-list">${left.map(s=>`<button type="button" class="dp-chip" data-action="${s.key}">${trackStepLabel(s.key)}</button>`).join('')}</div>`
-          : `<div class="dp-note">所有环节都已经在轨道上了。</div>`,
+        bodyHtml: `
+          ${err ? `<div class="dp-msg err">${err}</div>` : ''}
+          <div class="dp-stage-input-row">
+            <input type="text" class="dp-stage-input" maxlength="16" placeholder="输入环节名，比如 HR电话" data-enter-action="add">
+            <button type="button" class="dp-mini-btn" data-action="add">添加</button>
+          </div>
+          ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip" data-action="pick:${i}"><i class="sdot ${stageColor(s.key)}"></i>${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}`,
       };
     },
-    onAction(key){ openStageNodePop(btn, pos, key); },
+    onAction(action){
+      let key = '';
+      if(action.startsWith('pick:')){
+        const s = suggestions[Number(action.slice(5))];
+        key = s ? s.key : '';
+      } else {
+        const input = datePop.querySelector('.dp-stage-input');
+        key = resolveStageKey(input ? input.value : '');
+        if(!key){ err = '先输入一个环节名'; return; }
+      }
+      if(key) openStageNodePop(btn, pos, key);
+    },
+    onPick(){},
+  });
+  const input = datePop.querySelector('.dp-stage-input');
+  if(input) input.focus();
+}
+
+// 管理环节：列出所有用到的环节，直接改名。改名就是把所有岗位/公司记录里这个键
+// 搬到新名字下（新名字已经存在的记录保留新名字那份，相当于合并）；Offered/结束
+// 有"互斥、整条轨道变灰"的特殊含义，不允许改名。
+function renameStage(oldKey, newName){
+  const newKey = resolveStageKey(newName);
+  if(!newKey) return {ok:false, msg:'新名字不能为空'};
+  if(newKey===oldKey) return {ok:false, msg:'名字没有变化'};
+  if(newKey==='offered' || newKey==='ended') return {ok:false, msg:'不能改成 Offered / 结束'};
+  const merged = STAGE_USED.has(newKey);
+  const now = new Date().toISOString();
+  let changed = 0;
+  const move = (obj)=>{
+    if(!obj || !(oldKey in obj)) return false;
+    if(!(newKey in obj) || !obj[newKey]) obj[newKey] = obj[oldKey];
+    delete obj[oldKey];
+    return true;
+  };
+  positions.forEach(p=>{
+    const hit = [move(p.progress), move(p.progressDates), move(p.stageDeadlines)].some(Boolean);
+    if(hit){ p.updatedAt = now; queueUpsert('positions', p.id); changed++; }
+  });
+  companies.forEach(c=>{
+    if(move(c.stageDeadlines)){ c.updatedAt = now; queueUpsert('companies', c.id); changed++; }
+  });
+  if(submittedStageFilter===oldKey) submittedStageFilter = newKey;
+  saveData();
+  flushQueue();
+  renderAll();
+  return {ok:true, msg:`已把"${trackStepLabel(oldKey)}"改成"${trackStepLabel(newKey)}"${merged?'（跟已有的同名环节合并了）':''}，更新了 ${changed} 条记录`};
+}
+function openStageManagePop(anchor){
+  let rows = [];
+  let msg = null;
+  openDatePop(anchor, {
+    build(){
+      rows = PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key));
+      const countOf = key=>positions.filter(p=>!p.deleted && ((p.progress||{})[key] || (p.stageDeadlines||{})[key])).length;
+      return {
+        title: '管理环节',
+        sub: '改名会同步改掉所有用到它的岗位和提醒',
+        bodyHtml: `
+          ${msg ? `<div class="dp-msg${msg.ok?'':' err'}">${msg.msg}</div>` : ''}
+          <div class="dp-manage-list">
+            ${rows.map((s,i)=>{
+              const locked = s.key==='offered' || s.key==='ended';
+              return `<div class="dp-manage-row">
+                <i class="sdot ${stageColor(s.key)}"></i>
+                <input type="text" class="dp-stage-input" maxlength="16" value="${trackStepLabel(s.key)}" data-idx="${i}" data-enter-action="rename:${i}"${locked?' disabled title="Offered / 结束 不能改名"':''}>
+                <small>${countOf(s.key)} 个</small>
+                ${locked ? '' : `<button type="button" class="dp-mini-btn" data-action="rename:${i}">改名</button>`}
+              </div>`;
+            }).join('') || '<div class="dp-note">还没有用到任何环节。</div>'}
+          </div>`,
+      };
+    },
+    onAction(action){
+      if(!action.startsWith('rename:')) return;
+      const i = Number(action.slice(7));
+      const s = rows[i];
+      const input = datePop.querySelector(`.dp-stage-input[data-idx="${i}"]`);
+      if(!s || !input) return;
+      msg = renameStage(s.key, input.value);
+    },
     onPick(){},
   });
 }
