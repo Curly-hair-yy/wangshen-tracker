@@ -429,16 +429,16 @@
     --st6:var(--indigo); --st6-soft:var(--indigo-soft);
     --st7:var(--orange); --st7-soft:var(--orange-soft);
   }
-  /* 青柠皮肤的环节色：只用薰衣草紫、青柠橄榄绿、鼠尾草绿这三个色相，深浅交替排开，
-     相邻环节看得出区别，整体又是一个色调，不再出现黑、粉这种跳出来的颜色。 */
+  /* 青柠皮肤的环节色：每个环节一个色相（薰衣草、青柠橄榄、青绿、雾蓝、杏橙、豆沙粉、
+     芥末黄），但饱和度和明度压在同一档——颜色各不相同，放在一起又是一个调子。 */
   :root[data-theme="lime"]{
-    --st1:#8a80cf; --st1-soft:#eeecfa;
-    --st2:#8ea43a; --st2-soft:#f0f5da;
-    --st3:#4f9585; --st3-soft:#e1f0ec;
-    --st4:#6457ad; --st4-soft:#e8e5f6;
-    --st5:#6f8c2e; --st5-soft:#e9f0d9;
-    --st6:#3f7a6e; --st6-soft:#dcebe6;
-    --st7:#a593d6; --st7-soft:#f1edfa;
+    --st1:#857bcc; --st1-soft:#eeecfa;
+    --st2:#8a9f34; --st2-soft:#f0f5da;
+    --st3:#3f9488; --st3-soft:#ddf0ec;
+    --st4:#5b8cc6; --st4-soft:#e4eef9;
+    --st5:#c48646; --st5-soft:#f8ecdd;
+    --st6:#b06c8f; --st6-soft:#f6e6ef;
+    --st7:#ad953a; --st7-soft:#f5f0da;
   }
   .chip.st1{background:var(--st1-soft);color:var(--st1);} .chip.st2{background:var(--st2-soft);color:var(--st2);}
   .chip.st3{background:var(--st3-soft);color:var(--st3);} .chip.st4{background:var(--st4-soft);color:var(--st4);}
@@ -708,7 +708,7 @@
      看不出是个输入框——改用专门的类名，不再共用那份待办清单专属的样式。 */
   .position-name-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
   .position-name-row input[type=text]{flex:1;}
-  .position-name-row input.position-location-input{flex:0 0 150px;}
+  .position-name-row input.position-location-input{flex:0 0 84px;padding:0 10px;}
   /* #positionItems 不再套在外层 .field 里了（每个岗位现在自己是一张小卡片），
      所以这里把原本靠 ".field input" 这种祖先选择器才有的基础样式，直接在
      .position-group 范围内重新声明一遍——不然这些输入框会掉回浏览器原生样式。 */
@@ -1069,14 +1069,6 @@
   .sdot.st1{background:var(--st1);} .sdot.st2{background:var(--st2);} .sdot.st3{background:var(--st3);}
   .sdot.st4{background:var(--st4);} .sdot.st5{background:var(--st5);} .sdot.st6{background:var(--st6);}
   .sdot.st7{background:var(--st7);}
-  /* 进度概览里的环节行：整行用这个环节的浅色底、文字用环节色（跟提醒事项的环节标签同一
-     套颜色），不在行里再套一个胶囊；选中时不变成黑底，而是加一圈环节色描边、字加粗。 */
-  .overview-item.ov-stage{background:var(--sc-soft);color:var(--sc);}
-  .overview-item.ov-stage:hover{background:var(--sc-soft);box-shadow:inset 0 0 0 1.5px var(--sc);}
-  .overview-item.ov-stage strong small{color:var(--sc);opacity:.6;}
-  :root .overview-item.ov-stage.active,
-  :root[data-theme="lime"] .overview-item.ov-stage.active{background:var(--sc-soft);color:var(--sc);box-shadow:inset 0 0 0 2px var(--sc);}
-  .overview-item.ov-stage.active strong{color:var(--sc);}
   .dp-chip.chip{height:auto;padding:5px 10px;font-size:12px;font-weight:800;}
   .dp-chip.chip:hover{filter:brightness(.96);}
   .overview-manage{margin-top:12px;width:100%;border:none;background:none;color:var(--text-3);font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;padding:6px;border-radius:10px;}
@@ -1719,7 +1711,6 @@
           <button data-v="pending" type="button">待审核</button>
           <button data-v="reviewed" type="button">待提交</button>
         </div>
-        <div class="field-hint">待审核：填完了但你还没检查；待提交：检查过没问题，只差投递</div>
       </div>
       <div class="field" id="progressField" style="display:none;margin-bottom:0;">
         <label>招聘进度</label>
@@ -2888,8 +2879,7 @@ function renderProgressOverview(){
     <div class="overview-grid">
       ${items.map(it=>{
         const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        const stageStyle = it.color ? ` style="--sc:var(--${it.color==='gray'?'gray-ink':it.color});--sc-soft:var(--${it.color}-soft)"` : '';
-        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${it.color?' ov-stage':''}${active?' active':''}" data-key="${it.key}"${stageStyle}${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
+        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
     <button type="button" class="overview-manage" id="manageStagesBtn">管理环节 · 改名</button>
@@ -4142,7 +4132,7 @@ function renderPositionEditor(){
       <div class="position-group" data-idx="${idx}">
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
-          <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="地点 / base，如 西安" maxlength="20">
+          <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="地点" maxlength="20">
           ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
         <textarea class="position-note-input" data-idx="${idx}" placeholder="备注">${escapeHtml(item.note||'')}</textarea>
