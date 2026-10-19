@@ -803,10 +803,6 @@
     color:var(--text-3);
     padding:8px 4px 6px;
     margin-bottom:2px;
-    position:sticky;
-    top:0;
-    background:transparent;
-    z-index:2;
   }
   .day-group .card{margin-bottom:10px;}
   .day-group .card:last-child{margin-bottom:0;}
@@ -1099,16 +1095,16 @@
 
   .role{
     position:relative;
-    display:grid;grid-template-columns:220px 1fr;gap:18px;align-items:start;
+    display:grid;grid-template-columns:minmax(220px, 40%) 1fr;gap:18px;align-items:start;
     padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
-  .role-compact{padding:8px 0;align-items:center;}
+  .role-compact{padding:8px 0;}
   .submitted-list.attention-mode .drag-handle{display:none;}
   .role-name{font-size:14px;font-weight:400;color:var(--text-2);display:flex;align-items:center;gap:5px;}
   .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
   .role-name .position-link:hover{color:var(--blue);}
-  .role-desc{color:#8194ad;font-size:12px;font-weight:750;margin-top:4px;}
+  .role-desc{color:#8194ad;font-size:13px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
     position:absolute;top:10px;right:0;opacity:0;
     background:none;border:none;color:var(--text-3);cursor:pointer;
@@ -1148,11 +1144,8 @@
   .track-add-label{margin-top:7px;font-size:11px;font-weight:850;color:var(--text-3);}
   .track-add:hover .track-add-dot{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
   .track-add:hover .track-add-label{color:var(--blue);}
-  .track-add.track-add-empty{
-    width:auto;display:inline-block;background:var(--field);color:var(--text-2);
-    font-size:12px;font-weight:700;padding:5px 12px;border-radius:var(--radius-pill);
-  }
-  .track-add.track-add-empty:hover{background:var(--blue-soft);color:var(--blue);}
+  .track-add.track-add-empty{width:auto;margin-top:2px;}
+  .track-add.track-add-empty .track-add-dot{width:20px;height:20px;}
   .dp-stage-list{display:flex;flex-wrap:wrap;gap:6px;}
   /* 日期浮层：轨道节点小菜单 + 全站所有日期输入框共用的同一个浮层（#datePop，
      挂在 body 下面，position:absolute + scrollY，跟内容一起滚动，不用监听滚动去关）。
@@ -1200,8 +1193,9 @@
   .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:10px;}
   .dp-wd{text-align:center;font-size:11px;color:var(--text-3);padding:3px 0;font-weight:750;}
   .dp-day{
-    height:32px;border:none;background:none;border-radius:9px;cursor:pointer;font-family:inherit;
+    height:32px;width:100%;padding:0;border:none;background:none;border-radius:9px;cursor:pointer;font-family:inherit;
     font-size:13px;color:var(--ink);font-weight:650;position:relative;
+    display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;
   }
   .dp-day:hover{background:var(--field);}
   .dp-day.other{color:var(--text-4);}
@@ -2736,7 +2730,9 @@ function trackVisibleSteps(p, company){
 }
 function renderTrackHtml(p, company){
   const steps = trackVisibleSteps(p, company);
-  const addBtn = `<button type="button" class="track-add${steps.length?'':' track-add-empty'}" data-id="${p.id}" title="添加环节">${steps.length ? '<span class="track-add-dot">+</span><span class="track-add-label">添加</span>' : '＋ 添加环节'}</button>`;
+  const addBtn = steps.length
+    ? `<button type="button" class="track-add" data-id="${p.id}" title="添加环节"><span class="track-add-dot">+</span><span class="track-add-label">添加</span></button>`
+    : `<button type="button" class="track-add track-add-empty" data-id="${p.id}" title="添加环节" aria-label="添加环节"><span class="track-add-dot">+</span></button>`;
   if(!steps.length) return `<div class="track">${addBtn}</div>`;
   const html = steps.map((st,i)=>`
     ${i>0 ? `<span class="seg seg-${st.status||'none'}"></span>` : ''}
