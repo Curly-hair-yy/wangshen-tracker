@@ -1044,9 +1044,14 @@
   .sdot.blue{background:var(--blue);} .sdot.teal{background:var(--teal);} .sdot.purple{background:var(--purple);}
   .sdot.green{background:var(--green);} .sdot.pink{background:var(--pink);} .sdot.indigo{background:var(--indigo);}
   .sdot.orange{background:var(--orange);}
-  /* 进度概览里的环节名用跟提醒事项一样的浅色胶囊（.chip 色系），不用实心圆点 */
-  .overview-item .ov-chip{height:24px;padding:0 10px;font-size:12px;font-weight:850;}
-  .overview-item.active .ov-chip{box-shadow:0 0 0 1.5px #fff;}
+  /* 进度概览里的环节行：整行用这个环节的浅色底、文字用环节色（跟提醒事项的环节标签同一
+     套颜色），不在行里再套一个胶囊；选中时不变成黑底，而是加一圈环节色描边、字加粗。 */
+  .overview-item.ov-stage{background:var(--sc-soft);color:var(--sc);}
+  .overview-item.ov-stage:hover{background:var(--sc-soft);box-shadow:inset 0 0 0 1.5px var(--sc);}
+  .overview-item.ov-stage strong small{color:var(--sc);opacity:.6;}
+  :root .overview-item.ov-stage.active,
+  :root[data-theme="lime"] .overview-item.ov-stage.active{background:var(--sc-soft);color:var(--sc);box-shadow:inset 0 0 0 2px var(--sc);}
+  .overview-item.ov-stage.active strong{color:var(--sc);}
   .dp-chip.chip{height:auto;padding:5px 10px;font-size:12px;font-weight:800;}
   .dp-chip.chip:hover{filter:brightness(.96);}
   .overview-manage{margin-top:12px;width:100%;border:none;background:none;color:var(--text-3);font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;padding:6px;border-radius:10px;}
@@ -1132,10 +1137,10 @@
   .role:last-child{border-bottom:0;}
   .role-compact{padding:8px 0;}
   .submitted-list.attention-mode .drag-handle{display:none;}
-  .role-name{font-size:14px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
+  .role-name{font-size:15px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
   .role-name > span{min-width:0;}
 
-  .role-desc{color:#8194ad;font-size:13px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
+  .role-desc{color:#8194ad;font-size:14px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
     position:absolute;top:10px;right:0;opacity:0;
     background:none;border:none;color:var(--text-3);cursor:pointer;
@@ -2856,7 +2861,8 @@ function renderProgressOverview(){
     <div class="overview-grid">
       ${items.map(it=>{
         const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}>${it.color?`<span class="chip ${it.color} ov-chip">${it.label}</span>`:`<span>${it.label}</span>`}<strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
+        const stageStyle = it.color ? ` style="--sc:var(--${it.color==='gray'?'gray-ink':it.color});--sc-soft:var(--${it.color}-soft)"` : '';
+        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${it.color?' ov-stage':''}${active?' active':''}" data-key="${it.key}"${stageStyle}${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
     <button type="button" class="overview-manage" id="manageStagesBtn">管理环节 · 改名</button>
