@@ -1069,12 +1069,14 @@
   .track .seg-overdue{border-top-color:var(--red);opacity:.6;}
   .track .seg-ended{background:var(--ended);}
   .track .seg-add{background:none;border-top:2px dashed var(--gray);height:0;opacity:.8;}
-  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 0 0 2px var(--sc,var(--gray));box-sizing:border-box;}
-  .track .step.done .step-dot{background:var(--sc);}
-  .track .step.current .step-dot{background:var(--sc);box-shadow:0 0 0 2px var(--sc),0 0 0 6px var(--sc-soft);}
-  .track .step.scheduled .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--orange-soft);}
-  .track .step.overdue .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--red-soft);}
-  .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
+  /* 圆点跟下面的环节标签同一套浅色：浅色底 + 环节色描边。已完成 = 浅色实底，最新
+     那个多一圈浅色光晕；还没发生的提醒 = 白底虚线圈（过期的虚线圈变红）。 */
+  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--sc,var(--gray));box-sizing:border-box;}
+  .track .step.done .step-dot{background:var(--sc-soft);}
+  .track .step.current .step-dot{background:var(--sc-soft);box-shadow:0 0 0 4px var(--sc-soft);}
+  .track .step.scheduled .step-dot{border-style:dashed;}
+  .track .step.overdue .step-dot{border-style:dashed;border-color:var(--red);background:var(--red-soft);}
+  .track .step.ended .step-dot{background:var(--gray-soft);border-color:var(--ended);}
   .track .step-label{margin-top:7px;font-size:11px;font-weight:900;text-align:center;white-space:nowrap;
     padding:1px 7px;border-radius:999px;background:var(--sc-soft,var(--gray-soft));color:var(--sc,var(--gray-ink));}
   .track .step-date{margin-top:3px;font-size:10px;font-weight:850;color:var(--text-2);white-space:nowrap;}
