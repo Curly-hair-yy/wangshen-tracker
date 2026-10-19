@@ -2688,7 +2688,7 @@ const PROVINCE_CAPITAL = {
 };
 function normalizeLocation(raw){
   const v = String(raw||'').trim();
-  const key = v.replace(/(省|自治区|壮族自治区|回族自治区|维吾尔自治区)$/, '');
+  const key = v.replace(/(壮族自治区|回族自治区|维吾尔自治区|自治区|省)$/, '');
   return PROVINCE_CAPITAL[key] || v;
 }
 // 每个地点按名字算一个固定颜色（同一套 st1–st7 色板），同一个城市在哪都是同一个颜色
