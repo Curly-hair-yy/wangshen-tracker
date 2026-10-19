@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <!-- redeploy nudge: retrigger GitHub Pages build after a stuck run -->
-<html lang="zh-CN" data-theme="apple">
+<html lang="zh-CN" data-theme="lime">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>网申追踪台账</title>
+<script>
+  // 皮肤偏好只存在这台设备的浏览器里（不进同步数据），先于样式生效，避免闪一下旧配色
+  try{ var t = localStorage.getItem('wangshen_theme'); if(t==='apple' || t==='lime') document.documentElement.setAttribute('data-theme', t); }catch(e){}
+</script>
 <style>
   /* 主题开关：只由 <html data-theme="..."> 这一个值决定。改成 "classic" 就是改版前的
      原色（逐项取自改版前的 CSS 实际值，v3 任务书第 5.1 节备份）；"apple" 是这版的
@@ -116,6 +120,60 @@
     --radius-md:var(--radius-field);
     --shadow-1:var(--shadow-card);
     --shadow-2:0 30px 80px rgba(40,70,110,.28);
+  }
+  /* "青柠"皮肤（默认）：参考稿配色——暖灰底、白卡片，青柠绿 / 薰衣草紫 / 炭黑做色块，
+     主操作的蓝色保留。顶部"换肤"按钮可以切回原来的 apple 配色。 */
+  :root[data-theme="lime"]{
+    --ink:#1d1d1f;  --text:#2a2a2c;  --muted:#8a8a8e;
+    --text-2:#5f5f64;
+    --text-3:#97979c;
+    --text-4:#b9b9bd;
+    --line:rgba(0,0,0,.07);
+
+    --blue:#0a84ff;   --blue-2:#68b7ff;  --blue-soft:#e6f2ff;
+    --blue-line:#9cc8f5;  --blue-label:#2f7fd6;
+    --orange:#e39a3b; --orange-ink:#a8650f; --orange-soft:#fbf0de;
+    --red:#d0505c;    --red-ink:#b0303d;    --red-soft:#fbe7e8;
+    --green:#86a032;  --green-soft:#eef4d6;
+    --gray:#e2e2df;   --gray-ink:#88888c;   --gray-soft:#f1f1ef;
+    --teal:#4f978a;   --teal-soft:#e2f0eb;
+    --purple:#7d75c6; --purple-soft:#ecebf8;
+    --pink:#c8658c;   --pink-soft:#f8e6ee;
+    --indigo:#3b3b41; --indigo-soft:#e8e8ea;
+    --ended:#b5b5b8;
+
+    --lime:#cfdc8e;   --lime-soft:#f2f5df;
+    --lavender:#aaa4d9; --lavender-soft:#eeedf9;
+    --charcoal:#262628;
+
+    --glass:#ffffff;
+    --glass-strong:#ffffff;
+    --glass-border:rgba(0,0,0,.05);
+    --field:#f1f1ef;
+    --seg-track:#e6e6e3;
+    --chip-neutral:#efefed;  --chip-neutral-ink:#76767a;
+    --overview-item:#f3f3f1;
+
+    --page-bg:#ebebe8;
+
+    --shadow:0 12px 32px rgba(0,0,0,.06);
+    --shadow-hover:0 18px 40px rgba(0,0,0,.10);
+    --shadow-card:0 6px 18px rgba(0,0,0,.05);
+    --shadow-company:0 12px 32px rgba(0,0,0,.06);
+
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+
+    --bg:#ebebe8;
+    --surface:var(--glass-strong);
+    --surface-2:var(--field);
+    --primary:var(--blue);
+    --primary-soft:var(--blue-soft);
+    --accent:var(--blue);
+    --accent-soft:var(--blue-soft);
+    --radius-lg:var(--radius-card);
+    --radius-md:var(--radius-field);
+    --shadow-1:var(--shadow-card);
+    --shadow-2:0 30px 80px rgba(0,0,0,.18);
   }
   *{box-sizing:border-box;}
   body{
@@ -1069,14 +1127,12 @@
   .track .seg-overdue{border-top-color:var(--red);opacity:.6;}
   .track .seg-ended{background:var(--ended);}
   .track .seg-add{background:none;border-top:2px dashed var(--gray);height:0;opacity:.8;}
-  /* 圆点跟下面的环节标签同一套浅色：浅色底 + 环节色描边。已完成 = 浅色实底，最新
-     那个多一圈浅色光晕；还没发生的提醒 = 白底虚线圈（过期的虚线圈变红）。 */
-  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--sc,var(--gray));box-sizing:border-box;}
-  .track .step.done .step-dot{background:var(--sc-soft);}
-  .track .step.current .step-dot{background:var(--sc-soft);box-shadow:0 0 0 4px var(--sc-soft);}
-  .track .step.scheduled .step-dot{border-style:dashed;}
-  .track .step.overdue .step-dot{border-style:dashed;border-color:var(--red);background:var(--red-soft);}
-  .track .step.ended .step-dot{background:var(--gray-soft);border-color:var(--ended);}
+  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #fff;box-shadow:0 0 0 2px var(--sc,var(--gray));box-sizing:border-box;}
+  .track .step.done .step-dot{background:var(--sc);}
+  .track .step.current .step-dot{background:var(--sc);box-shadow:0 0 0 2px var(--sc),0 0 0 6px var(--sc-soft);}
+  .track .step.scheduled .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--orange-soft);}
+  .track .step.overdue .step-dot{background:#fff;box-shadow:0 0 0 2px var(--sc),0 0 0 5px var(--red-soft);}
+  .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
   .track .step-label{margin-top:7px;font-size:11px;font-weight:900;text-align:center;white-space:nowrap;
     padding:1px 7px;border-radius:999px;background:var(--sc-soft,var(--gray-soft));color:var(--sc,var(--gray-ink));}
   .track .step-date{margin-top:3px;font-size:10px;font-weight:850;color:var(--text-2);white-space:nowrap;}
@@ -1397,6 +1453,38 @@
     color:var(--primary);
   }
   .sync-banner .actions{display:flex;gap:8px;flex-shrink:0;}
+  /* ---- 青柠皮肤：把组件里写死的偏蓝灰色换成中性色，再加几处参考稿里的色块 ---- */
+  :root[data-theme="lime"] header .sub,
+  :root[data-theme="lime"] .stat-card .label,
+  :root[data-theme="lime"] .view-tab,
+  :root[data-theme="lime"] .overview-item,
+  :root[data-theme="lime"] .company-date{color:var(--text-2);}
+  :root[data-theme="lime"] .date-line,
+  :root[data-theme="lime"] .role-desc,
+  :root[data-theme="lime"] .job-note,
+  :root[data-theme="lime"] .toolbar input[type=text]::placeholder{color:var(--text-3);}
+  :root[data-theme="lime"] .view-tab.active,
+  :root[data-theme="lime"] .btn-ghost{color:var(--ink);}
+  :root[data-theme="lime"] .btn-primary{background:var(--blue);box-shadow:0 10px 22px rgba(10,132,255,.22);}
+  :root[data-theme="lime"] .stat-card{backdrop-filter:none;-webkit-backdrop-filter:none;border:none;}
+  :root[data-theme="lime"] .stat-card:nth-child(1){background:var(--lime) repeating-linear-gradient(135deg,rgba(255,255,255,.22) 0 2px,transparent 2px 11px);}
+  :root[data-theme="lime"] .stat-card:nth-child(2){background:var(--lavender) repeating-linear-gradient(135deg,rgba(255,255,255,.2) 0 2px,transparent 2px 11px);}
+  :root[data-theme="lime"] .stat-card:nth-child(3){background:var(--charcoal);}
+  :root[data-theme="lime"] .stat-card:nth-child(1) .num,
+  :root[data-theme="lime"] .stat-card:nth-child(2) .num{color:var(--ink);}
+  :root[data-theme="lime"] .stat-card:nth-child(1) .label,
+  :root[data-theme="lime"] .stat-card:nth-child(2) .label{color:rgba(29,29,31,.72);}
+  :root[data-theme="lime"] .stat-card:nth-child(3) .num{color:#fff;}
+  :root[data-theme="lime"] .stat-card:nth-child(3) .label{color:rgba(255,255,255,.7);}
+  :root[data-theme="lime"] .column{background:#f7f7f5;border-color:rgba(0,0,0,.04);box-shadow:none;}
+  :root[data-theme="lime"] .column[data-status="todo"]{background:var(--lime-soft);}
+  :root[data-theme="lime"] .column[data-status="inprogress"]{background:var(--lavender-soft);}
+  :root[data-theme="lime"] .col-dot.todo{background:#a9bb4c;}
+  :root[data-theme="lime"] .col-dot.inprogress{background:var(--purple);}
+  :root[data-theme="lime"] .overview-item.active{background:var(--charcoal);box-shadow:0 0 0 2px var(--charcoal);color:#fff;}
+  :root[data-theme="lime"] .progress-company{border-color:rgba(0,0,0,.04);}
+  .theme-btn{display:inline-flex;align-items:center;gap:6px;}
+  .theme-btn .swatch{width:12px;height:12px;border-radius:50%;background:conic-gradient(#cfdc8e 0 33%,#aaa4d9 0 66%,#262628 0);}
 </style>
 </head>
 <body>
@@ -1410,6 +1498,7 @@
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
       <div class="today" id="todayLabel"></div>
       <div class="top-actions">
+        <button class="sync-indicator theme-btn" id="themeToggleBtn" type="button" title="切换配色"><span class="swatch"></span><span id="themeToggleText">换肤</span></button>
         <button class="sync-indicator" id="recycleBinBtn" type="button" title="回收站">🗑 回收站</button>
         <button class="sync-indicator" id="syncIndicatorBtn" data-state="disconnected" type="button" title="点击打开同步设置">
           <span class="dot"></span>
@@ -2565,10 +2654,17 @@ function computeTrack(progress, dates, stageDeadlines){
 // 公司级的环节提醒（比如"整个公司统一群面"）如果这个岗位自己没单独设置同一个
 // 环节的提醒，轨道也要按公司级那份时间显示——不然公司标题下面的胶囊已经在提醒了，
 // 下面每个岗位的轨道却还是一片空白，看着不一致。岗位自己设置过的优先于公司级的。
+// 岗位在某个环节上存了 {hidden:true}：表示用户在这个岗位上把公司级的这个环节删掉了，
+// 公司级的提醒/完成不再套到这个岗位上（公司那条本身不动，其它岗位照常）。
+function stageHiddenOnPosition(position, key){
+  const v = position.stageDeadlines && position.stageDeadlines[key];
+  return !!(v && typeof v==='object' && v.hidden);
+}
 function effectiveStageDeadlines(position, company){
   const merged = {};
   if(company){
     PROGRESS_STAGES.forEach(s=>{
+      if(stageHiddenOnPosition(position, s.key)) return;
       const entry = companyStageDeadlineEntry(company, s.key);
       if(entry && entry.date && !entry.done) merged[s.key] = {date: entry.date, note: entry.note};
     });
@@ -2592,7 +2688,7 @@ function effectiveProgress(position, company){
   const dates = {...(position.progressDates||{})};
   if(company){
     PROGRESS_STAGES.forEach(s=>{
-      if(progress[s.key]) return;
+      if(progress[s.key] || stageHiddenOnPosition(position, s.key)) return;
       const entry = companyStageDeadlineEntry(company, s.key);
       if(entry && entry.done){
         progress[s.key] = true;
@@ -4755,25 +4851,16 @@ function openStageNodePop(stepEl, pos, initialKey){
   let suggestions = [];
   let err = '';
   const labelOf = k=>{ const st = PROGRESS_STAGES.find(s=>s.key===k); return st ? st.label : k; };
-  // 这个环节如果是公司级"全部岗位通用"的（比如统一测评），删的时候整家公司一起删：
-  // 公司那条提醒本身 + 当初标记完成时顺带给各岗位打的勾（日期跟公司完成日期一致的）。
-  const companyScope = p=>{
+  const hasCompanyStage = p=>{
     const c = getCompany(p.companyId);
-    const entry = c ? companyStageDeadlineEntry(c, key) : null;
-    if(!entry) return null;
-    const siblings = positions.filter(x=>!x.deleted && x.companyId===c.id && x.status==='submitted');
-    return {company:c, entry, siblings};
+    return !!(c && companyStageDeadlineEntry(c, key));
   };
   const toolsHtml = p=>{
-    const own = positionHasOwnStage(p, key);
-    const cs = companyScope(p);
-    if(!own && !cs) return '';
-    const removeLabel = armedRemove
-      ? (cs ? `再点一下确认（全公司 ${cs.siblings.length} 个岗位都去掉）` : '再点一下确认删除')
-      : (cs ? '删掉这个环节（全公司）' : '从这个岗位删掉');
+    const own = positionHasOwnStage(p, key) && !stageHiddenOnPosition(p, key);
+    if(!own && !hasCompanyStage(p)) return '';
     return `<div class="dp-tools">
-      ${own && !cs ? `<button type="button" class="dp-tool" data-action="relabel">换成别的环节</button>` : ''}
-      <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${removeLabel}</button>
+      ${own ? `<button type="button" class="dp-tool" data-action="relabel">换环节</button>` : ''}
+      <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${armedRemove?'确认删除':'删除'}</button>
     </div>`;
   };
   openDatePop(stepEl, {
@@ -4811,15 +4898,13 @@ function openStageNodePop(stepEl, pos, initialKey){
       const status = done
         ? `<div class="dp-done-row"><span>✓ 已完成</span></div>`
         : (value ? `<div class="dp-done-row dp-remind-row"><span>⏰ 提醒中</span></div>` : '');
-      let note = '';
-      if(done && !own) note = '这是"全部岗位通用"的公司级环节，点错了可以用上面的按钮整家公司一起删掉。';
-      else if(!done && !ownEntry && effEntry) note = '当前显示的是公司级通用提醒；在这里改只改这个岗位。';
+      const note = '';
       return {
         title: labelOf(key), sub, mode:'datetime', value, quick: dpQuickAll(),
         defaultTime: d=>d<=todayDateStr() ? dpNowTime() : '23:59',
         topHtml: toolsHtml(p) + status,
         note,
-        section: '选过去的日期 = 已完成，选将来的时间 = 提醒',
+        section: '过去 = 已完成 · 将来 = 提醒',
       };
     },
     onAction(action){
@@ -4832,31 +4917,15 @@ function openStageNodePop(stepEl, pos, initialKey){
       if(action==='relabel-cancel'){ mode = 'normal'; return; }
       if(action==='remove'){
         if(!armedRemove){ armedRemove = true; return; }
-        const cs = companyScope(p);
-        const now = new Date().toISOString();
-        const wipe = x=>{
-          if(x.progress) delete x.progress[key];
-          if(x.progressDates) delete x.progressDates[key];
-          if(x.stageDeadlines) delete x.stageDeadlines[key];
-          x.updatedAt = now;
-          queueUpsert('positions', x.id);
-        };
-        if(cs){
-          delete cs.company.stageDeadlines[key];
-          cs.company.updatedAt = now;
-          queueUpsert('companies', cs.company.id);
-          cs.siblings.forEach(x=>{
-            if(x.id===p.id) return;
-            const d = (x.progressDates||{})[key];
-            const synced = x.progress && x.progress[key] && (!d || d===cs.entry.doneDate);
-            if(synced && !(x.stageDeadlines||{})[key]) wipe(x);
-          });
-        }
-        wipe(p);
+        // 只删这一个岗位：删掉自己的勾/日期/提醒；如果是公司级通用的环节，在这个岗位上
+        // 记一个 hidden 标记，公司那条和其它岗位都不受影响。
+        delete p.progress[key];
+        delete p.progressDates[key];
+        if(!p.stageDeadlines) p.stageDeadlines = {};
+        delete p.stageDeadlines[key];
+        if(hasCompanyStage(p)) p.stageDeadlines[key] = {date:'', note:'', hidden:true};
         closeDatePop();
-        saveData();
-        flushQueue();
-        renderAll();
+        saveStagePosition(p);
         return;
       }
       if(action==='relabel-to' || action.startsWith('relabel-pick:')){
@@ -4893,6 +4962,7 @@ function openStageNodePop(stepEl, pos, initialKey){
       if(!p.progressDates) p.progressDates = {};
       const [datePart, timePart] = v.split('T');
       const ts = timePart ? new Date(v).getTime() : new Date(datePart+'T00:00:00').getTime();
+      if(stageHiddenOnPosition(p, key)) delete p.stageDeadlines[key];
       if(ts <= Date.now()){
         if(!p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, true);
         p.progressDates[key] = datePart;
@@ -5367,6 +5437,13 @@ function restoreDeletedPosition(id){
   renderAll();
 }
 document.getElementById('recycleBinBtn').addEventListener('click', openRecycleBin);
+// 换肤：青柠（默认）和原来的 apple 配色之间切换，只记在这台设备的浏览器里。
+document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
+  const next = document.documentElement.getAttribute('data-theme')==='lime' ? 'apple' : 'lime';
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('wangshen_theme', next); }catch(e){}
+  positionTabSlider();
+});
 document.getElementById('recycleBinClose').addEventListener('click', closeRecycleBin);
 document.getElementById('recycleBinCloseBtn').addEventListener('click', closeRecycleBin);
 recycleBinOverlay.addEventListener('click', closeRecycleBin);
