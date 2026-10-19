@@ -513,14 +513,18 @@
     transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
   }
   .card:hover{transform:translateY(-4px); background:var(--glass-strong); box-shadow:var(--shadow-hover);}
+  /* 星星 | 公司名 | 右侧标签（地点、截止、链接）三栏：公司名再长也只在中间栏换行，
+     右边的标签固定在最右一列，不会盖住名字。 */
   .card .company-row{
-    display:flex;
-    align-items:center;
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:start;
     gap:8px;
-    flex-wrap:wrap;
     padding-right:22px;
     margin-bottom:12px;
   }
+  .card .company-row .favorite-star{margin-top:3px;}
+  .card .company-row .right-tags{position:static;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;}
   .card .company{font-size:18px;font-weight:950;letter-spacing:-.02em;}
   .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;color:var(--text-2);flex-shrink:0;display:flex;align-items:center;}
   .company-row .company-link:hover{color:var(--blue);}
@@ -1197,7 +1201,7 @@
   .track-add-label{margin-top:7px;font-size:11px;font-weight:850;color:var(--text-3);}
   .track-add:hover .track-add-dot{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
   .track-add:hover .track-add-label{color:var(--blue);}
-  .track-add.track-add-inline{width:auto;display:inline-grid;margin-left:4px;opacity:.55;transition:opacity .15s ease;}
+  .track-add.track-add-inline{width:auto;display:inline-grid;opacity:.55;transition:opacity .15s ease;}
   .role:hover .track-add-inline{opacity:1;}
   .dp-stage-list{display:flex;flex-wrap:wrap;gap:6px;}
   /* 日期浮层：轨道节点小菜单 + 全站所有日期输入框共用的同一个浮层（#datePop，
@@ -1580,9 +1584,16 @@
   }
   .back-top.show{opacity:1;pointer-events:auto;transform:none;}
   .back-top:hover{filter:brightness(1.15);}
-  .loc-tag{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 8px 0 6px;margin-left:6px;border-radius:999px;
-    background:var(--lavender-soft,var(--blue-soft));color:var(--purple,var(--blue));font-size:11px;font-weight:800;
-    vertical-align:1px;white-space:nowrap;}
+  .loc-tag{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 9px 0 7px;border-radius:999px;
+    background:var(--st1-soft);color:var(--st1);font-size:12px;font-weight:800;vertical-align:1px;white-space:nowrap;flex-shrink:0;}
+  .position-detail-name .loc-tag{margin-left:6px;}
+  .loc-tag.st2{background:var(--st2-soft);color:var(--st2);} .loc-tag.st3{background:var(--st3-soft);color:var(--st3);}
+  .loc-tag.st4{background:var(--st4-soft);color:var(--st4);} .loc-tag.st5{background:var(--st5-soft);color:var(--st5);}
+  .loc-tag.st6{background:var(--st6-soft);color:var(--st6);} .loc-tag.st7{background:var(--st7-soft);color:var(--st7);}
+  /* 岗位名前面留一个固定宽度的位置给"+"：有加号的、没加号的、备注，左边缘都对齐在同一条线上 */
+  .role-name{position:relative;padding-left:28px;}
+  .role-desc{padding-left:28px;}
+  .role-name .track-add-inline{position:absolute;left:0;top:1px;margin:0;}
   .loc-tag svg{width:11px;height:11px;flex-shrink:0;}
   .theme-btn{display:inline-flex;align-items:center;gap:6px;}
   .theme-btn .swatch{width:12px;height:12px;border-radius:50%;background:conic-gradient(#cfdc8e 0 33%,#aaa4d9 0 66%,#262628 0);}
@@ -2484,7 +2495,7 @@ function renderGroupedCards(list, status, reviewStage){
         return `
           <div class="position-line-block">
             <div class="position-line">
-              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}${locationTag(p)}</span>
+              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
               <span class="position-line-meta">
                 ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
               </span>
@@ -2497,13 +2508,14 @@ function renderGroupedCards(list, status, reviewStage){
       return `
         <div class="card" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
           <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}" title="删除这张卡里的所有岗位">&times;</button>
-          <div class="right-tags">
-            ${cardDeadlineBadge(g.list)}
-            ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
-          </div>
           <div class="company-row">
             <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
+            <div class="right-tags">
+              ${locationTagsFor(g.list)}
+              ${cardDeadlineBadge(g.list)}
+              ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
+            </div>
           </div>
           <div class="position-list">${positionLines}</div>
           ${totalCount>0 ? `<div class="meta-row" style="justify-content:flex-end;"><span class="chip gray">待办 ${doneCount}/${totalCount}</span></div>` : ''}
@@ -2665,7 +2677,19 @@ function computeSubmittedGroups(){
 // 显示简写，进度概览那边继续用完整的"Offered"。
 // 岗位地点（base）小标签，跟在岗位名后面
 function locationTag(p){
-  return p && p.location ? `<span class="loc-tag" title="工作地点">${ICON_PIN}${escapeHtml(p.location)}</span>` : '';
+  return p && p.location ? `<span class="loc-tag ${locationColor(p.location)}" title="工作地点">${ICON_PIN}${escapeHtml(p.location)}</span>` : '';
+}
+// 每个地点按名字算一个固定颜色（同一套 st1–st7 色板），同一个城市在哪都是同一个颜色
+function locationColor(name){
+  let h = 7;
+  for(const ch of String(name)) h = (h*131 + ch.codePointAt(0)) >>> 0;
+  return STAGE_COLOR_POOL[h % STAGE_COLOR_POOL.length];
+}
+// 公司卡右上角：这张卡里所有岗位的地点去重后各显示一个
+function locationTagsFor(list){
+  const seen = [];
+  list.forEach(p=>{ const l = (p.location||'').trim(); if(l && !seen.includes(l)) seen.push(l); });
+  return seen.map(l=>`<span class="loc-tag ${locationColor(l)}" title="工作地点">${ICON_PIN}${escapeHtml(l)}</span>`).join('');
 }
 function trackStepLabel(key){
   if(key==='offered') return 'Offer';
@@ -2979,8 +3003,8 @@ function renderSubmittedList(){
         <button class="role-del-btn" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
         <div>
           <div class="role-name">
-            <span>${escapeHtml(p.position||'（未命名岗位）')}${locationTag(p)}</span>
             ${compact ? `<button type="button" class="track-add track-add-inline" data-id="${p.id}" title="添加环节" aria-label="添加环节"><span class="track-add-dot">+</span></button>` : ''}
+            <span>${escapeHtml(p.position||'（未命名岗位）')}</span>
             ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
           </div>
           ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
@@ -3012,6 +3036,7 @@ function renderSubmittedList(){
           </div>
           <div class="company-head-right">
             ${ended ? `<span class="chip gray">已结束</span>` : ''}
+            ${locationTagsFor(g.list)}
             <span class="company-date">${dateLabel}</span>
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </div>
