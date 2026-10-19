@@ -2423,7 +2423,7 @@ function computeSubmittedGroups(){
 
   // 进度概览左侧栏可以点着筛：点"收藏公司"只看收藏的公司；点某个环节（比如"测评"）
   // 只看"当前最新进度就是这个环节"的公司——语义跟概览数字的统计口径完全一致，点哪个
-  // 数字就精确看到那几家。两个筛选可以同时生效（都是"必须满足"的关系）。
+  // 数字就精确看到那几家。一次只会有一个筛选生效（见 renderProgressOverview 的点击处理）。
   const overviewFilteredGroups = orderedListGroups.filter(g=>{
     if(submittedAttentionFilter && computeCompanyCandidates(g, getCompany(g.companyId)).length===0) return false;
     if(submittedFavoriteFilter){
@@ -2667,17 +2667,16 @@ function renderProgressOverview(){
   // 的统计口径完全一致（见上面 favCount/stageCounts 怎么数的）。
   el.querySelectorAll('.overview-item').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      // 一次只选一项：点一项就只按这一项筛（其它的取消），再点一下已选中的就回到"全部"。
       const key = btn.dataset.key;
-      if(key==='all'){
-        submittedAttentionFilter = false;
-        submittedFavoriteFilter = false;
-        submittedStageFilter = null;
-      } else if(key==='attention'){
-        submittedAttentionFilter = !submittedAttentionFilter;
-      } else if(key==='favorite'){
-        submittedFavoriteFilter = !submittedFavoriteFilter;
-      } else {
-        submittedStageFilter = submittedStageFilter===key ? null : key;
+      const wasActive = btn.classList.contains('active');
+      submittedAttentionFilter = false;
+      submittedFavoriteFilter = false;
+      submittedStageFilter = null;
+      if(key!=='all' && !wasActive){
+        if(key==='attention') submittedAttentionFilter = true;
+        else if(key==='favorite') submittedFavoriteFilter = true;
+        else submittedStageFilter = key;
       }
       renderSubmittedList();
     });
