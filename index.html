@@ -979,7 +979,12 @@
     color:var(--text-4);font-size:14px;cursor:grab;touch-action:none;user-select:none;opacity:.6;
   }
   .position-detail-item:hover .position-drag-handle{opacity:1;color:var(--text-2);}
-  .position-detail-item.dragging{box-shadow:0 12px 30px rgba(0,0,0,.16);transform:scale(1.01);z-index:5;}
+  /* 拖动时：被拖的卡片浮起来跟手（不加过渡，保证跟手）；其它卡片让位时用顺滑的缓动；
+     松手落位时被拖卡片也缓动过去 */
+  .position-detail-item.dragging{box-shadow:0 16px 36px rgba(0,0,0,.18);z-index:5;transition:box-shadow .15s ease;cursor:grabbing;}
+  .position-detail-item.drag-shift{transition:transform .22s cubic-bezier(.2,.8,.2,1);}
+  .position-detail-item.dragging.drag-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;box-shadow:var(--shadow-1);}
+  body:has(.position-detail-item.dragging){user-select:none;cursor:grabbing;}
   .position-detail-item.dragging .position-drag-handle{cursor:grabbing;}
   #companyDetailBody{padding-left:18px;}
   .position-detail-item:hover .position-detail-del{display:flex;align-items:center;justify-content:center;}
@@ -5683,53 +5688,102 @@ function openCompanyDetail(companyId, status, reviewStage){
   companyDetailOverlay.classList.add('active');
   companyDetailDrawer.classList.add('active');
 }
-// 公司详情里拖岗位调顺序：按住左边的 ⠿ 上下拖，鼠标和手指都能用（用 pointer 事件，不用
-// HTML5 拖放——那个在手机上不灵）。松手后把这张卡里所有岗位按新顺序写 sortIndex 0,1,2…，
-// 看板、已提交页、公司详情都按这个顺序显示。
+// 公司详情里拖岗位调顺序：按住左边的 ⠿ 上下拖。被拖的卡片一直跟着手指/鼠标走（只改
+// transform，不在拖动途中改 DOM，所以不会一跳一跳的）；其它卡片根据位置顺滑地上下让开；
+// 松手后被拖的卡片缓动落进空位，动画结束再真正调整 DOM 顺序并保存 sortIndex。拖到弹窗
+// 上下边缘附近会自动滚动。用 pointer 事件，鼠标、手指都能用。
 let positionDragJustEnded = false;
 function setupPositionDragSort(companyId, status, reviewStage){
   const body = document.getElementById('companyDetailBody');
   body.querySelectorAll('.position-drag-handle').forEach(handle=>{
     handle.addEventListener('click', e=>e.stopPropagation());
     handle.addEventListener('pointerdown', e=>{
+      if(e.button!==undefined && e.button!==0) return;
       e.preventDefault();
       e.stopPropagation();
       const item = handle.closest('.position-detail-item');
-      item.classList.add('dragging');
-      try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+      const items = [...body.querySelectorAll('.position-detail-item')];
+      const from = items.indexOf(item);
+      const scroller = item.closest('.drawer-body') || document.scrollingElement;
+      const scroll0 = scroller.scrollTop;
+      const rects = items.map(el=>el.getBoundingClientRect());
+      const gap = items.length>1 ? Math.max(0, rects[1].top - rects[0].bottom) : 10;
+      const slot = rects[from].height + gap;
+      const startY = e.clientY;
+      let lastY = e.clientY;
+      let to = from;
       let moved = false;
-      const onMove = ev=>{
-        const items = [...body.querySelectorAll('.position-detail-item')];
-        const others = items.filter(x=>x!==item);
-        let before = null;
-        for(const o of others){
-          const r = o.getBoundingClientRect();
-          if(ev.clientY < r.top + r.height/2){ before = o; break; }
-        }
-        const currentNext = item.nextElementSibling;
-        if(before===currentNext || (before===null && !currentNext)) return;
-        moved = true;
-        if(before) body.insertBefore(item, before); else body.appendChild(item);
+      let rafId = null;
+      try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+      item.classList.add('dragging');
+      items.forEach(el=>{ if(el!==item) el.classList.add('drag-shift'); });
+
+      const layout = ()=>{
+        const dy = lastY - startY + (scroller.scrollTop - scroll0);
+        if(Math.abs(dy)>3) moved = true;
+        item.style.transform = `translateY(${dy}px) scale(1.02)`;
+        // 被拖卡片中心现在在哪（按开始时的坐标系算）
+        const center = rects[from].top + rects[from].height/2 + dy;
+        to = from;
+        items.forEach((el,j)=>{
+          if(j===from) return;
+          const mid = rects[j].top + rects[j].height/2;
+          let shift = 0;
+          if(j<from && center<mid){ shift = slot; to--; }
+          else if(j>from && center>mid){ shift = -slot; to++; }
+          el.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
       };
+      // 拖到弹窗上下边缘 48px 以内时自动滚动，越靠边滚得越快
+      const autoScroll = ()=>{
+        const r = scroller===document.scrollingElement ? {top:0, bottom:innerHeight} : scroller.getBoundingClientRect();
+        const edge = 48;
+        let v = 0;
+        if(lastY < r.top + edge) v = -Math.ceil((r.top + edge - lastY)/4);
+        else if(lastY > r.bottom - edge) v = Math.ceil((lastY - (r.bottom - edge))/4);
+        if(v){ scroller.scrollTop += v; layout(); }
+        rafId = requestAnimationFrame(autoScroll);
+      };
+      rafId = requestAnimationFrame(autoScroll);
+
+      const onMove = ev=>{ lastY = ev.clientY; layout(); };
       const onUp = ()=>{
         handle.removeEventListener('pointermove', onMove);
         handle.removeEventListener('pointerup', onUp);
         handle.removeEventListener('pointercancel', onUp);
-        item.classList.remove('dragging');
-        if(!moved) return;
-        positionDragJustEnded = true;
-        setTimeout(()=>{ positionDragJustEnded = false; }, 0);
-        const now = new Date().toISOString();
-        [...body.querySelectorAll('.position-detail-item')].forEach((el, idx)=>{
-          const pos = positions.find(x=>x.id===el.dataset.id);
-          if(!pos || pos.sortIndex===idx) return;
-          pos.sortIndex = idx;
-          pos.updatedAt = now;
-          queueUpsert('positions', pos.id);
-        });
-        saveData();
-        flushQueue();
-        renderAll();
+        cancelAnimationFrame(rafId);
+        // 落位：算出空位相对原位置的偏移，让被拖卡片缓动过去
+        let offset = 0;
+        if(to>from) for(let j=from+1;j<=to;j++) offset += rects[j].height + gap;
+        if(to<from) for(let j=to;j<from;j++) offset -= rects[j].height + gap;
+        offset -= (scroller.scrollTop - scroll0);
+        item.classList.add('drag-settle');
+        item.style.transform = `translateY(${offset + (scroller.scrollTop - scroll0)}px)`;
+        const finish = ()=>{
+          // 先关掉过渡再清 transform、调 DOM 顺序：视觉位置不变，不会再"弹"一下
+          items.forEach(el=>{ el.style.transition = 'none'; el.style.transform = ''; el.classList.remove('drag-shift','dragging','drag-settle'); });
+          const order = items.filter(el=>el!==item);
+          order.splice(to, 0, item);
+          if(moved && to!==from) order.forEach(el=>body.appendChild(el));
+          void body.offsetHeight;
+          items.forEach(el=>{ el.style.transition = ''; });
+          if(!moved || to===from) return;
+          positionDragJustEnded = true;
+          setTimeout(()=>{ positionDragJustEnded = false; }, 0);
+          const now = new Date().toISOString();
+          order.forEach((el, idx)=>{
+            const pos = positions.find(x=>x.id===el.dataset.id);
+            if(!pos || pos.sortIndex===idx) return;
+            pos.sortIndex = idx;
+            pos.updatedAt = now;
+            queueUpsert('positions', pos.id);
+          });
+          saveData();
+          flushQueue();
+          renderAll();
+        };
+        if(moved){ positionDragJustEnded = true; setTimeout(()=>{ positionDragJustEnded = false; }, 250); }
+        setTimeout(finish, moved ? 200 : 0);
       };
       handle.addEventListener('pointermove', onMove);
       handle.addEventListener('pointerup', onUp);
