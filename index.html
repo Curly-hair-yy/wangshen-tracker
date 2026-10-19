@@ -1045,20 +1045,85 @@
   .track .step.current .step-label,.track .step.current .step-date{color:var(--blue);}
   .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
   .track .step.ended .step-label,.track .step.ended .step-date{color:var(--gray-ink);}
-  /* 点环节文字/日期时，不再弹系统日历选择器（滚轮选时间不好用），改成让一个
-     全局共用的输入框浮出来变成可以直接打字输入的小框，跟原生 datetime-local
-     输入框一样支持键盘直接敲数字，输完点别处/切走焦点就自动收起。用普通的
-     position:absolute（挂在 body 下面，不在任何 .step 里面），top/left 由
-     JS 按点击节点的实际页面坐标现算（含 scrollY/scrollX，见 renderSubmittedList
-     里的点击处理）——这样页面滚动的时候它会跟着内容一起挪动，不会跟原来的
-     节点越离越远；也不会因为挂在具体某个岗位的轨道节点里，在好几个岗位挨着
-     的时候盖到下一行。 */
-  .stage-deadline-quick-edit{
-    display:none;position:absolute;padding:5px 8px;
-    background:var(--glass-strong);border:1.5px solid var(--blue);border-radius:8px;
-    font-size:12px;color:var(--ink);box-shadow:var(--shadow-hover);z-index:200;
+  /* 日期浮层：轨道节点小菜单 + 全站所有日期输入框共用的同一个浮层（#datePop，
+     挂在 body 下面，position:absolute + scrollY，跟内容一起滚动，不用监听滚动去关）。
+     原生 date/datetime-local 输入框还在、只是藏起来当"数据源"，各处读 .value 的
+     老代码不用改；看得见的是旁边那个 .dp-trigger 按钮。 */
+  .track .step:hover .step-dot{transform:scale(1.12);}
+  .track .step-dot{transition:transform .12s ease;}
+  .track .step.dp-anchor .step-dot{transform:scale(1.18);}
+  .dp-native-hidden{display:none !important;}
+  .date-pop{
+    display:none;position:absolute;z-index:300;width:292px;box-sizing:border-box;
+    background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:18px;
+    box-shadow:var(--shadow-2);padding:14px;color:var(--ink);font-size:13px;
   }
-  .stage-deadline-quick-edit.open{display:inline-block;}
+  .date-pop.open{display:block;}
+  .dp-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;}
+  .dp-head-text{flex:1;min-width:0;}
+  .dp-title{font-size:15px;font-weight:900;}
+  .dp-sub{font-size:12px;color:var(--text-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dp-close{border:none;background:none;color:var(--text-3);font-size:18px;line-height:1;cursor:pointer;padding:2px 4px;border-radius:8px;}
+  .dp-close:hover{color:var(--ink);background:var(--field);}
+  .dp-action{
+    width:100%;height:40px;border:none;border-radius:12px;cursor:pointer;font-family:inherit;
+    font-size:14px;font-weight:850;background:var(--blue);color:#fff;margin-bottom:12px;
+  }
+  .dp-action:hover{filter:brightness(1.08);}
+  .dp-done-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 10px;border-radius:12px;background:var(--blue-soft);color:var(--blue);font-weight:850;}
+  .dp-done-row span{flex:1;}
+  .dp-undo{border:none;background:none;color:var(--text-2);font-size:12px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0;}
+  .dp-note{font-size:12px;color:var(--text-2);background:var(--field);border-radius:10px;padding:6px 9px;margin-bottom:10px;line-height:1.5;}
+  .dp-section{font-size:12px;font-weight:850;color:var(--text-2);margin:2px 0 8px;display:flex;justify-content:space-between;align-items:center;}
+  .dp-section b{color:var(--ink);font-weight:850;}
+  .dp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .dp-chip{
+    border:none;background:var(--field);color:var(--text);border-radius:999px;
+    padding:5px 10px;font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;
+  }
+  .dp-chip:hover{background:var(--blue-soft);color:var(--blue);}
+  .dp-chip.on{background:var(--blue);color:#fff;}
+  .dp-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+  .dp-cal-head strong{font-size:13px;}
+  .dp-nav{border:none;background:none;width:28px;height:28px;border-radius:8px;cursor:pointer;color:var(--text-2);font-size:16px;}
+  .dp-nav:hover{background:var(--field);color:var(--ink);}
+  .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:10px;}
+  .dp-wd{text-align:center;font-size:11px;color:var(--text-3);padding:3px 0;font-weight:750;}
+  .dp-day{
+    height:32px;border:none;background:none;border-radius:9px;cursor:pointer;font-family:inherit;
+    font-size:13px;color:var(--ink);font-weight:650;position:relative;
+  }
+  .dp-day:hover{background:var(--field);}
+  .dp-day.other{color:var(--text-4);}
+  .dp-day.weekend{color:var(--text-2);}
+  .dp-day.other.weekend{color:var(--text-4);}
+  .dp-day.today{box-shadow:inset 0 0 0 1.5px var(--blue-line);}
+  .dp-day.sel{background:var(--blue);color:#fff;font-weight:900;}
+  .dp-time{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .dp-time-input{
+    width:64px;height:28px;border:none;border-radius:999px;background:var(--field);text-align:center;
+    font-size:12px;font-weight:750;font-family:inherit;color:var(--ink);box-sizing:border-box;
+  }
+  .dp-time-input:focus{outline:none;box-shadow:0 0 0 2px var(--blue-soft);background:var(--glass-strong);}
+  .dp-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;gap:8px;}
+  .dp-current{font-size:12px;color:var(--text-2);font-weight:750;}
+  .dp-clear{border:none;background:none;color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;padding:0;}
+  .dp-trigger{
+    display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit;text-align:left;
+    border:none;background:var(--field);color:var(--text);border-radius:16px;height:44px;padding:0 14px;
+    font-size:14px;box-sizing:border-box;
+  }
+  .dp-trigger:before{content:"";width:14px;height:14px;flex-shrink:0;opacity:.6;background:currentColor;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E") center/contain no-repeat;}
+  .dp-trigger.empty{color:var(--text-3);}
+  .dp-trigger:hover{box-shadow:0 0 0 3px var(--blue-soft);}
+  .dp-trigger:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;}
+  .field .dp-trigger{width:100%;}
+  .date-filter-group .dp-trigger{font-size:13px;font-weight:750;}
+  .progress-date-row .dp-trigger{flex:1;min-width:0;justify-content:flex-end;height:auto;padding:3px 0;background:transparent;font-size:12px;color:var(--text-2);}
+  .progress-date-row .dp-trigger:hover{box-shadow:none;color:var(--blue);}
+  @media(max-width:520px){ .date-pop{width:calc(100vw - 32px);} }
   @media(max-width:860px){
     .progress-layout{grid-template-columns:1fr;}
     .overview{position:static;}
@@ -1630,7 +1695,7 @@
   </div>
 </div>
 
-<input type="datetime-local" id="stageDeadlineQuickEdit" class="stage-deadline-quick-edit" tabindex="-1">
+<div class="date-pop" id="datePop" role="dialog" aria-label="选择日期"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -2692,29 +2757,15 @@ function renderSubmittedList(){
       }
     });
   });
-  // 轨道节点：点圆点/空白处标记到达（打勾等效），点文字或日期让全局共用的那个
-  // 日期输入框浮出来、摆到点击节点旁边，直接打字输入，用来单独设置/修改这个
-  // 环节的提醒截止时间——两者是两回事。原来这里调用 showPicker() 弹系统日历+
-  // 滚轮选时间，用户反馈滚轮选分钟很难用，改成打字输入；见 stageDeadlineQuickEdit
-  // 相关代码（不在这个函数里，是页面级别只有一份，挂在 body 下面，随内容滚动）。
+  // 轨道节点：点哪里都弹出同一个节点小菜单（见 openStageNodePop）——里面可以一键
+  // 标记完成/撤销、改完成日期、设提醒时间。原来点圆点直接打勾、点文字才改日期，
+  // 两个点击区域很小又长得一样，经常点错。
   list.querySelectorAll('.track .step').forEach(stepEl=>{
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
       const pos = positions.find(p=>p.id===stepEl.dataset.id);
       if(!pos) return;
-      const key = stepEl.dataset.key;
-      if(e.target.closest('.step-label, .step-date')){
-        openStageDeadlineQuickEdit(stepEl, pos, key);
-        return;
-      }
-      if(!pos.progress) pos.progress = {};
-      if(!pos.progressDates) pos.progressDates = {};
-      setProgressChecked(pos.progress, pos.progressDates, key, !pos.progress[key]);
-      pos.updatedAt = new Date().toISOString();
-      saveData();
-      queueUpsert('positions', pos.id);
-      flushQueue();
-      renderAll();
+      openStageNodePop(stepEl, pos, stepEl.dataset.key);
     });
   });
   list.querySelectorAll('.role').forEach(row=>{
@@ -3961,6 +4012,7 @@ function renderProgressCheckboxes(){
       inp.addEventListener('change', ()=>{
         progressDatesDraft[inp.dataset.key] = inp.value;
       });
+      enhanceDateInput(inp);
     });
   }
 
@@ -3998,6 +4050,7 @@ function renderStageDeadlinesDraft(){
       if(inp.value){ stageDeadlinesDraft[inp.dataset.key] = {date: inp.value, note: existing?existing.note:''}; }
       else { delete stageDeadlinesDraft[inp.dataset.key]; }
     });
+    enhanceDateInput(inp);
   });
 }
 document.getElementById('stageDeadlinesToggleBtn').addEventListener('click', ()=>{
@@ -4312,65 +4365,314 @@ document.getElementById('filterDateField').addEventListener('change', renderSubm
 document.getElementById('filterDateStart').addEventListener('change', renderSubmittedList);
 document.getElementById('filterDateEnd').addEventListener('change', renderSubmittedList);
 
-/* ---- 进度轨道上单个环节的日期快速编辑：全页面只有这一个输入框
-   （见 HTML 里的 #stageDeadlineQuickEdit），谁点了哪个岗位的哪个环节，就把这
-   一份输入框的值/位置/data-id/data-key 现改现摆过去，而不是每个岗位每个环节
-   各自摆一个隐藏输入框——position:absolute 挂在 body 下面，页面滚动的时候
-   会跟着内容一起走，不用另外监听 scroll 事件去关它。
-   这个环节如果已经打勾完成了，轨道上显示的那个日期其实是 progressDates（真正
-   完成的那天，"9/20"这种只有日期没有时间），不是 stageDeadlines（提醒截止
-   时间）——这两个是不同的字段。之前不管打没打勾都统一去改 stageDeadlines，
-   结果对一个已经打勾完成的环节，不管怎么改这个隐藏的 stageDeadlines，轨道上
-   显示的日期永远不变，用户会以为"怎么改了不生效/保存不了"。现在改成按这个
-   环节是否已经打勾来分别编辑对应的字段：打勾了就编辑 progressDates（用
-   date 类型，只到日）；没打勾就还是编辑 stageDeadlines（用 datetime-local
-   类型，到分钟）——编辑哪个字段，轨道上显示的日期就真的会跟着变。 ---- */
-const stageDeadlineQuickEdit = document.getElementById('stageDeadlineQuickEdit');
-function openStageDeadlineQuickEdit(stepEl, pos, key){
-  const happened = !!pos.progress[key];
-  stageDeadlineQuickEdit.type = happened ? 'date' : 'datetime-local';
-  stageDeadlineQuickEdit.dataset.mode = happened ? 'progress' : 'deadline';
-  if(happened){
-    stageDeadlineQuickEdit.value = (pos.progressDates && pos.progressDates[key]) || '';
-  } else {
-    const entry = stageDeadlineEntry(pos.stageDeadlines||{}, key);
-    stageDeadlineQuickEdit.value = entry ? entry.date : '';
-  }
-  stageDeadlineQuickEdit.dataset.id = pos.id;
-  stageDeadlineQuickEdit.dataset.key = key;
-  const rect = stepEl.getBoundingClientRect();
-  const estHeight = 34;
-  const top = (window.innerHeight - rect.bottom < estHeight + 10) ? (rect.top - estHeight - 6) : (rect.bottom + 6);
-  stageDeadlineQuickEdit.style.top = Math.round(top + window.scrollY) + 'px';
-  stageDeadlineQuickEdit.style.left = Math.round(rect.left + rect.width/2 + window.scrollX) + 'px';
-  stageDeadlineQuickEdit.style.transform = 'translateX(-50%)';
-  stageDeadlineQuickEdit.classList.add('open');
-  stageDeadlineQuickEdit.focus();
+/* ---- 日期浮层（#datePop）：全页面只有这一个，轨道节点小菜单和所有日期输入框共用。
+   用法：openDatePop(锚点元素, {build, onPick, onClear, onAction})。build() 每次重画都会
+   重新调用、现读最新数据，返回 {title, sub, mode:'date'|'datetime', value, quick, topHtml,
+   note, section, clearLabel}；onPick(新值) 由调用方自己决定写到哪个字段。
+   定位沿用之前验证过可靠的方案：position:absolute 挂在 body 下 + scrollY，只在打开时
+   算一次位置；保存后 renderAll() 会把锚点节点重新生成，浮层不跟着重新定位。
+   提醒时间（stageDeadlines）存 "YYYY-MM-DDTHH:mm"，完成日期（progressDates）存
+   "YYYY-MM-DD"——跟之前一样按"这个环节打没打勾"决定改哪个字段。 ---- */
+const datePop = document.getElementById('datePop');
+let datePopState = null;
+const DP_WEEK = ['日','一','二','三','四','五','六'];
+const DP_TIMES = ['09:00','10:00','14:00','19:00','23:59'];
+function dpYmd(d){
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
-stageDeadlineQuickEdit.addEventListener('click', e=>e.stopPropagation());
-stageDeadlineQuickEdit.addEventListener('blur', ()=>{ stageDeadlineQuickEdit.classList.remove('open'); });
-stageDeadlineQuickEdit.addEventListener('change', ()=>{
-  const pos = positions.find(x=>x.id===stageDeadlineQuickEdit.dataset.id);
-  if(!pos) return;
-  const key = stageDeadlineQuickEdit.dataset.key;
-  // 直接打字输入各个数字段，打到一半、还没填完或者填出一个不存在的日期时，
-  // 浏览器会把 value 直接清空——这种情况啥也不做就行，不能真把已经存的日期
-  // 删掉（不是用户想清除，只是还没打完）。
-  if(!stageDeadlineQuickEdit.value) return;
-  if(stageDeadlineQuickEdit.dataset.mode==='progress'){
-    if(!pos.progressDates) pos.progressDates = {};
-    pos.progressDates[key] = stageDeadlineQuickEdit.value;
-  } else {
-    // 这里只是顺手改日期，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
-    const existing = stageDeadlineEntry(pos.stageDeadlines||{}, key);
-    setStageDeadline(pos, key, stageDeadlineQuickEdit.value, existing?existing.note:'');
+function dpAddDays(n){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+n); return dpYmd(d); }
+function dpNextMonday(){ const d = new Date(); d.setHours(0,0,0,0); const add = ((8 - d.getDay()) % 7) || 7; d.setDate(d.getDate()+add); return dpYmd(d); }
+function dpQuickFuture(){
+  return [{label:'今天', date:dpAddDays(0)}, {label:'明天', date:dpAddDays(1)}, {label:'后天', date:dpAddDays(2)}, {label:'下周一', date:dpNextMonday()}];
+}
+function dpQuickPast(){
+  return [{label:'今天', date:dpAddDays(0)}, {label:'昨天', date:dpAddDays(-1)}, {label:'前天', date:dpAddDays(-2)}];
+}
+// 浮层底部"当前：10/21 周三 14:00"那种说明文字
+function dpValueLabel(v){
+  if(!v) return '还没设置';
+  const [d, t] = v.split('T');
+  const wd = DP_WEEK[new Date(d+'T00:00:00').getDay()];
+  const rel = d===dpAddDays(0) ? '今天' : d===dpAddDays(1) ? '明天' : d===dpAddDays(-1) ? '昨天' : '';
+  return `${shortDateLabel(d)} 周${wd}${rel?'（'+rel+'）':''}${t?' '+t:''}`;
+}
+// 手打时间：认 "14:30" "1430" "930" "9" "9:5" 这几种，认不出返回空串
+function dpParseTime(raw){
+  const str = String(raw||'').trim().replace('：',':');
+  let h, m;
+  let mt = str.match(/^(\d{1,2}):(\d{1,2})$/);
+  if(mt){ h = +mt[1]; m = +mt[2]; }
+  else if(/^\d{1,4}$/.test(str)){
+    if(str.length<=2){ h = +str; m = 0; }
+    else { h = +str.slice(0, str.length-2); m = +str.slice(-2); }
+  } else return '';
+  if(h>23 || m>59) return '';
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function openDatePop(anchor, opts){
+  if(datePopState && datePopState.anchor) datePopState.anchor.classList.remove('dp-anchor');
+  datePopState = {...opts, anchor};
+  const v = (opts.build().value||'').split('T')[0];
+  const base = v ? new Date(v+'T00:00:00') : new Date();
+  datePopState.viewY = base.getFullYear();
+  datePopState.viewM = base.getMonth();
+  anchor.classList.add('dp-anchor');
+  renderDatePop();
+  datePop.classList.add('open');
+  // 先打开再量高度；下面放不下就翻到锚点上面，左右夹在视口里
+  const rect = anchor.getBoundingClientRect();
+  const w = datePop.offsetWidth, h = datePop.offsetHeight;
+  const below = window.innerHeight - rect.bottom;
+  let top = (below < h + 12 && rect.top > below) ? rect.top - h - 8 : rect.bottom + 8;
+  let left = rect.left + rect.width/2 - w/2;
+  left = Math.max(8, Math.min(left, document.documentElement.clientWidth - w - 8));
+  datePop.style.top = Math.round(Math.max(8, top) + window.scrollY) + 'px';
+  datePop.style.left = Math.round(left + window.scrollX) + 'px';
+}
+function closeDatePop(){
+  datePop.classList.remove('open');
+  if(datePopState && datePopState.anchor) datePopState.anchor.classList.remove('dp-anchor');
+  datePopState = null;
+}
+function renderDatePop(){
+  const st = datePopState;
+  if(!st) return;
+  const b = st.build();
+  if(!b){ closeDatePop(); return; }
+  const value = b.value || '';
+  const [selDate, selTime] = value.split('T');
+  const today = dpAddDays(0);
+  const first = new Date(st.viewY, st.viewM, 1);
+  const startOffset = (first.getDay()+6)%7; // 周一开头
+  const cells = [];
+  for(let i=0;i<42;i++){
+    const d = new Date(st.viewY, st.viewM, 1 - startOffset + i);
+    const ds = dpYmd(d);
+    const cls = ['dp-day'];
+    if(d.getMonth()!==st.viewM) cls.push('other');
+    if(d.getDay()===0 || d.getDay()===6) cls.push('weekend');
+    if(ds===today) cls.push('today');
+    if(ds===selDate) cls.push('sel');
+    cells.push(`<button type="button" class="${cls.join(' ')}" data-date="${ds}">${d.getDate()}</button>`);
+    if(i>=34 && d.getMonth()!==st.viewM && (i+1)%7===0) break; // 最后一行全是下个月就不画
   }
+  const quick = (b.quick||[]).map(q=>`<button type="button" class="dp-chip${q.date===selDate?' on':''}" data-date="${q.date}">${q.label}</button>`).join('');
+  const timeHtml = b.mode==='datetime' ? `
+    <div class="dp-section">时间</div>
+    <div class="dp-time">
+      ${DP_TIMES.map(t=>`<button type="button" class="dp-chip${t===selTime?' on':''}" data-time="${t}">${t}</button>`).join('')}
+      <input type="text" class="dp-time-input" inputmode="numeric" placeholder="自定义" value="${selTime && !DP_TIMES.includes(selTime) ? selTime : ''}" title="直接打字，比如 1430 或 14:30，回车确定">
+    </div>` : '';
+  datePop.innerHTML = `
+    <div class="dp-head">
+      <div class="dp-head-text">
+        <div class="dp-title">${escapeHtml(b.title||'选择日期')}</div>
+        ${b.sub ? `<div class="dp-sub">${escapeHtml(b.sub)}</div>` : ''}
+      </div>
+      <button type="button" class="dp-close" aria-label="关闭">&times;</button>
+    </div>
+    ${b.topHtml||''}
+    ${b.note ? `<div class="dp-note">${b.note}</div>` : ''}
+    ${b.section ? `<div class="dp-section">${b.section}</div>` : ''}
+    ${quick ? `<div class="dp-chips">${quick}</div>` : ''}
+    <div class="dp-cal-head">
+      <button type="button" class="dp-nav" data-nav="-1" aria-label="上个月">‹</button>
+      <strong>${st.viewY}年${st.viewM+1}月</strong>
+      <button type="button" class="dp-nav" data-nav="1" aria-label="下个月">›</button>
+    </div>
+    <div class="dp-grid">${DP_WEEK.slice(1).concat('日').map(w=>`<div class="dp-wd">${w}</div>`).join('')}${cells.join('')}</div>
+    ${timeHtml}
+    <div class="dp-foot">
+      <span class="dp-current">${dpValueLabel(value)}</span>
+      ${value && st.onClear ? `<button type="button" class="dp-clear">${b.clearLabel||'清除'}</button>` : ''}
+    </div>
+  `;
+}
+function dpPick(newValue){
+  const st = datePopState;
+  if(!st) return;
+  st.onPick(newValue);
+  if(datePopState===st) renderDatePop();
+}
+datePop.addEventListener('click', e=>{
+  e.stopPropagation();
+  const st = datePopState;
+  if(!st) return;
+  const b = st.build() || {};
+  const [curDate, curTime] = (b.value||'').split('T');
+  const t = e.target.closest('button');
+  if(!t) return;
+  if(t.classList.contains('dp-close')){ closeDatePop(); return; }
+  if(t.dataset.nav){
+    st.viewM += Number(t.dataset.nav);
+    if(st.viewM<0){ st.viewM = 11; st.viewY--; }
+    if(st.viewM>11){ st.viewM = 0; st.viewY++; }
+    renderDatePop();
+    return;
+  }
+  if(t.dataset.action){ st.onAction && st.onAction(t.dataset.action); if(datePopState===st) renderDatePop(); return; }
+  if(t.classList.contains('dp-clear')){ st.onClear(); if(datePopState===st) renderDatePop(); return; }
+  if(t.dataset.date){
+    const d = new Date(t.dataset.date+'T00:00:00');
+    st.viewY = d.getFullYear(); st.viewM = d.getMonth();
+    // 提醒时间：只点了日期就沿用原来的时间，原来没有就先按当天 23:59（截止类最常见），
+    // 需要别的时间再点下面的时间。
+    dpPick(b.mode==='datetime' ? `${t.dataset.date}T${curTime||'23:59'}` : t.dataset.date);
+    return;
+  }
+  if(t.dataset.time){ dpPick(`${curDate||dpAddDays(0)}T${t.dataset.time}`); }
+});
+datePop.addEventListener('keydown', e=>{
+  if(!e.target.classList.contains('dp-time-input') || e.key!=='Enter') return;
+  e.preventDefault();
+  const tm = dpParseTime(e.target.value);
+  if(!tm){ e.target.style.boxShadow = '0 0 0 2px var(--red-soft)'; return; }
+  const b = datePopState && datePopState.build();
+  dpPick(`${(b && b.value ? b.value.split('T')[0] : '') || dpAddDays(0)}T${tm}`);
+});
+datePop.addEventListener('focusout', e=>{
+  if(!e.target.classList.contains('dp-time-input')) return;
+  const tm = dpParseTime(e.target.value);
+  const b = datePopState && datePopState.build();
+  if(!tm || !b) return;
+  const [d, t] = (b.value||'').split('T');
+  if(t===tm) return;
+  dpPick(`${d || dpAddDays(0)}T${tm}`);
+});
+// 点浮层外面就收起；点到另一个轨道节点会先收起、再由那个节点的 click 重新打开
+document.addEventListener('pointerdown', e=>{
+  if(!datePop.classList.contains('open')) return;
+  if(datePop.contains(e.target)) return;
+  if(datePopState && datePopState.anchor && datePopState.anchor.contains(e.target)) return;
+  closeDatePop();
+});
+
+// 轨道节点小菜单：没打勾 → 顶部"标记完成"按钮 + 下面设提醒时间；已打勾 → 显示
+// "已完成" + 撤销，下面改完成日期。公司级提醒的情况跟轨道显示保持一致（见
+// effectiveProgress / effectiveStageDeadlines），但写入一律只写这个岗位自己的字段。
+function saveStagePosition(pos){
   pos.updatedAt = new Date().toISOString();
   saveData();
   queueUpsert('positions', pos.id);
   flushQueue();
   renderAll();
-});
+}
+function openStageNodePop(stepEl, pos, key){
+  const stage = PROGRESS_STAGES.find(s=>s.key===key);
+  const stageLabel = stage ? stage.label : key;
+  openDatePop(stepEl, {
+    build(){
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p) return null;
+      const company = getCompany(p.companyId);
+      const sub = `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`;
+      const own = !!(p.progress && p.progress[key]);
+      const eff = effectiveProgress(p, company);
+      if(own || eff.progress[key]){
+        const date = (own ? (p.progressDates||{})[key] : eff.dates[key]) || '';
+        return {
+          title: stageLabel, sub, mode:'date', value: date, quick: dpQuickPast(),
+          topHtml: `<div class="dp-done-row"><span>✓ 已完成</span>${own?`<button type="button" class="dp-undo" data-action="undo">撤销</button>`:''}</div>`,
+          note: own ? '' : '这是"全部岗位通用"的公司级提醒标记的完成，要撤销请去"提醒事项"里改。',
+          section: '完成日期',
+        };
+      }
+      const ownEntry = stageDeadlineEntry(p.stageDeadlines||{}, key);
+      const effEntry = effectiveStageDeadlines(p, company)[key];
+      return {
+        title: stageLabel, sub, mode:'datetime', value: effEntry ? effEntry.date : '', quick: dpQuickFuture(),
+        topHtml: `<button type="button" class="dp-action" data-action="done">✓ 标记完成（今天）</button>`,
+        note: (!ownEntry && effEntry) ? '当前显示的是公司级通用提醒；在这里改只改这个岗位。' : '',
+        section: '提醒时间', clearLabel: '清除提醒',
+      };
+    },
+    onAction(action){
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p) return;
+      if(!p.progress) p.progress = {};
+      if(!p.progressDates) p.progressDates = {};
+      setProgressChecked(p.progress, p.progressDates, key, action==='done');
+      saveStagePosition(p);
+    },
+    onPick(v){
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p) return;
+      const company = getCompany(p.companyId);
+      if((p.progress && p.progress[key]) || effectiveProgress(p, company).progress[key]){
+        if(!p.progress) p.progress = {};
+        if(!p.progressDates) p.progressDates = {};
+        if(!p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, true);
+        p.progressDates[key] = v;
+      } else {
+        // 这里只是改时间，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
+        const existing = stageDeadlineEntry(p.stageDeadlines||{}, key);
+        setStageDeadline(p, key, v, existing?existing.note:'');
+      }
+      saveStagePosition(p);
+    },
+    onClear(){
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p || (p.progress && p.progress[key])) return;
+      setStageDeadline(p, key, '', '');
+      saveStagePosition(p);
+    },
+  });
+}
+
+// 把一个原生 date / datetime-local 输入框换成"按钮 + 日期浮层"：原输入框藏起来继续当
+// 数据源，老代码照常读写 .value、监听 change/input；这里在实例上包一层 value/disabled
+// 的 setter，程序里改值的时候按钮上的文字也会跟着变。
+function enhanceDateInput(inp){
+  if(!inp || inp._dpEnhanced) return;
+  inp._dpEnhanced = true;
+  const mode = inp.type==='date' ? 'date' : 'datetime';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'dp-trigger';
+  inp.after(btn);
+  inp.classList.add('dp-native-hidden');
+  const proto = HTMLInputElement.prototype;
+  const vd = Object.getOwnPropertyDescriptor(proto, 'value');
+  const dd = Object.getOwnPropertyDescriptor(proto, 'disabled');
+  const refresh = ()=>{
+    const v = vd.get.call(inp);
+    btn.textContent = v ? dpValueLabel(v) : (inp.dataset.placeholder || (mode==='date' ? '选择日期' : '选择日期和时间'));
+    btn.classList.toggle('empty', !v);
+    btn.disabled = dd.get.call(inp);
+  };
+  Object.defineProperty(inp, 'value', {configurable:true, get(){ return vd.get.call(this); }, set(v){ vd.set.call(this, v); refresh(); }});
+  Object.defineProperty(inp, 'disabled', {configurable:true, get(){ return dd.get.call(this); }, set(v){ dd.set.call(this, v); refresh(); }});
+  const titleOf = ()=>{
+    const row = inp.closest('.progress-date-row');
+    if(row){ const l = row.querySelector('.progress-date-row-label'); if(l) return l.textContent.trim(); }
+    const field = inp.closest('.field');
+    if(field){ const l = field.querySelector('label'); if(l) return l.textContent.trim(); }
+    return inp.dataset.title || '选择日期';
+  };
+  const fire = ()=>{
+    inp.dispatchEvent(new Event('input', {bubbles:true}));
+    inp.dispatchEvent(new Event('change', {bubbles:true}));
+  };
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    if(datePopState && datePopState.anchor===btn){ closeDatePop(); return; }
+    openDatePop(btn, {
+      build(){
+        const isProgress = inp.classList.contains('progress-date-input');
+        return {title: titleOf(), mode, value: inp.value, quick: isProgress ? dpQuickPast() : dpQuickFuture()};
+      },
+      onPick(v){ inp.value = v; fire(); },
+      onClear(){ inp.value = ''; fire(); },
+    });
+  });
+  refresh();
+}
+document.getElementById('filterDateStart').dataset.title = '开始日期';
+document.getElementById('filterDateStart').dataset.placeholder = '开始日期';
+document.getElementById('filterDateEnd').dataset.title = '结束日期';
+document.getElementById('filterDateEnd').dataset.placeholder = '结束日期';
+['reminderDateInput','f-company-deadline','filterDateStart','filterDateEnd'].forEach(id=>enhanceDateInput(document.getElementById(id)));
 
 /* ---- 页面切换：看板 / 已提交进度 / 提醒事项 ---- */
 // 分段控件的白色滑块：量一下当前激活的标签按钮相对轨道的位置和宽度，写到滑块的
@@ -5209,6 +5511,7 @@ setInterval(()=>{ if(isSyncConfigured() && sb) pullAndMerge(); }, 60000);
 /* ---- 键盘快捷键：Esc 关闭当前抽屉，单行输入框里回车直接保存 ---- */
 document.addEventListener('keydown', (e)=>{
   if(e.key !== 'Escape') return;
+  if(datePop.classList.contains('open')){ closeDatePop(); return; }
   if(document.getElementById('closeConfirm').classList.contains('active')) closeCloseConfirm();
   else if(document.getElementById('companySuggest').hidden===false) hideCompanySuggest();
   else if(drawer.classList.contains('active')) attemptCloseDrawer();
