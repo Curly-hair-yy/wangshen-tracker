@@ -1004,6 +1004,13 @@
     padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
+  .role-compact{padding:8px 0;align-items:center;}
+  .role-expand-btn{
+    justify-self:start;border:none;background:var(--field);color:var(--text-2);
+    font-size:12px;font-weight:700;padding:5px 12px;border-radius:var(--radius-pill);cursor:pointer;
+  }
+  .role-expand-btn:hover{background:var(--blue-soft);color:var(--blue);}
+  .submitted-list.attention-mode .drag-handle{display:none;}
   .role-name{font-size:14px;font-weight:400;color:var(--text-2);display:flex;align-items:center;gap:5px;}
   .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
   .role-name .position-link:hover{color:var(--blue);}
@@ -1954,6 +1961,10 @@ let currentView = 'board';
 // 已提交页的筛选现在靠点"进度概览"里的数字，不再用下拉/按钮——点"收藏公司"或
 // 某个环节名字，见 computeSubmittedGroups() 和 renderProgressOverview()。
 let submittedFavoriteFilter = false;
+// 「待处理」筛选：只看有橙色/红色提醒的公司，按最近的提醒时间从近到远排；展开过的空岗位
+// 记在 expandedRoleIds 里（只存在内存里，刷新页面就重新折叠，不写进数据）。
+let submittedAttentionFilter = false;
+const expandedRoleIds = new Set();
 let submittedStageFilter = null;
 // 顶部四张统计卡片、分段控件右侧汇总行共用的口径：待填写/待提交/已提交都数
 // "有多少家公司"，不是"有多少个岗位"——一家公司名下不管挂几个岗位，只要有一个
@@ -2270,6 +2281,7 @@ function computeSubmittedGroups(){
   // 只看"当前最新进度就是这个环节"的公司——语义跟概览数字的统计口径完全一致，点哪个
   // 数字就精确看到那几家。两个筛选可以同时生效（都是"必须满足"的关系）。
   const overviewFilteredGroups = orderedListGroups.filter(g=>{
+    if(submittedAttentionFilter && computeCompanyCandidates(g, getCompany(g.companyId)).length===0) return false;
     if(submittedFavoriteFilter){
       const c = getCompany(g.companyId);
       if(!(c && c.favorite)) return false;
@@ -2285,6 +2297,10 @@ function computeSubmittedGroups(){
     }
     return true;
   });
+  if(submittedAttentionFilter){
+    const urgency = g=>computeCompanyCandidates(g, getCompany(g.companyId))[0].ts || 0;
+    overviewFilteredGroups.sort((a,b)=>urgency(a)-urgency(b));
+  }
 
   return { filtered, groups, companySeqMap, orderedListGroups: overviewFilteredGroups };
 }
@@ -2424,6 +2440,13 @@ function effectiveProgress(position, company){
   }
   return {progress, dates};
 }
+function trackIsEmpty(p, company){
+  const {progress, dates} = effectiveProgress(p, company);
+  const deadlines = effectiveStageDeadlines(p, company);
+  // 设过提醒（哪怕已经过期、轨道上不画橙点）也算"有内容"，不折叠——过期没处理的更要看得见。
+  if(Object.keys(deadlines).length>0) return false;
+  return computeTrack(progress, dates, deadlines).steps.every(st=>!st.status);
+}
 function renderTrackHtml(p, company){
   const {progress, dates} = effectiveProgress(p, company);
   const effectiveDeadlines = effectiveStageDeadlines(p, company);
@@ -2452,7 +2475,12 @@ function renderProgressOverview(){
     const currentKey = Object.keys(statusMap).find(k=>statusMap[k]==='current');
     if(currentKey!==undefined && currentKey!==null) stageCounts[currentKey]++;
   });
+  const attentionCount = [...companyIds].filter(id=>{
+    const list = submitted.filter(p=>p.companyId===id);
+    return computeCompanyCandidates({list}, getCompany(id)).length>0;
+  }).length;
   const items = [
+    {key:'attention', label:'待处理', num:attentionCount, title:'有橙色/红色提醒的公司，按时间从近到远排'},
     {key:'favorite', label:'收藏公司', num:favCount},
     ...PROGRESS_STAGES.map(s=>({key:s.key, label:s.label, num:stageCounts[s.key]||0}))
   ];
@@ -2461,8 +2489,8 @@ function renderProgressOverview(){
     <h3>进度概览</h3>
     <div class="overview-grid">
       ${items.map(it=>{
-        const active = it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key;
-        return `<button type="button" class="overview-item${active?' active':''}" data-key="${it.key}"><span>${it.label}</span><strong>${it.num}</strong></button>`;
+        const active = it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
+        return `<button type="button" class="overview-item${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.num}</strong></button>`;
       }).join('')}
     </div>
   `;
@@ -2471,7 +2499,9 @@ function renderProgressOverview(){
   el.querySelectorAll('.overview-item').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const key = btn.dataset.key;
-      if(key==='favorite'){
+      if(key==='attention'){
+        submittedAttentionFilter = !submittedAttentionFilter;
+      } else if(key==='favorite'){
         submittedFavoriteFilter = !submittedFavoriteFilter;
       } else {
         submittedStageFilter = submittedStageFilter===key ? null : key;
@@ -2485,7 +2515,7 @@ function renderProgressOverview(){
 // 真的发生了的步骤（done/current）不放在这里，轨道里已经看得到，这里再写一遍
 // 是重复信息。同一个环节键（key）只留优先级最高的一条（overdue > scheduled），
 // 按时间从早到晚排序，最多显示 3 个，推导不出就整行不显示。
-function computeCompanyChips(g, company){
+function computeCompanyCandidates(g, company){
   const candidates = [];
   g.list.forEach(p=>{
     const progress = p.progress||{}, dates = p.progressDates||{}, deadlines = p.stageDeadlines||{};
@@ -2519,8 +2549,10 @@ function computeCompanyChips(g, company){
     const existing = byKey.get(c.key);
     if(!existing || priority[c.type] < priority[existing.type]) byKey.set(c.key, c);
   });
-  const sorted = [...byKey.values()].sort((a,b)=>(a.ts||0)-(b.ts||0));
-  return sorted.slice(0,3).map(c=>{
+  return [...byKey.values()].sort((a,b)=>(a.ts||0)-(b.ts||0));
+}
+function computeCompanyChips(g, company){
+  return computeCompanyCandidates(g, company).slice(0,3).map(c=>{
     const label = trackStepLabel(c.key);
     const dateText = c.date ? shortDateTimeLabel(c.date) : '';
     const cls = c.type==='overdue' ? 'red' : 'orange';
@@ -2533,16 +2565,20 @@ function renderSubmittedList(){
   renderProgressOverview();
 
   const list = document.getElementById('submittedList');
+  list.classList.toggle('attention-mode', submittedAttentionFilter);
   if(orderedListGroups.length===0){
-    list.innerHTML = `<div class="empty-hint">暂无记录</div>`;
+    list.innerHTML = `<div class="empty-hint">${submittedAttentionFilter ? '现在没有待处理的提醒' : '暂无记录'}</div>`;
     return;
   }
 
   function renderRole(p, defaultLink, company){
     const ownLink = normalizeLink(p.link);
     const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
+    // 还没有任何进度、也没设提醒的岗位，不画整条 8 个空节点的轨道（大多数岗位都是这样，
+    // 整页全是灰圈很吵），收成一行小按钮，点了才展开；一旦有进度自然就展开显示。
+    const compact = !expandedRoleIds.has(p.id) && trackIsEmpty(p, company);
     return `
-      <div class="role" data-id="${p.id}">
+      <div class="role${compact?' role-compact':''}" data-id="${p.id}">
         <button class="role-del-btn" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
         <div>
           <div class="role-name">
@@ -2551,7 +2587,7 @@ function renderSubmittedList(){
           </div>
           ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
         </div>
-        ${renderTrackHtml(p, company)}
+        ${compact ? `<button class="role-expand-btn" type="button" data-id="${p.id}">＋ 记录进度</button>` : renderTrackHtml(p, company)}
       </div>
     `;
   }
@@ -2592,6 +2628,11 @@ function renderSubmittedList(){
   // 按编号，标题只在日期变化的地方插一条。
   let html = '';
   let i = 0;
+  if(submittedAttentionFilter){
+    // 待处理视图按提醒时间排序，不再按日期分段（日期标题会被打乱，反而误导）。
+    html = orderedListGroups.map(g=>renderCompanyCard(g, dayLabel(dateKeyOfGroup(g)))).join('');
+    i = orderedListGroups.length;
+  }
   while(i < orderedListGroups.length){
     const key = dateKeyOfGroup(orderedListGroups[i]);
     const label = dayLabel(key);
@@ -2622,6 +2663,13 @@ function renderSubmittedList(){
     });
   });
 
+  list.querySelectorAll('.role-expand-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      expandedRoleIds.add(btn.dataset.id);
+      renderSubmittedList();
+    });
+  });
   list.querySelectorAll('.card-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -2671,7 +2719,7 @@ function renderSubmittedList(){
   });
   list.querySelectorAll('.role').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.role-del-btn, .position-link, .track')) return;
+      if(e.target.closest('.role-del-btn, .position-link, .track, .role-expand-btn')) return;
       openDrawer(row.dataset.id);
     });
   });
