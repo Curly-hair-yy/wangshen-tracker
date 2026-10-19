@@ -954,7 +954,7 @@
     border:none;
     border-radius:var(--radius-md);
     box-shadow:var(--shadow-1);
-    padding:12px 34px 12px 14px;
+    padding:12px 14px 12px 14px;
     margin-bottom:10px;
     cursor:pointer;
     transition:box-shadow .15s ease;
@@ -963,7 +963,7 @@
   .position-detail-item:hover{box-shadow:0 2px 4px rgba(29,51,84,.06), 0 8px 20px rgba(29,51,84,.09);}
   .position-detail-del{
     display:none;
-    position:absolute;top:10px;right:10px;
+    position:absolute;top:-7px;right:-7px;z-index:1;
     width:20px;height:20px;
     border-radius:50%;
     border:none;
@@ -4780,9 +4780,10 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   list.forEach(p=>queueUpsert('positions', p.id));
   flushQueue();
   renderAll();
-  // 打开这个弹窗基本就是为了改状态，不是来编辑内容的——选完直接关掉，不用自己再点一次关闭
-  closeCompanyDetail();
-  showMoveToast(companyId, list.map(p=>({id:p.id, ...before.get(p.id)})), toStatus, finalReviewStage);
+  // 改完状态弹窗不关：直接切到新状态下的这张卡（标题、归类按钮都跟着变），让人看得见
+  // "确实挪过去了"，想再改也不用重新找；底部提示照样可以撤销。
+  openCompanyDetail(companyId, toStatus, toStatus==='inprogress' ? finalReviewStage : undefined);
+  showMoveToast(companyId, list.map(p=>({id:p.id, ...before.get(p.id)})), toStatus, finalReviewStage, {stayInDetail:true});
 }
 // 换状态后卡片不是"凭空消失"：底部弹一条提示，说清楚挪到哪去了，可以撤销；还在看板上
 // 的话，把那张卡滚到眼前并闪一下。
@@ -4799,7 +4800,7 @@ function highlightMovedCard(companyId, status){
   card.classList.remove('just-moved'); void card.offsetWidth; card.classList.add('just-moved');
   return true;
 }
-function showMoveToast(companyId, snapshot, toStatus, toReviewStage){
+function showMoveToast(companyId, snapshot, toStatus, toReviewStage, opts){
   const toast = document.getElementById('moveToast');
   const company = getCompany(companyId);
   const onBoard = toStatus!=='submitted';
@@ -4807,7 +4808,8 @@ function showMoveToast(companyId, snapshot, toStatus, toReviewStage){
     <button type="button" class="toast-undo">撤销</button>
     ${onBoard ? '' : '<button type="button" class="toast-go">去看看</button>'}`;
   toast.classList.add('show');
-  if(onBoard) setTimeout(()=>highlightMovedCard(companyId, toStatus), 60);
+  const stay = opts && opts.stayInDetail;
+  if(onBoard && !stay) setTimeout(()=>highlightMovedCard(companyId, toStatus), 60);
   clearTimeout(moveToastTimer);
   moveToastTimer = setTimeout(()=>toast.classList.remove('show'), 6000);
   toast.querySelector('.toast-undo').onclick = ()=>{
@@ -4822,10 +4824,16 @@ function showMoveToast(companyId, snapshot, toStatus, toReviewStage){
     flushQueue();
     renderAll();
     toast.classList.remove('show');
-    setTimeout(()=>highlightMovedCard(companyId, snapshot[0] && snapshot[0].status), 60);
+    const s0 = snapshot[0];
+    if(s0 && companyDetailDrawer.classList.contains('active')){
+      openCompanyDetail(companyId, s0.status, s0.status==='inprogress' ? (s0.reviewStage||'pending') : undefined);
+    } else {
+      setTimeout(()=>highlightMovedCard(companyId, s0 && s0.status), 60);
+    }
   };
   const go = toast.querySelector('.toast-go');
   if(go) go.onclick = ()=>{
+    closeCompanyDetail();
     const tab = document.getElementById('viewTabSubmitted');
     if(tab) tab.click();
     toast.classList.remove('show');
