@@ -959,7 +959,11 @@
   .sdot.blue{background:var(--blue);} .sdot.teal{background:var(--teal);} .sdot.purple{background:var(--purple);}
   .sdot.green{background:var(--green);} .sdot.pink{background:var(--pink);} .sdot.indigo{background:var(--indigo);}
   .sdot.orange{background:var(--orange);}
-  .overview-item.active .sdot{box-shadow:0 0 0 2px #fff;}
+  /* 进度概览里的环节名用跟提醒事项一样的浅色胶囊（.chip 色系），不用实心圆点 */
+  .overview-item .ov-chip{height:24px;padding:0 10px;font-size:12px;font-weight:850;}
+  .overview-item.active .ov-chip{box-shadow:0 0 0 1.5px #fff;}
+  .dp-chip.chip{height:auto;padding:5px 10px;font-size:12px;font-weight:800;}
+  .dp-chip.chip:hover{filter:brightness(.96);}
   .overview-manage{margin-top:12px;width:100%;border:none;background:none;color:var(--text-3);font-size:12px;font-weight:750;cursor:pointer;font-family:inherit;padding:6px;border-radius:10px;}
   .overview-manage:hover{color:var(--blue);background:var(--blue-soft);}
   .dp-stage-input-row{display:flex;gap:6px;margin-bottom:10px;}
@@ -2666,7 +2670,7 @@ function renderProgressOverview(){
     <div class="overview-grid">
       ${items.map(it=>{
         const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.color?`<i class="sdot ${it.color}"></i>`:''}${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
+        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}>${it.color?`<span class="chip ${it.color} ov-chip">${it.label}</span>`:`<span>${it.label}</span>`}<strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
     <button type="button" class="overview-manage" id="manageStagesBtn">管理环节 · 改名</button>
@@ -4529,15 +4533,14 @@ document.getElementById('filterDateEnd').addEventListener('change', renderSubmit
 const datePop = document.getElementById('datePop');
 let datePopState = null;
 const DP_WEEK = ['日','一','二','三','四','五','六'];
-const DP_TIMES = ['09:00','10:00','14:00','19:00','23:59'];
+const DP_TIMES = ['10:00','14:00','19:00','23:59'];
 function dpYmd(d){
   const pad = n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 function dpAddDays(n){ const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+n); return dpYmd(d); }
-function dpNextMonday(){ const d = new Date(); d.setHours(0,0,0,0); const add = ((8 - d.getDay()) % 7) || 7; d.setDate(d.getDate()+add); return dpYmd(d); }
 function dpQuickFuture(){
-  return [{label:'今天', date:dpAddDays(0)}, {label:'明天', date:dpAddDays(1)}, {label:'后天', date:dpAddDays(2)}, {label:'下周一', date:dpNextMonday()}];
+  return [{label:'今天', date:dpAddDays(0)}, {label:'明天', date:dpAddDays(1)}, {label:'后天', date:dpAddDays(2)}];
 }
 function dpQuickAll(){
   return [{label:'前天', date:dpAddDays(-2)}, {label:'昨天', date:dpAddDays(-1)}, ...dpQuickFuture()];
@@ -4789,7 +4792,7 @@ function openStageNodePop(stepEl, pos, initialKey){
               <input type="text" class="dp-stage-input" maxlength="16" placeholder="输入环节名" data-enter-action="relabel-to">
               <button type="button" class="dp-mini-btn" data-action="relabel-to">确定</button>
             </div>
-            ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip" data-action="relabel-pick:${i}"><i class="sdot ${stageColor(s.key)}"></i>${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}
+            ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip chip ${stageColor(s.key)}" data-action="relabel-pick:${i}">${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}
             <div class="dp-tools" style="margin-top:12px;"><button type="button" class="dp-tool" data-action="relabel-cancel">← 返回</button></div>
             <div class="dp-hint">只改这一个岗位；要把所有岗位里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
         };
@@ -4925,7 +4928,7 @@ function openStageAddPop(btn, pos){
             <input type="text" class="dp-stage-input" maxlength="16" placeholder="输入环节名，比如 HR电话" data-enter-action="add">
             <button type="button" class="dp-mini-btn" data-action="add">添加</button>
           </div>
-          ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip" data-action="pick:${i}"><i class="sdot ${stageColor(s.key)}"></i>${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}`,
+          ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip chip ${stageColor(s.key)}" data-action="pick:${i}">${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}`,
       };
     },
     onAction(action){
