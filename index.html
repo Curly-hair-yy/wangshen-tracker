@@ -1123,8 +1123,8 @@
 
   .role{
     position:relative;
-    /* 名字栏宽度 = 这张卡里最长的岗位名（--name-w，JS 按字数算），轨道紧跟在名字后面；
-       同一张卡里各行用同一个宽度，轨道起点上下严格对齐；最宽不超过卡片的 40%。 */
+    /* 名字栏宽度 = 整页最长的岗位名（--name-w，JS 按字数算、设在 #submittedList 上），
+       轨道紧跟在名字后面，所有卡片的轨道起点严格对齐；最宽不超过卡片的 40%。 */
     display:grid;grid-template-columns:min(var(--name-w, 220px), 40%) 1fr;gap:18px;align-items:start;
     padding:12px 0;border-bottom:1px solid var(--line);
   }
@@ -2956,19 +2956,21 @@ function renderSubmittedList(){
     `;
   }
 
-  // 这张卡里最长岗位名大概占多宽：中文按 1em、英文数字按 0.55em 估，带单独链接的再加按钮宽度
-  function roleNameWidth(list, defaultLink){
+  // 整页最长的岗位名大概占多宽（中文按 1em、英文数字按 0.55em 估，带单独链接的再加按钮
+  // 宽度），设在列表容器上，所有卡片的轨道起点上下严格对齐。
+  function roleNameWidth(groups){
     let max = 0;
-    list.forEach(p=>{
+    groups.forEach(g=>{ const defaultLink = companyLevelLink(g.list); g.list.forEach(p=>{
       let w = 0;
       for(const ch of (p.position||'（未命名岗位）')) w += /[\x00-\xff]/.test(ch) ? 0.55 : 1;
       const own = normalizeLink(p.link);
       const extra = (own && own!==defaultLink) ? 34 : 0;
       const plus = trackIsEmpty(p, getCompany(p.companyId)) ? 30 : 0;
       max = Math.max(max, w*14 + extra + plus);
-    });
+    }); });
     return Math.round(Math.max(120, max + 8)) + 'px';
   }
+  list.style.setProperty('--name-w', roleNameWidth(orderedListGroups));
   function renderCompanyCard(g, dateLabel){
     const company = getCompany(g.companyId);
     const crossCount = siblingElsewhereCount(g.companyId, 'submitted', undefined);
@@ -2977,7 +2979,7 @@ function renderSubmittedList(){
     const ended = allProgressEnded(g.list);
     const chipsHtml = computeCompanyChips(g, company);
     return `
-      <article class="card progress-company${ended?' ended':''}" data-company-id="${g.companyId}" style="--name-w:${roleNameWidth(g.list, defaultLink)}">
+      <article class="card progress-company${ended?' ended':''}" data-company-id="${g.companyId}">
         <span class="drag-handle" draggable="true" title="拖动调整顺序">⠿</span>
         <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="submitted" data-review-stage="" title="删除这张卡里的所有岗位">&times;</button>
         <div class="company-head">
