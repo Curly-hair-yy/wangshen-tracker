@@ -944,7 +944,10 @@
     border:1px solid var(--glass-border);
     box-shadow:var(--shadow);
   }
-  .overview h3{margin:0 0 16px;font-size:18px;letter-spacing:-.02em;color:var(--ink);}
+  .overview h3{margin:0 0 16px;font-size:18px;letter-spacing:-.02em;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;}
+  .overview-unit{font-size:11px;font-weight:750;color:var(--text-3);letter-spacing:0;}
+  .overview-item strong small{font-size:12px;font-weight:700;opacity:.55;}
+  .overview-all{margin-bottom:6px;}
   .overview-grid{display:grid;gap:8px;}
   .overview-item{
     display:flex;justify-content:space-between;align-items:center;
@@ -1005,11 +1008,6 @@
   }
   .role:last-child{border-bottom:0;}
   .role-compact{padding:8px 0;align-items:center;}
-  .role-expand-btn{
-    justify-self:start;border:none;background:var(--field);color:var(--text-2);
-    font-size:12px;font-weight:700;padding:5px 12px;border-radius:var(--radius-pill);cursor:pointer;
-  }
-  .role-expand-btn:hover{background:var(--blue-soft);color:var(--blue);}
   .submitted-list.attention-mode .drag-handle{display:none;}
   .role-name{font-size:14px;font-weight:400;color:var(--text-2);display:flex;align-items:center;gap:5px;}
   .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
@@ -1024,27 +1022,39 @@
   .role:hover .role-del-btn{opacity:1;}
   .role-del-btn:hover{color:var(--red);}
 
-  .track{position:relative;display:grid;grid-template-columns:repeat(8,1fr);min-height:62px;}
-  .track:before{
-    content:"";position:absolute;top:9px;left:7%;right:7%;height:3px;
-    border-radius:999px;background:var(--gray);
-  }
-  .track .line{position:absolute;top:9px;left:var(--left);width:var(--width);height:3px;border-radius:999px;z-index:1;}
-  .track .line.done-line{background:var(--blue-line);}
-  .track .line.scheduled-line{background:var(--orange);}
-  .track .line.ended-line{background:var(--ended);}
-  .track .step{position:relative;z-index:2;display:grid;justify-items:center;cursor:pointer;}
-  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#eef4fa;border:3px solid #fff;box-shadow:0 0 0 2px var(--gray);}
+  .track{display:flex;align-items:flex-start;flex-wrap:wrap;row-gap:10px;}
+  .track .step{position:relative;z-index:1;display:grid;justify-items:center;cursor:pointer;width:64px;}
+  .track .seg{flex:0 0 72px;height:3px;border-radius:999px;margin:7.5px -23px 0;background:var(--gray);}
+  .track .seg-done,.track .seg-current{background:var(--blue-line);}
+  .track .seg-scheduled{background:var(--orange);}
+  .track .seg-overdue{background:var(--red);opacity:.5;}
+  .track .seg-ended{background:var(--ended);}
+  .track .seg-add{background:none;border-top:2px dashed var(--gray);height:0;opacity:.8;}
+  .track .step-dot{width:18px;height:18px;border-radius:50%;background:#eef4fa;border:3px solid #fff;box-shadow:0 0 0 2px var(--gray);box-sizing:border-box;}
   .track .step.done .step-dot{background:var(--blue-2);box-shadow:0 0 0 2px var(--blue-2);}
   .track .step.current .step-dot{background:var(--blue);box-shadow:0 0 0 2px var(--blue),0 0 0 6px var(--blue-soft);}
   .track .step.scheduled .step-dot{background:var(--orange);box-shadow:0 0 0 2px var(--orange),0 0 0 6px var(--orange-soft);}
+  .track .step.overdue .step-dot{background:var(--red);box-shadow:0 0 0 2px var(--red),0 0 0 6px var(--red-soft);}
   .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
   .track .step-label{margin-top:7px;font-size:11px;font-weight:950;color:#8297ae;text-align:center;}
   .track .step-date{margin-top:2px;font-size:10px;font-weight:850;color:#a0b0c2;white-space:nowrap;}
   .track .step.done .step-label,.track .step.done .step-date{color:var(--blue-label);}
   .track .step.current .step-label,.track .step.current .step-date{color:var(--blue);}
   .track .step.scheduled .step-label,.track .step.scheduled .step-date{color:var(--orange-ink);}
+  .track .step.overdue .step-label,.track .step.overdue .step-date{color:var(--red-ink);}
   .track .step.ended .step-label,.track .step.ended .step-date{color:var(--gray-ink);}
+  .track-add{position:relative;z-index:1;display:grid;justify-items:center;width:64px;border:none;background:none;cursor:pointer;padding:0;font-family:inherit;}
+  .track-add-dot{width:18px;height:18px;border-radius:50%;border:2px dashed var(--blue-line);color:var(--blue-line);
+    display:grid;place-items:center;font-size:13px;font-weight:900;line-height:1;box-sizing:border-box;}
+  .track-add-label{margin-top:7px;font-size:11px;font-weight:850;color:var(--text-3);}
+  .track-add:hover .track-add-dot{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
+  .track-add:hover .track-add-label{color:var(--blue);}
+  .track-add.track-add-empty{
+    width:auto;display:inline-block;background:var(--field);color:var(--text-2);
+    font-size:12px;font-weight:700;padding:5px 12px;border-radius:var(--radius-pill);
+  }
+  .track-add.track-add-empty:hover{background:var(--blue-soft);color:var(--blue);}
+  .dp-stage-list{display:flex;flex-wrap:wrap;gap:6px;}
   /* 日期浮层：轨道节点小菜单 + 全站所有日期输入框共用的同一个浮层（#datePop，
      挂在 body 下面，position:absolute + scrollY，跟内容一起滚动，不用监听滚动去关）。
      原生 date/datetime-local 输入框还在、只是藏起来当"数据源"，各处读 .value 的
@@ -2026,10 +2036,8 @@ let currentView = 'board';
 // 已提交页的筛选现在靠点"进度概览"里的数字，不再用下拉/按钮——点"收藏公司"或
 // 某个环节名字，见 computeSubmittedGroups() 和 renderProgressOverview()。
 let submittedFavoriteFilter = false;
-// 「待处理」筛选：只看有橙色/红色提醒的公司，按最近的提醒时间从近到远排；展开过的空岗位
-// 记在 expandedRoleIds 里（只存在内存里，刷新页面就重新折叠，不写进数据）。
+// 「待处理」筛选：只看有橙色/红色提醒的公司，按最近的提醒时间从近到远排。
 let submittedAttentionFilter = false;
-const expandedRoleIds = new Set();
 let submittedStageFilter = null;
 // 顶部四张统计卡片、分段控件右侧汇总行共用的口径：待填写/待提交/已提交都数
 // "有多少家公司"，不是"有多少个岗位"——一家公司名下不管挂几个岗位，只要有一个
@@ -2512,50 +2520,66 @@ function trackIsEmpty(p, company){
   if(Object.keys(deadlines).length>0) return false;
   return computeTrack(progress, dates, deadlines).steps.every(st=>!st.status);
 }
-function renderTrackHtml(p, company){
+// 轨道只画"这个岗位真的有内容"的环节（打过勾的、设过提醒的），按固定环节顺序首尾
+// 相连，中间没用到的环节不占位置——比如直接从笔试到群面，就只画这两个点。最后
+// 一个"+"用来添加下一个环节。节点状态仍然用 computeTrack 的推导；过期没处理的
+// 提醒 computeTrack 不画颜色，这里补成红色 overdue，免得加了却看不见。
+function trackVisibleSteps(p, company){
   const {progress, dates} = effectiveProgress(p, company);
-  const effectiveDeadlines = effectiveStageDeadlines(p, company);
-  const {steps, lines} = computeTrack(progress, dates, effectiveDeadlines);
-  const linesHtml = lines.map(l=>`<span class="line ${l.cls}" style="--left:${l.left}%;--width:${l.width}%"></span>`).join('');
-  const stepsHtml = steps.map(st=>`
+  const deadlines = effectiveStageDeadlines(p, company);
+  const {steps} = computeTrack(progress, dates, deadlines);
+  return steps.filter(st=>progress[st.key] || deadlines[st.key]).map(st=>{
+    if(st.status && st.status!=='ended') return st;
+    const entry = deadlines[st.key];
+    if(!progress[st.key] && entry && entry.date){
+      if(st.status==='ended') return {...st, dateLabel: shortDateTimeLabel(entry.date)};
+      return {...st, status:'overdue', dateLabel: shortDateTimeLabel(entry.date)};
+    }
+    return st;
+  });
+}
+function renderTrackHtml(p, company){
+  const steps = trackVisibleSteps(p, company);
+  const addBtn = `<button type="button" class="track-add${steps.length?'':' track-add-empty'}" data-id="${p.id}" title="添加环节">${steps.length ? '<span class="track-add-dot">+</span><span class="track-add-label">添加</span>' : '＋ 添加环节'}</button>`;
+  if(!steps.length) return `<div class="track">${addBtn}</div>`;
+  const html = steps.map((st,i)=>`
+    ${i>0 ? `<span class="seg seg-${st.status||'none'}"></span>` : ''}
     <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}">
       <span class="step-dot"></span>
       <div class="step-label">${st.label}</div>
       <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
     </div>
   `).join('');
-  return `<div class="track">${linesHtml}${stepsHtml}</div>`;
+  return `<div class="track">${html}<span class="seg seg-add"></span>${addBtn}</div>`;
 }
 // 左侧"进度概览"：收藏公司数 + 七个环节里"当前最新已发生步骤是它"的岗位数，
 // 全部现算，不受搜索/筛选影响，范围是所有未删除的已提交岗位。
 function renderProgressOverview(){
+  // 每一项都显示"公司数 / 岗位数"：公司数跟顶部统计、看板的口径一致（数公司），
+  // 岗位数是同样条件下满足的岗位本身。
   const submitted = positions.filter(p=>!p.deleted && p.status==='submitted');
-  const companyIds = new Set(submitted.map(p=>p.companyId));
-  const favCount = [...companyIds].filter(id=>{ const c=getCompany(id); return c && c.favorite; }).length;
-  const stageCounts = {};
-  PROGRESS_STAGES.forEach(s=>{ stageCounts[s.key] = 0; });
-  submitted.forEach(p=>{
+  const countOf = list=>({companies: new Set(list.map(p=>p.companyId)).size, positions: list.length});
+  const currentKeyOf = p=>{
     const {progress, dates} = effectiveProgress(p, getCompany(p.companyId));
     const statusMap = effectiveStepStatusMap(progress, dates);
-    const currentKey = Object.keys(statusMap).find(k=>statusMap[k]==='current');
-    if(currentKey!==undefined && currentKey!==null) stageCounts[currentKey]++;
-  });
-  const attentionCount = [...companyIds].filter(id=>{
-    const list = submitted.filter(p=>p.companyId===id);
-    return computeCompanyCandidates({list}, getCompany(id)).length>0;
-  }).length;
+    return Object.keys(statusMap).find(k=>statusMap[k]==='current');
+  };
+  const currentKeys = new Map(submitted.map(p=>[p.id, currentKeyOf(p)]));
   const items = [
-    {key:'attention', label:'待处理', num:attentionCount, title:'有橙色/红色提醒的公司，按时间从近到远排'},
-    {key:'favorite', label:'收藏公司', num:favCount},
-    ...PROGRESS_STAGES.map(s=>({key:s.key, label:s.label, num:stageCounts[s.key]||0}))
+    {key:'all', label:'全部', ...countOf(submitted)},
+    {key:'attention', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
+      ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
+    {key:'favorite', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
+    ...PROGRESS_STAGES.map(s=>({key:s.key, label:s.label, ...countOf(submitted.filter(p=>currentKeys.get(p.id)===s.key))}))
   ];
+  const noFilter = !submittedAttentionFilter && !submittedFavoriteFilter && !submittedStageFilter;
   const el = document.getElementById('progressOverview');
   el.innerHTML = `
-    <h3>进度概览</h3>
+    <h3>进度概览<span class="overview-unit">公司 / 岗位</span></h3>
     <div class="overview-grid">
       ${items.map(it=>{
-        const active = it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        return `<button type="button" class="overview-item${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.num}</strong></button>`;
+        const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
+        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
   `;
@@ -2564,7 +2588,11 @@ function renderProgressOverview(){
   el.querySelectorAll('.overview-item').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const key = btn.dataset.key;
-      if(key==='attention'){
+      if(key==='all'){
+        submittedAttentionFilter = false;
+        submittedFavoriteFilter = false;
+        submittedStageFilter = null;
+      } else if(key==='attention'){
         submittedAttentionFilter = !submittedAttentionFilter;
       } else if(key==='favorite'){
         submittedFavoriteFilter = !submittedFavoriteFilter;
@@ -2641,7 +2669,7 @@ function renderSubmittedList(){
     const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
     // 还没有任何进度、也没设提醒的岗位，不画整条 8 个空节点的轨道（大多数岗位都是这样，
     // 整页全是灰圈很吵），收成一行小按钮，点了才展开；一旦有进度自然就展开显示。
-    const compact = !expandedRoleIds.has(p.id) && trackIsEmpty(p, company);
+    const compact = trackIsEmpty(p, company);
     return `
       <div class="role${compact?' role-compact':''}" data-id="${p.id}">
         <button class="role-del-btn" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
@@ -2652,7 +2680,7 @@ function renderSubmittedList(){
           </div>
           ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
         </div>
-        ${compact ? `<button class="role-expand-btn" type="button" data-id="${p.id}">＋ 记录进度</button>` : renderTrackHtml(p, company)}
+        ${renderTrackHtml(p, company)}
       </div>
     `;
   }
@@ -2728,13 +2756,6 @@ function renderSubmittedList(){
     });
   });
 
-  list.querySelectorAll('.role-expand-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      expandedRoleIds.add(btn.dataset.id);
-      renderSubmittedList();
-    });
-  });
   list.querySelectorAll('.card-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -2760,6 +2781,13 @@ function renderSubmittedList(){
   // 轨道节点：点哪里都弹出同一个节点小菜单（见 openStageNodePop）——里面可以一键
   // 标记完成/撤销、改完成日期、设提醒时间。原来点圆点直接打勾、点文字才改日期，
   // 两个点击区域很小又长得一样，经常点错。
+  list.querySelectorAll('.track .track-add').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const pos = positions.find(p=>p.id===btn.dataset.id);
+      if(pos) openStageAddPop(btn, pos);
+    });
+  });
   list.querySelectorAll('.track .step').forEach(stepEl=>{
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -2770,7 +2798,7 @@ function renderSubmittedList(){
   });
   list.querySelectorAll('.role').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.role-del-btn, .position-link, .track, .role-expand-btn')) return;
+      if(e.target.closest('.role-del-btn, .position-link, .track')) return;
       openDrawer(row.dataset.id);
     });
   });
@@ -4440,6 +4468,18 @@ function renderDatePop(){
   if(!st) return;
   const b = st.build();
   if(!b){ closeDatePop(); return; }
+  if(b.bodyHtml!==undefined){
+    datePop.innerHTML = `
+      <div class="dp-head">
+        <div class="dp-head-text">
+          <div class="dp-title">${escapeHtml(b.title||'')}</div>
+          ${b.sub ? `<div class="dp-sub">${escapeHtml(b.sub)}</div>` : ''}
+        </div>
+        <button type="button" class="dp-close" aria-label="关闭">&times;</button>
+      </div>
+      ${b.bodyHtml}`;
+    return;
+  }
   const value = b.value || '';
   const [selDate, selTime] = value.split('T');
   const today = dpAddDays(0);
@@ -4617,6 +4657,29 @@ function openStageNodePop(stepEl, pos, key){
       setStageDeadline(p, key, '', '');
       saveStagePosition(p);
     },
+  });
+}
+
+// 轨道末尾的"+"：先选要加哪个环节（已经在轨道上的不再列出），选完直接切到那个
+// 环节的小菜单里去标记完成或设提醒——什么都不做就关掉的话，什么也不会存下来。
+function openStageAddPop(btn, pos){
+  openDatePop(btn, {
+    build(){
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p) return null;
+      const company = getCompany(p.companyId);
+      const shown = new Set(trackVisibleSteps(p, company).map(st=>st.key));
+      const left = PROGRESS_STAGES.filter(s=>!shown.has(s.key));
+      return {
+        title: '添加环节',
+        sub: `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`,
+        bodyHtml: left.length
+          ? `<div class="dp-stage-list">${left.map(s=>`<button type="button" class="dp-chip" data-action="${s.key}">${trackStepLabel(s.key)}</button>`).join('')}</div>`
+          : `<div class="dp-note">所有环节都已经在轨道上了。</div>`,
+      };
+    },
+    onAction(key){ openStageNodePop(btn, pos, key); },
+    onPick(){},
   });
 }
 
