@@ -968,6 +968,10 @@
   .dp-manage-row .sdot{margin:0 2px;}
   .dp-manage-row .dp-stage-input{height:30px;}
   .dp-manage-row small{font-size:11px;color:var(--text-3);white-space:nowrap;min-width:34px;text-align:right;}
+  .dp-tools{display:flex;gap:6px;margin:-2px 0 10px;}
+  .dp-tool{border:none;background:var(--field);color:var(--text-2);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:750;cursor:pointer;font-family:inherit;}
+  .dp-tool:hover{background:var(--blue-soft);color:var(--blue);}
+  .dp-tool.danger:hover,.dp-tool.danger.armed{background:var(--red-soft);color:var(--red-ink);}
   .dp-msg{font-size:12px;color:var(--green);background:var(--green-soft);border-radius:10px;padding:6px 9px;margin-bottom:10px;}
   .dp-msg.err{color:var(--red-ink);background:var(--red-soft);}
   .overview-grid{display:grid;gap:8px;}
@@ -1087,7 +1091,7 @@
   .dp-native-hidden{display:none !important;}
   .date-pop{
     display:none;position:absolute;z-index:300;width:292px;box-sizing:border-box;
-    background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:18px;
+    background:#fff;border:1px solid var(--glass-border);border-radius:18px;
     box-shadow:var(--shadow-2);padding:14px;color:var(--ink);font-size:13px;
   }
   .date-pop.open{display:block;}
@@ -2670,6 +2674,9 @@ function renderProgressOverview(){
       // 一次只选一项：点一项就只按这一项筛（其它的取消），再点一下已选中的就回到"全部"。
       const key = btn.dataset.key;
       const wasActive = btn.classList.contains('active');
+      // 选概览里的标签时，顺手把搜索框清掉，不然搜索和标签叠在一起筛，容易看漏
+      const searchInput = document.getElementById('searchInput');
+      if(searchInput.value){ searchInput.value = ''; updateSearchClearBtn(); }
       submittedAttentionFilter = false;
       submittedFavoriteFilter = false;
       submittedStageFilter = null;
@@ -2678,7 +2685,7 @@ function renderProgressOverview(){
         else if(key==='favorite') submittedFavoriteFilter = true;
         else submittedStageFilter = key;
       }
-      renderSubmittedList();
+      renderFilteredViews();
     });
   });
 }
@@ -4718,22 +4725,52 @@ function saveStagePosition(pos){
   flushQueue();
   renderAll();
 }
-function openStageNodePop(stepEl, pos, key){
-  const stage = PROGRESS_STAGES.find(s=>s.key===key);
-  const stageLabel = stage ? stage.label : key;
+// 这个岗位自己在某个环节上有没有存东西（打勾/完成日期/提醒）——只有自己的才能
+// 删或换环节，公司级通用提醒要去"提醒事项"里改。
+function positionHasOwnStage(p, key){
+  return !!((p.progress && key in p.progress && p.progress[key]) || (p.progressDates && p.progressDates[key]) || (p.stageDeadlines && p.stageDeadlines[key]));
+}
+function openStageNodePop(stepEl, pos, initialKey){
+  let key = initialKey;
+  let mode = 'normal'; // normal | relabel
+  let armedRemove = false; // 删除要点两下：第一下变成"确认删除"，不用 confirm()
+  let suggestions = [];
+  let err = '';
+  const labelOf = k=>{ const st = PROGRESS_STAGES.find(s=>s.key===k); return st ? st.label : k; };
+  const toolsHtml = p=>positionHasOwnStage(p, key) ? `<div class="dp-tools">
+      <button type="button" class="dp-tool" data-action="relabel">换成别的环节</button>
+      <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${armedRemove?'再点一下确认删除':'从这个岗位删掉'}</button>
+    </div>` : '';
   openDatePop(stepEl, {
     build(){
       const p = positions.find(x=>x.id===pos.id);
       if(!p) return null;
       const company = getCompany(p.companyId);
       const sub = `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`;
+      if(mode==='relabel'){
+        const shown = new Set(trackVisibleSteps(p, company).map(st=>st.key));
+        suggestions = PROGRESS_STAGES.filter(s=>!shown.has(s.key))
+          .sort((a,b)=>(STAGE_USED.has(b.key)?1:0)-(STAGE_USED.has(a.key)?1:0));
+        return {
+          title: `把"${labelOf(key)}"换成…`, sub,
+          bodyHtml: `
+            ${err ? `<div class="dp-msg err">${err}</div>` : ''}
+            <div class="dp-stage-input-row">
+              <input type="text" class="dp-stage-input" maxlength="16" placeholder="输入环节名" data-enter-action="relabel-to">
+              <button type="button" class="dp-mini-btn" data-action="relabel-to">确定</button>
+            </div>
+            ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip" data-action="relabel-pick:${i}"><i class="sdot ${stageColor(s.key)}"></i>${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}
+            <div class="dp-tools" style="margin-top:12px;"><button type="button" class="dp-tool" data-action="relabel-cancel">← 返回</button></div>
+            <div class="dp-hint">只改这一个岗位；要把所有岗位里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
+        };
+      }
       const own = !!(p.progress && p.progress[key]);
       const eff = effectiveProgress(p, company);
       if(own || eff.progress[key]){
         const date = (own ? (p.progressDates||{})[key] : eff.dates[key]) || '';
         return {
-          title: stageLabel, sub, mode:'date', value: date, quick: dpQuickPast(),
-          topHtml: `<div class="dp-done-row"><span>✓ 已完成</span>${own?`<button type="button" class="dp-undo" data-action="undo">撤销</button>`:''}</div>`,
+          title: labelOf(key), sub, mode:'date', value: date, quick: dpQuickPast(),
+          topHtml: toolsHtml(p) + `<div class="dp-done-row"><span>✓ 已完成</span>${own?`<button type="button" class="dp-undo" data-action="undo">撤销</button>`:''}</div>`,
           note: own ? '' : '这是"全部岗位通用"的公司级提醒标记的完成，要撤销请去"提醒事项"里改。',
           section: '完成日期',
         };
@@ -4741,8 +4778,8 @@ function openStageNodePop(stepEl, pos, key){
       const ownEntry = stageDeadlineEntry(p.stageDeadlines||{}, key);
       const effEntry = effectiveStageDeadlines(p, company)[key];
       return {
-        title: stageLabel, sub, mode:'datetime', value: effEntry ? effEntry.date : '', quick: dpQuickFuture(),
-        topHtml: `<button type="button" class="dp-action" data-action="done">✓ 标记完成（今天）</button>`,
+        title: labelOf(key), sub, mode:'datetime', value: effEntry ? effEntry.date : '', quick: dpQuickFuture(),
+        topHtml: toolsHtml(p) + `<button type="button" class="dp-action" data-action="done">✓ 标记完成（今天）</button>`,
         note: (!ownEntry && effEntry) ? '当前显示的是公司级通用提醒；在这里改只改这个岗位。' : '',
         section: '提醒时间', clearLabel: '清除提醒',
       };
@@ -4752,10 +4789,46 @@ function openStageNodePop(stepEl, pos, key){
       if(!p) return;
       if(!p.progress) p.progress = {};
       if(!p.progressDates) p.progressDates = {};
+      if(action!=='remove') armedRemove = false;
+      if(action==='relabel'){ mode = 'relabel'; err = ''; return; }
+      if(action==='relabel-cancel'){ mode = 'normal'; return; }
+      if(action==='remove'){
+        if(!armedRemove){ armedRemove = true; return; }
+        delete p.progress[key];
+        delete p.progressDates[key];
+        if(p.stageDeadlines) delete p.stageDeadlines[key];
+        closeDatePop();
+        saveStagePosition(p);
+        return;
+      }
+      if(action==='relabel-to' || action.startsWith('relabel-pick:')){
+        let newKey;
+        if(action==='relabel-to'){
+          const input = datePop.querySelector('.dp-stage-input');
+          newKey = resolveStageKey(input ? input.value : '');
+          if(!newKey){ err = '先输入一个环节名'; return; }
+        } else {
+          const s = suggestions[Number(action.slice(13))];
+          newKey = s ? s.key : '';
+        }
+        if(!newKey || newKey===key){ mode = 'normal'; return; }
+        // 把这个岗位上旧环节的勾/完成日期/提醒搬到新环节下；新环节上已经有的保留不覆盖
+        [p.progress, p.progressDates, p.stageDeadlines].forEach(obj=>{
+          if(!obj || !(key in obj)) return;
+          if(!obj[newKey]) obj[newKey] = obj[key];
+          delete obj[key];
+        });
+        if(p.progress[newKey]) applyProgressExclusivity(p.progress, newKey, p.progressDates);
+        key = newKey;
+        mode = 'normal';
+        saveStagePosition(p);
+        return;
+      }
       setProgressChecked(p.progress, p.progressDates, key, action==='done');
       saveStagePosition(p);
     },
     onPick(v){
+      armedRemove = false;
       const p = positions.find(x=>x.id===pos.id);
       if(!p) return;
       const company = getCompany(p.companyId);
