@@ -1481,6 +1481,23 @@
   :root[data-theme="lime"] .overview-item.active{background:var(--charcoal);box-shadow:0 0 0 2px var(--charcoal);color:#fff;}
   :root[data-theme="lime"] .progress-company{border-color:rgba(0,0,0,.04);}
   :root[data-theme="lime"] .reminder-check{border-color:var(--gray);}
+  /* 编辑抽屉里每个岗位的小卡片：原来是浅蓝渐变，换成薰衣草浅底，里面的输入框用白底 */
+  :root[data-theme="lime"] .position-group{background:var(--lavender-soft);border-color:transparent;}
+  :root[data-theme="lime"] .position-group input[type=text],
+  :root[data-theme="lime"] .position-group input[type=url],
+  :root[data-theme="lime"] .position-group textarea,
+  :root[data-theme="lime"] .position-group .dp-trigger{background:#fff;}
+  /* 右上角三个小按钮：换肤青柠、回收站薰衣草、同步白底 */
+  :root[data-theme="lime"] .sync-indicator{background:#fff;border-color:rgba(0,0,0,.05);box-shadow:none;color:var(--text-2);}
+  :root[data-theme="lime"] #themeToggleBtn{background:var(--lime);color:var(--ink);}
+  :root[data-theme="lime"] #recycleBinBtn{background:var(--lavender-soft);color:var(--ink);}
+  /* 标签页滑块用青柠色，公司编号用薰衣草色 */
+  :root[data-theme="lime"] .view-tabs{box-shadow:none;}
+  :root[data-theme="lime"] .view-tab-slider{background:var(--lime);box-shadow:none;}
+  :root[data-theme="lime"] .company-title .seq{background:var(--lavender-soft);color:var(--purple);}
+  /* 原来偏蓝的阴影换成中性灰 */
+  :root[data-theme="lime"] .toolbar select,
+  :root[data-theme="lime"] .btn-ghost{box-shadow:0 6px 16px rgba(0,0,0,.06);}
   .theme-btn{display:inline-flex;align-items:center;gap:6px;}
   .theme-btn .swatch{width:12px;height:12px;border-radius:50%;background:conic-gradient(#cfdc8e 0 33%,#aaa4d9 0 66%,#262628 0);}
 </style>
