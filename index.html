@@ -1170,27 +1170,6 @@
     transition:opacity .15s ease,color .15s ease;
   }
   .role:hover .role-del-btn{opacity:1;}
-  /* ---- 分叉树（同一公司几个岗位共用前几步时） ---- */
-  .role-tree{
-    display:grid;grid-template-columns:calc(clamp(200px, 24%, 300px) + 20px) auto 36px 1fr;
-    padding:4px 0;border-bottom:1px solid var(--line);
-  }
-  .role-tree:last-child{border-bottom:0;}
-  .role-in-tree{display:contents;}
-  .tree-name{grid-column:1;padding:12px 20px 12px 0;cursor:pointer;}
-  .tree-trunk{grid-column:2;grid-row:1;padding-top:12px;position:relative;z-index:2;}
-  .tree-trunk .track{flex-wrap:nowrap;}
-  .tree-branch{grid-column:4;position:relative;padding:12px 24px 12px 0;z-index:2;cursor:pointer;}
-  .tree-branch .role-del-btn{top:12px;}
-  .tree-fork{grid-column:3;position:relative;}
-  /* 连线：竖线在 x=12px，横线在节点圆心高度（12px 上边距 + 9px 半径 = 21px） */
-  .tree-fork:before,.tree-fork:after{content:"";position:absolute;background:var(--gray);}
-  .tree-fork:before{left:12px;width:2px;}
-  .tree-fork:after{top:20px;height:2px;left:12px;right:-30px;}
-  .tree-fork.fork-first:before{top:20px;bottom:0;}
-  .tree-fork.fork-mid:before{top:0;bottom:0;}
-  .tree-fork.fork-last:before{top:0;height:22px;}
-  .tree-fork.fork-first:after{left:-30px;}
   .role-del-btn:hover{color:var(--red);}
 
   .track{display:flex;align-items:flex-start;flex-wrap:wrap;row-gap:10px;}
@@ -2897,38 +2876,6 @@ function trackVisibleSteps(p, company){
     return st;
   });
 }
-function stepsHtml(steps, idAttr){
-  return steps.map((st,i)=>`
-    ${i>0 ? `<span class="seg seg-${st.status||'none'}"></span>` : ''}
-    <div class="step${st.status?' '+st.status:''}" ${idAttr} data-key="${st.key}" style="--sc:var(--${stageColorVar(st.key)});--sc-soft:var(--${stageColorVar(st.key)}-soft)">
-      <span class="step-dot"></span>
-      <div class="step-label">${st.label}</div>
-      <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
-    </div>
-  `).join('');
-}
-// 同一家公司几个岗位最前面那几步完全一样（同一个环节、同一个状态、同一个日期），就只画
-// 一次当"主干"，后面从不一样的地方分叉。返回共同前缀的长度（至少 2 个岗位、至少 1 步）。
-function sharedTrackPrefix(list, company){
-  if(list.length<2) return 0;
-  const all = list.map(p=>trackVisibleSteps(p, company));
-  // "已完成"和"最新完成"算同一种状态：同一步在一个岗位上是最新的、在另一个岗位上后面
-  // 还有别的步骤，本质上都是"这一步已经发生了"。
-  const norm = st=>st==='current' ? 'done' : st;
-  let n = 0;
-  while(all.every(steps=>steps[n]) && all.every(steps=>{
-    const a = steps[n], b = all[0][n];
-    return a.key===b.key && norm(a.status)===norm(b.status) && a.dateLabel===b.dateLabel;
-  })) n++;
-  return n;
-}
-// 分支里那一段：跳过已经画在主干上的前 skip 步；没剩下的就只放一个"+"
-function renderBranchHtml(p, company, skip){
-  const steps = trackVisibleSteps(p, company).slice(skip);
-  const addBtn = `<button type="button" class="track-add" data-id="${p.id}" title="添加环节"><span class="track-add-dot">+</span><span class="track-add-label">添加</span></button>`;
-  if(!steps.length) return `<div class="track branch-track">${addBtn}</div>`;
-  return `<div class="track branch-track">${stepsHtml(steps, `data-id="${p.id}"`)}<span class="seg seg-add"></span>${addBtn}</div>`;
-}
 function renderTrackHtml(p, company){
   const steps = trackVisibleSteps(p, company);
   const addBtn = steps.length
@@ -3058,41 +3005,6 @@ function renderSubmittedList(){
     return;
   }
 
-  // 分叉树：主干（共同的前几步）画在第一行，后面用 ┬ ├ └ 的连线分到每个岗位自己的后续
-  // 环节。岗位名还在最左一栏、主干起点和别的卡片轨道起点在同一条竖线上，每个分支的起点
-  // 也上下对齐。.role 用 display:contents，行内各格子直接参与外面这个网格。
-  function renderRoleTree(list, defaultLink, company, shared){
-    // 主干上的节点：只要有任何一个岗位在它后面还有步骤，它就画成普通"已完成"；
-    // 所有岗位都停在这一步时才画成"最新"（带光晕）
-    const allSteps = list.map(p=>trackVisibleSteps(p, company));
-    const trunkSteps = allSteps[0].slice(0, shared).map((st,i)=>{
-      if(st.status!=='current' && st.status!=='done') return st;
-      const isLatest = i===shared-1 && allSteps.every(steps=>steps.length===shared);
-      return {...st, status: isLatest ? 'current' : 'done'};
-    });
-    const ids = list.map(p=>p.id).join(',');
-    const rows = list.map((p,i)=>{
-      const ownLink = normalizeLink(p.link);
-      const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
-      const pos = i===0 ? 'first' : (i===list.length-1 ? 'last' : 'mid');
-      return `
-        <div class="role role-in-tree" data-id="${p.id}">
-          <div class="tree-name" style="grid-row:${i+1}">
-            <div class="role-name">
-              <span>${escapeHtml(p.position||'（未命名岗位）')}</span>
-              ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
-            </div>
-            ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
-          </div>
-          <div class="tree-fork fork-${pos}" style="grid-row:${i+1}"></div>
-          <div class="tree-branch" style="grid-row:${i+1}">
-            <button class="role-del-btn" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
-            ${renderBranchHtml(p, company, shared)}
-          </div>
-        </div>`;
-    }).join('');
-    return `<div class="role-tree">${rows}<div class="tree-trunk"><div class="track trunk-track">${stepsHtml(trunkSteps, `data-group="${ids}"`)}</div></div></div>`;
-  }
   function renderRole(p, defaultLink, company){
     const ownLink = normalizeLink(p.link);
     const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
@@ -3142,8 +3054,7 @@ function renderSubmittedList(){
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </div>
         </div>
-        ${(()=>{ const shared = sharedTrackPrefix(g.list, company);
-          return shared>0 ? renderRoleTree(g.list, defaultLink, company, shared) : g.list.map(p=>renderRole(p, defaultLink, company)).join(''); })()}
+        ${g.list.map(p=>renderRole(p, defaultLink, company)).join('')}
         ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
       </article>
     `;
@@ -3223,10 +3134,9 @@ function renderSubmittedList(){
   list.querySelectorAll('.track .step').forEach(stepEl=>{
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const group = stepEl.dataset.group ? stepEl.dataset.group.split(',') : null;
-      const pos = positions.find(p=>p.id===(group ? group[0] : stepEl.dataset.id));
+      const pos = positions.find(p=>p.id===stepEl.dataset.id);
       if(!pos) return;
-      openStageNodePop(stepEl, pos, stepEl.dataset.key, group);
+      openStageNodePop(stepEl, pos, stepEl.dataset.key);
     });
   });
   list.querySelectorAll('.role').forEach(row=>{
@@ -5198,18 +5108,8 @@ function saveStagePosition(pos){
 function positionHasOwnStage(p, key){
   return !!((p.progress && key in p.progress && p.progress[key]) || (p.progressDates && p.progressDates[key]) || (p.stageDeadlines && p.stageDeadlines[key]));
 }
-// groupIds：分叉树主干上的节点是几个岗位共用的，点一下改的是这几个岗位一起
-function openStageNodePop(stepEl, pos, initialKey, groupIds){
+function openStageNodePop(stepEl, pos, initialKey){
   let key = initialKey;
-  const ids = (groupIds && groupIds.length) ? groupIds : [pos.id];
-  const targets = ()=>ids.map(id=>positions.find(x=>x.id===id)).filter(Boolean);
-  const commitAll = list=>{
-    const now = new Date().toISOString();
-    list.forEach(x=>{ x.updatedAt = now; queueUpsert('positions', x.id); });
-    saveData();
-    flushQueue();
-    renderAll();
-  };
   let mode = 'normal'; // normal | relabel
   let armedRemove = false; // 删除要点两下：第一下变成"确认删除"，不用 confirm()
   let suggestions = [];
@@ -5229,12 +5129,10 @@ function openStageNodePop(stepEl, pos, initialKey, groupIds){
   };
   openDatePop(stepEl, {
     build(){
-      const p = targets()[0];
+      const p = positions.find(x=>x.id===pos.id);
       if(!p) return null;
       const company = getCompany(p.companyId);
-      const sub = ids.length>1
-        ? `${company?company.name:'（未知公司）'} · ${ids.length} 个岗位共用`
-        : `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`;
+      const sub = `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`;
       if(mode==='relabel'){
         const shown = new Set(trackVisibleSteps(p, company).map(st=>st.key));
         suggestions = PROGRESS_STAGES.filter(s=>!shown.has(s.key))
@@ -5249,7 +5147,7 @@ function openStageNodePop(stepEl, pos, initialKey, groupIds){
             </div>
             ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip chip ${stageColor(s.key)}" data-action="relabel-pick:${i}">${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}
             <div class="dp-tools" style="margin-top:12px;"><button type="button" class="dp-tool" data-action="relabel-cancel">← 返回</button></div>
-            <div class="dp-hint">${ids.length>1 ? `只改这 ${ids.length} 个岗位` : '只改这一个岗位'}；要把所有岗位里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
+            <div class="dp-hint">只改这一个岗位；要把所有岗位里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
         };
       }
       // 不再有"标记完成"按钮：选的时间已经过去了 = 这个环节已经发生（记成完成，日期就是
@@ -5274,25 +5172,24 @@ function openStageNodePop(stepEl, pos, initialKey, groupIds){
       };
     },
     onAction(action){
-      const list = targets();
-      if(!list.length) return;
-      list.forEach(p=>{ if(!p.progress) p.progress = {}; if(!p.progressDates) p.progressDates = {}; });
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p) return;
+      if(!p.progress) p.progress = {};
+      if(!p.progressDates) p.progressDates = {};
       if(action!=='remove') armedRemove = false;
       if(action==='relabel'){ mode = 'relabel'; err = ''; return; }
       if(action==='relabel-cancel'){ mode = 'normal'; return; }
       if(action==='remove'){
         if(!armedRemove){ armedRemove = true; return; }
-        // 只删这个（这几个）岗位：删掉自己的勾/日期/提醒；如果是公司级通用的环节，在岗位上
+        // 只删这一个岗位：删掉自己的勾/日期/提醒；如果是公司级通用的环节，在这个岗位上
         // 记一个 hidden 标记，公司那条和其它岗位都不受影响。
-        list.forEach(p=>{
-          delete p.progress[key];
-          delete p.progressDates[key];
-          if(!p.stageDeadlines) p.stageDeadlines = {};
-          delete p.stageDeadlines[key];
-          if(hasCompanyStage(p)) p.stageDeadlines[key] = {date:'', note:'', hidden:true};
-        });
+        delete p.progress[key];
+        delete p.progressDates[key];
+        if(!p.stageDeadlines) p.stageDeadlines = {};
+        delete p.stageDeadlines[key];
+        if(hasCompanyStage(p)) p.stageDeadlines[key] = {date:'', note:'', hidden:true};
         closeDatePop();
-        commitAll(list);
+        saveStagePosition(p);
         return;
       }
       if(action==='relabel-to' || action.startsWith('relabel-pick:')){
@@ -5306,44 +5203,40 @@ function openStageNodePop(stepEl, pos, initialKey, groupIds){
           newKey = s ? s.key : '';
         }
         if(!newKey || newKey===key){ mode = 'normal'; return; }
-        // 把旧环节的勾/完成日期/提醒搬到新环节下；新环节上已经有的保留不覆盖
-        list.forEach(p=>{
-          [p.progress, p.progressDates, p.stageDeadlines].forEach(obj=>{
-            if(!obj || !(key in obj)) return;
-            if(!obj[newKey]) obj[newKey] = obj[key];
-            delete obj[key];
-          });
-          if(p.progress[newKey]) applyProgressExclusivity(p.progress, newKey, p.progressDates);
+        // 把这个岗位上旧环节的勾/完成日期/提醒搬到新环节下；新环节上已经有的保留不覆盖
+        [p.progress, p.progressDates, p.stageDeadlines].forEach(obj=>{
+          if(!obj || !(key in obj)) return;
+          if(!obj[newKey]) obj[newKey] = obj[key];
+          delete obj[key];
         });
+        if(p.progress[newKey]) applyProgressExclusivity(p.progress, newKey, p.progressDates);
         key = newKey;
         mode = 'normal';
-        commitAll(list);
+        saveStagePosition(p);
         return;
       }
-      list.forEach(p=>setProgressChecked(p.progress, p.progressDates, key, action==='done'));
-      commitAll(list);
+      setProgressChecked(p.progress, p.progressDates, key, action==='done');
+      saveStagePosition(p);
     },
     onPick(v){
       armedRemove = false;
-      const list = targets();
-      if(!list.length) return;
+      const p = positions.find(x=>x.id===pos.id);
+      if(!p) return;
+      if(!p.progress) p.progress = {};
+      if(!p.progressDates) p.progressDates = {};
       const [datePart, timePart] = v.split('T');
       const ts = timePart ? new Date(v).getTime() : new Date(datePart+'T00:00:00').getTime();
-      list.forEach(p=>{
-        if(!p.progress) p.progress = {};
-        if(!p.progressDates) p.progressDates = {};
-        if(stageHiddenOnPosition(p, key)) delete p.stageDeadlines[key];
-        if(ts <= Date.now()){
-          if(!p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, true);
-          p.progressDates[key] = datePart;
-        } else {
-          if(p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, false);
-          // 这里只是改时间，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
-          const existing = stageDeadlineEntry(p.stageDeadlines||{}, key);
-          setStageDeadline(p, key, timePart ? v : `${datePart}T23:59`, existing?existing.note:'');
-        }
-      });
-      commitAll(list);
+      if(stageHiddenOnPosition(p, key)) delete p.stageDeadlines[key];
+      if(ts <= Date.now()){
+        if(!p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, true);
+        p.progressDates[key] = datePart;
+      } else {
+        if(p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, false);
+        // 这里只是改时间，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
+        const existing = stageDeadlineEntry(p.stageDeadlines||{}, key);
+        setStageDeadline(p, key, timePart ? v : `${datePart}T23:59`, existing?existing.note:'');
+      }
+      saveStagePosition(p);
     },
   });
 }
