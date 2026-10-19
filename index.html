@@ -455,8 +455,20 @@
      顶部那一点头部。手机单栏时还是整页滚。 */
   @media(min-width:861px){
     .board .column{position:sticky;top:12px;height:calc(100vh - 24px);min-height:0;box-sizing:border-box;}
-    .board .column-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 6px 12px;margin:-6px -6px 0;}
+    /* 右边多留 14px 给滚动条，让它落在栏的内边距里，不压到卡片上 */
+    .board .column-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 16px 12px 6px;margin:-6px -16px 0 -6px;
+      scrollbar-width:thin;scrollbar-color:var(--sb,var(--blue-line)) transparent;}
   }
+  /* 滚动条：带斜条纹的胶囊，待填写栏青柠色、填报中栏薰衣草色（apple 皮肤下是浅蓝） */
+  .board .column[data-status="todo"]{--sb:var(--lime,var(--blue-line));--sb2:var(--lime-soft,var(--blue-soft));}
+  .board .column[data-status="inprogress"]{--sb:var(--lavender,var(--blue-line));--sb2:var(--lavender-soft,var(--blue-soft));}
+  .board .column-body::-webkit-scrollbar{width:10px;}
+  .board .column-body::-webkit-scrollbar-track{background:transparent;margin:6px 0;}
+  .board .column-body::-webkit-scrollbar-thumb{
+    border-radius:999px;border:2px solid transparent;background-clip:padding-box;
+    background-image:repeating-linear-gradient(135deg,var(--sb) 0 4px,var(--sb2) 4px 7px);
+  }
+  .board .column-body::-webkit-scrollbar-thumb:hover{background-image:none;background-color:var(--sb);}
   .empty-hint{
     color:var(--text-3);
     font-size:13px;
@@ -569,7 +581,10 @@
     align-items:center;
     flex-shrink:0;
   }
-  .drawer-head h3{margin:0;font-size:20px;font-weight:950;letter-spacing:-.02em;color:var(--ink);}
+  .drawer-head h3{margin:0;font-size:20px;font-weight:950;letter-spacing:-.02em;color:var(--ink);min-width:0;}
+  .drawer-head{gap:12px;}
+  .drawer-head > div{flex-shrink:0;}
+  #companyDetailLink{white-space:nowrap;}
   .drawer-close{
     background:var(--gray-soft);border:none;font-size:16px;cursor:pointer;color:var(--gray-ink);
     line-height:1;width:28px;height:28px;border-radius:50%;
@@ -929,20 +944,26 @@
   }
   .position-detail-del:hover{background:var(--red);color:#fff;box-shadow:none;}
   .position-detail-item:hover .position-detail-del{display:flex;align-items:center;justify-content:center;}
+  /* 名字一栏 + 右侧标签一栏：名字再长也只在自己那栏里换行，右边的日期标签永远在同一列，
+     上下严格对齐，不会被挤到下一行的开头。 */
   .position-detail-head{
-    display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px;
   }
+  .position-detail-item > a.position-link{margin-top:8px;padding:0 10px;}
   .position-detail-name{font-weight:600;font-size:14px;}
-  .position-link{
-    display:inline-block;
-    font-size:12px;
-    color:var(--primary);
-    text-decoration:none;
-    margin-top:4px;
+  /* 所有网申链接统一做成小按钮：平时浅底，悬停变成青柠色（apple 皮肤下浅蓝），按下去
+     缩一下；点开过的链接图标变成紫色，一眼看出哪些已经点过。 */
+  a.position-link{
+    display:inline-flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;
+    min-width:26px;height:26px;padding:0 6px;border-radius:9px;box-sizing:border-box;
+    background:var(--field);color:var(--text-2);
+    font-size:12px;font-weight:800;text-decoration:none;margin-top:0;vertical-align:middle;
+    transition:background .15s ease,color .15s ease,transform .1s ease;
   }
-  .position-link:hover{text-decoration:underline;}
-  .reminder-top-row .position-link{display:inline-flex;margin-top:0;flex-shrink:0;color:var(--text-3);}
-  .reminder-top-row .position-link:hover{color:var(--blue);}
+  a.position-link:visited{color:var(--purple);}
+  a.position-link:hover{background:var(--lime,var(--blue-soft));color:var(--ink);text-decoration:none;}
+  a.position-link:active{transform:scale(.92);}
+  #companyDetailLink{padding:0 10px;}
   .position-line-meta .position-link{margin-top:0;}
   .detail-checklist{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
   .detail-checklist-item{
@@ -1109,8 +1130,7 @@
   .role-compact{padding:8px 0;}
   .submitted-list.attention-mode .drag-handle{display:none;}
   .role-name{font-size:14px;font-weight:400;color:var(--text-2);display:flex;align-items:center;gap:5px;}
-  .role-name .position-link{color:var(--text-2);display:inline-flex;flex-shrink:0;}
-  .role-name .position-link:hover{color:var(--blue);}
+
   .role-desc{color:#8194ad;font-size:13px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
     position:absolute;top:10px;right:0;opacity:0;
@@ -1508,6 +1528,18 @@
   /* 原来偏蓝的阴影换成中性灰 */
   :root[data-theme="lime"] .toolbar select,
   :root[data-theme="lime"] .btn-ghost{box-shadow:0 6px 16px rgba(0,0,0,.06);}
+  .move-toast{
+    position:fixed;left:50%;bottom:28px;z-index:160;transform:translate(-50%,16px);opacity:0;pointer-events:none;
+    display:flex;align-items:center;gap:12px;padding:10px 12px 10px 18px;border-radius:999px;
+    background:var(--charcoal,#1d2633);color:#fff;font-size:14px;font-weight:700;box-shadow:0 14px 34px rgba(0,0,0,.22);
+    transition:opacity .2s ease,transform .2s ease;white-space:nowrap;
+  }
+  .move-toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;}
+  .move-toast button{border:none;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .move-toast .toast-undo{background:rgba(255,255,255,.14);color:#fff;}
+  .move-toast .toast-go{background:var(--lime,var(--blue));color:var(--ink);}
+  @keyframes cardArrive{0%{box-shadow:0 0 0 0 var(--lime,var(--blue));transform:scale(.98);}40%{box-shadow:0 0 0 4px var(--lime,var(--blue));transform:scale(1);}100%{box-shadow:var(--shadow-card);}}
+  .card.just-moved{animation:cardArrive 1.6s ease;}
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
@@ -1872,6 +1904,7 @@
 
 <div class="date-pop" id="datePop" role="dialog" aria-label="选择日期"></div>
 <button type="button" class="back-top" id="backTopBtn" title="回到顶部" aria-label="回到顶部">↑</button>
+<div class="move-toast" id="moveToast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -4650,6 +4683,7 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   if(list.length===0) return;
   const now = new Date().toISOString();
   const finalReviewStage = toStatus==='inprogress' ? (toReviewStage || 'pending') : '';
+  const before = new Map(list.map(p=>[p.id, {status:p.status, reviewStage:p.reviewStage||'', submittedAt:p.submittedAt||null}]));
   list.forEach(p=>{
     if(toStatus==='submitted' && p.status!=='submitted') p.submittedAt = now;
     p.status = toStatus;
@@ -4662,6 +4696,55 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   renderAll();
   // 打开这个弹窗基本就是为了改状态，不是来编辑内容的——选完直接关掉，不用自己再点一次关闭
   closeCompanyDetail();
+  showMoveToast(companyId, list.map(p=>({id:p.id, ...before.get(p.id)})), toStatus, finalReviewStage);
+}
+// 换状态后卡片不是"凭空消失"：底部弹一条提示，说清楚挪到哪去了，可以撤销；还在看板上
+// 的话，把那张卡滚到眼前并闪一下。
+let moveToastTimer = null;
+function moveTargetLabel(status, reviewStage){
+  if(status==='inprogress') return reviewStage==='reviewed' ? '待提交' : '待审核';
+  return STATUS_LABEL[status] || status;
+}
+function highlightMovedCard(companyId, status){
+  const card = document.querySelector(`#board .card[data-company-id="${companyId}"][data-status="${status}"]`)
+    || document.querySelector(`#submittedList .card[data-company-id="${companyId}"]`);
+  if(!card) return false;
+  card.scrollIntoView({block:'center', behavior:'smooth'});
+  card.classList.remove('just-moved'); void card.offsetWidth; card.classList.add('just-moved');
+  return true;
+}
+function showMoveToast(companyId, snapshot, toStatus, toReviewStage){
+  const toast = document.getElementById('moveToast');
+  const company = getCompany(companyId);
+  const onBoard = toStatus!=='submitted';
+  toast.innerHTML = `<span>${escapeHtml(company?company.name:'')} 已移到「${moveTargetLabel(toStatus, toReviewStage)}」</span>
+    <button type="button" class="toast-undo">撤销</button>
+    ${onBoard ? '' : '<button type="button" class="toast-go">去看看</button>'}`;
+  toast.classList.add('show');
+  if(onBoard) setTimeout(()=>highlightMovedCard(companyId, toStatus), 60);
+  clearTimeout(moveToastTimer);
+  moveToastTimer = setTimeout(()=>toast.classList.remove('show'), 6000);
+  toast.querySelector('.toast-undo').onclick = ()=>{
+    const now = new Date().toISOString();
+    snapshot.forEach(s=>{
+      const p = positions.find(x=>x.id===s.id);
+      if(!p) return;
+      p.status = s.status; p.reviewStage = s.reviewStage; p.submittedAt = s.submittedAt; p.updatedAt = now;
+      queueUpsert('positions', p.id);
+    });
+    saveData();
+    flushQueue();
+    renderAll();
+    toast.classList.remove('show');
+    setTimeout(()=>highlightMovedCard(companyId, snapshot[0] && snapshot[0].status), 60);
+  };
+  const go = toast.querySelector('.toast-go');
+  if(go) go.onclick = ()=>{
+    const tab = document.getElementById('viewTabSubmitted');
+    if(tab) tab.click();
+    toast.classList.remove('show');
+    setTimeout(()=>highlightMovedCard(companyId, 'submitted'), 120);
+  };
 }
 function deleteCardGroup(companyId, status, reviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
