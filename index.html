@@ -534,8 +534,10 @@
     padding-right:22px;
     margin-bottom:12px;
   }
-  .card .company-row .favorite-star{margin-top:3px;}
-  .card .company-row .right-tags{position:static;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;}
+  /* 星星、右侧标签都按公司名第一行的行高居中，跟名字在同一条水平线上 */
+  .card .company-row .favorite-star{margin-top:0;height:28px;display:inline-flex;align-items:center;line-height:1;}
+  .card .company-row .company{line-height:28px;}
+  .card .company-row .right-tags{min-height:28px;position:static;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;}
   .card .company{font-size:18px;font-weight:950;letter-spacing:-.02em;}
   .company-row .company-link{margin-left:auto;margin-top:0;font-size:12px;color:var(--text-2);flex-shrink:0;display:flex;align-items:center;}
   .company-row .company-link:hover{color:var(--blue);}
@@ -1704,6 +1706,9 @@
     border:none;background:none;padding:5px 8px;border-radius:9px;cursor:pointer;font-family:inherit;transition:background .15s ease;}
   .op-jump:hover{background:var(--field);}
   .op-stage{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));white-space:nowrap;}
+  .op-stage.op-submitted{background:var(--lime-soft, var(--green-soft));color:#6f8a22;}
+  .op-stage.op-todo{background:var(--field);color:var(--text-2);}
+  :root[data-theme="apple"] .op-stage.op-submitted{background:#e0f4fd;color:#0369a1;}
   .op-names{font-size:12.5px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .op-arrow{font-size:12px;color:var(--text-4);transition:transform .15s ease, color .15s ease;}
   .op-jump:hover .op-arrow{transform:translateX(3px);color:var(--ink);}
@@ -2605,7 +2610,7 @@ function otherPositionsHtml(companyId, status, reviewStage){
     const [st, rs] = k.split(':');
     const names = groups.get(k).map(p=>escapeHtml(p.position||'（未命名岗位）')).join('、');
     return `<button type="button" class="op-jump" data-company-id="${companyId}" data-status="${st}" data-review-stage="${rs||''}" title="点击跳到这张卡片">
-      <span class="op-stage">${labels[k]}</span><span class="op-names">${names}</span><span class="op-arrow">→</span></button>`;
+      <span class="op-stage op-${st}${rs?'-'+rs:''}">${labels[k]}</span><span class="op-names">${names}</span><span class="op-arrow">→</span></button>`;
   }).join('');
   return `<div class="other-positions"><div class="op-title">同公司其它岗位</div>${rows}</div>`;
 }
