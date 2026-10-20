@@ -589,10 +589,11 @@
     background:rgba(14,27,45,.08);
     backdrop-filter:blur(1px);
     -webkit-backdrop-filter:blur(1px);
-    display:none;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .28s ease, visibility 0s linear .28s;
     z-index:50;
   }
-  .overlay.active{display:block;}
+  .overlay.active{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .28s ease;}
   .drawer{
     position:fixed;
     top:50%;left:50%;
@@ -1734,11 +1735,44 @@
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
-    box-shadow:0 10px 24px rgba(0,0,0,.18);opacity:0;pointer-events:none;transform:translateY(8px);
-    transition:opacity .2s ease, transform .2s ease;
+    box-shadow:0 10px 24px rgba(0,0,0,.18);opacity:0;pointer-events:none;transform:translateY(14px) scale(.5);
+    transition:opacity .2s ease, transform .45s cubic-bezier(.34,1.56,.64,1);
+    --p:0;
   }
   .back-top.show{opacity:1;pointer-events:auto;transform:none;}
   .back-top:hover{filter:brightness(1.15);}
+  .back-top:active{transform:scale(.88);transition-duration:.1s;}
+  /* 外圈进度：滑了多少就亮多少 */
+  .back-top:before{content:"";position:absolute;inset:3px;border-radius:50%;z-index:-1;
+    background:conic-gradient(var(--lime,#fff) calc(var(--p)*1turn), rgba(255,255,255,.14) 0);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));
+    mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));}
+  /* ---- 动效 ---- */
+  @keyframes numBump{0%{transform:none;}35%{transform:translateY(-2px) scale(1.08);}100%{transform:none;}}
+  .num-bump{display:inline-block;animation:numBump .45s cubic-bezier(.34,1.56,.64,1);}
+  .stat-card .num.num-bump{display:block;transform-origin:left center;}
+  /* 弹窗的进出由脚本按点击位置播放（见 fxDrawer），这里关掉自带的过渡免得互相打架 */
+  .drawer{transition:none;}
+  /* 滚动浮现：第一次滑进屏幕时淡入上浮 */
+  .card.rv,.reminder-row.rv{opacity:0;transform:translateY(18px);}
+  .card.rv-in,.reminder-row.rv-in{transition:opacity .45s ease, transform .55s cubic-bezier(.22,1,.36,1) !important;}
+  /* 看板列滑到头前，边缘渐隐提示还能滑 */
+  @property --fade-t{syntax:'<length>';inherits:false;initial-value:0px;}
+  @property --fade-b{syntax:'<length>';inherits:false;initial-value:0px;}
+  .board .column-body{
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--fade-t),#000 calc(100% - var(--fade-b)),transparent 100%);
+    mask-image:linear-gradient(to bottom,transparent 0,#000 var(--fade-t),#000 calc(100% - var(--fade-b)),transparent 100%);
+    transition:--fade-t .25s ease, --fade-b .25s ease;}
+  .board .column-body.fade-t{--fade-t:28px;}
+  .board .column-body.fade-b{--fade-b:44px;}
+  /* 按下回弹 */
+  .card:active:not(:has(button:active, a:active, .step:active)){transform:translateY(-1px) scale(.985);transition-duration:.08s;}
+  .reminder-row:active:not(:has(button:active, a:active)),
+  .position-detail-item:active:not(.dragging):not(:has(button:active, a:active, input:active)){transform:scale(.985);transition:transform .08s ease;}
+  .position-detail-item:not(.dragging):not(.drag-shift){transition:box-shadow .15s ease, transform .22s cubic-bezier(.34,1.56,.64,1);}
+  .track .step:active .step-dot{transform:scale(.82);transition-duration:.06s;}
+  .overview-grid .overview-item:active{transform:scale(.97);}
+  .view-tab:active{transform:scale(.96);}
   .loc-tag{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 9px 0 7px;border-radius:999px;
     background:var(--st1-soft);color:var(--st1);font-size:12px;font-weight:800;vertical-align:1px;white-space:nowrap;flex-shrink:0;}
   .position-detail-name .loc-tag{margin-left:6px;}
@@ -2568,6 +2602,7 @@ function renderStats(){
       <div class="label">${s.label}</div>
     </div>
   `).join('');
+  fxNumbers();
 }
 
 // 截止/倒计时胶囊的颜色规则，看板和提醒页统一：已逾期或就是今天→红；1~7天内→橙；
@@ -2830,7 +2865,7 @@ function renderBoard(){
   document.querySelectorAll('.card-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      deleteCardGroup(btn.dataset.companyId, btn.dataset.status, btn.dataset.reviewStage||undefined);
+      deleteCardGroup(btn.dataset.companyId, btn.dataset.status, btn.dataset.reviewStage||undefined, btn.closest('.card'));
     });
   });
   document.querySelectorAll('.favorite-star').forEach(btn=>{
@@ -2845,7 +2880,7 @@ function renderBoard(){
       const id = btn.dataset.id;
       const pos = positions.find(p=>p.id===id);
       if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这个岗位吗？此操作无法撤销。`})){
-        renderAll();
+        fxCollapseRow(btn.closest('.position-line'), '.position-line', renderAll);
       }
     });
   });
@@ -3261,6 +3296,7 @@ function renderProgressOverview(){
   // 点一下按筛选条件显示，再点一下（或点另一个）取消/切换——语义跟数字本身
   // 的统计口径完全一致（见上面 favCount/stageCounts 怎么数的）。
   placeOverviewSlider(el);
+  fxNumbers();
   el.querySelectorAll('.overview-item').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       // 一次只选一项：点一项就只按这一项筛（其它的取消），再点一下已选中的就回到"全部"。
@@ -3448,7 +3484,7 @@ function renderSubmittedList(){
   list.querySelectorAll('.card-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      deleteCardGroup(btn.dataset.companyId, 'submitted', undefined);
+      deleteCardGroup(btn.dataset.companyId, 'submitted', undefined, btn.closest('.card'));
     });
   });
   list.querySelectorAll('.favorite-star').forEach(btn=>{
@@ -3463,7 +3499,7 @@ function renderSubmittedList(){
       const id = btn.dataset.id;
       const pos = positions.find(p=>p.id===id);
       if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这条已提交记录吗？此操作无法撤销。`})){
-        renderAll();
+        fxCollapseRow(btn.closest('.role'), '.role', renderAll);
       }
     });
   });
@@ -3611,6 +3647,7 @@ function renderNavSummary(){
     `${todoCompanyCount} 待填写 · <span class="orange">${inprogressCompanyCount} 填报中</span> · <span class="blue">${submittedCompanyCount} 已提交</span> · <span class="red">${remindersCount} 提醒事项</span>`;
 }
 function renderAll(){
+  const tracksBefore = fxSnapTracks();
   refreshStageRegistry();
   renderTodayLabel();
   renderStats();
@@ -3619,6 +3656,8 @@ function renderAll(){
   renderRemindersTabCount();
   renderNavSummary();
   if(document.getElementById('remindersView').style.display!=='none') renderRemindersList();
+  fxPlayTracks(tracksBefore);
+  fxAfterRender();
 }
 
 /* ---- 提醒事项：汇总所有"已提交岗位、环节还没完成、但设了提醒截止时间"的记录 ---- */
@@ -5377,7 +5416,7 @@ function showMoveToast(companyId, snapshot, toStatus, toReviewStage, opts){
     setTimeout(()=>highlightMovedCard(companyId, 'submitted'), 120);
   };
 }
-function deleteCardGroup(companyId, status, reviewStage){
+function deleteCardGroup(companyId, status, reviewStage, cardEl){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
     && (reviewStage===undefined || reviewStageOf(p)===reviewStage));
   if(list.length===0) return;
@@ -5386,7 +5425,7 @@ function deleteCardGroup(companyId, status, reviewStage){
   const msg = `确定要删除「${company?company.name:'该公司'}」在"${STATUS_LABEL[status]}${stageLabel}"的这 ${list.length} 个岗位吗？此操作无法撤销。`;
   if(!confirm(msg)) return;
   list.forEach(p=>deletePosition(p.id, {skipConfirm:true}));
-  renderAll();
+  fxCollapse(cardEl, ()=>{ const b = snapshotCards(); renderAll(); playFlip(b); });
 }
 
 document.getElementById('deleteBtn').addEventListener('click', ()=>{
@@ -5400,6 +5439,7 @@ document.getElementById('deleteBtn').addEventListener('click', ()=>{
 function renderFilteredViews(){
   renderBoard();
   renderSubmittedList();
+  fxAfterRender();
 }
 function updateSearchClearBtn(){
   document.getElementById('searchClearBtn').classList.toggle('visible', !!document.getElementById('searchInput').value);
@@ -6043,6 +6083,7 @@ function setActiveView(view){
   positionTabSlider();
   if(view==='reminders') renderRemindersList();
   if(view==='submitted') snapOverviewSlider();
+  fxAfterRender();
   if(prevView!==view){
     const el = document.getElementById(VIEW_EL[view]);
     const forward = VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(prevView);
@@ -6265,14 +6306,16 @@ function openCompanyDetail(companyId, status, reviewStage){
       const pos = positions.find(p=>p.id===id);
       const ok = deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这个岗位吗？此操作无法撤销。`});
       if(!ok) return;
-      renderAll();
       const remaining = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
         && (reviewStage===undefined || reviewStageOf(p)===reviewStage));
-      if(remaining.length===0){
-        closeCompanyDetail();
-      } else {
-        openCompanyDetail(companyId, status, reviewStage);
-      }
+      fxCollapse(remaining.length ? btn.closest('.position-detail-item') : null, ()=>{
+        renderAll();
+        if(remaining.length===0){
+          closeCompanyDetail();
+        } else {
+          openCompanyDetail(companyId, status, reviewStage);
+        }
+      });
     });
   });
   document.getElementById('companyDetailAddBtn').onclick = ()=>{
@@ -6433,7 +6476,7 @@ function renderRecycleBin(){
   body.querySelectorAll('.add-item-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       restoreDeletedPosition(btn.dataset.id);
-      renderRecycleBin();
+      fxCollapse(btn.closest('.position-detail-item'), renderRecycleBin);
     });
   });
 }
@@ -6469,13 +6512,219 @@ const backTopBtn = document.getElementById('backTopBtn');
 function updateBackTop(){
   const colScrolled = [...document.querySelectorAll('.board .column-body')].some(el=>el.scrollTop>400);
   backTopBtn.classList.toggle('show', window.scrollY>500 || colScrolled);
+  const pageMax = document.documentElement.scrollHeight - innerHeight;
+  let p = pageMax>0 ? window.scrollY/pageMax : 0;
+  document.querySelectorAll('.board .column-body').forEach(el=>{
+    const m = el.scrollHeight - el.clientHeight;
+    if(m>0) p = Math.max(p, el.scrollTop/m);
+  });
+  backTopBtn.style.setProperty('--p', Math.min(1, p).toFixed(3));
 }
 window.addEventListener('scroll', updateBackTop, {passive:true});
-document.addEventListener('scroll', e=>{ if(e.target.classList && e.target.classList.contains('column-body')) updateBackTop(); }, {capture:true, passive:true});
+document.addEventListener('scroll', e=>{ if(e.target.classList && e.target.classList.contains('column-body')){ updateBackTop(); fxColumnFade(e.target); } }, {capture:true, passive:true});
+window.addEventListener('resize', ()=>fxColumnFade(), {passive:true});
 backTopBtn.addEventListener('click', ()=>{
   window.scrollTo({top:0, behavior:'smooth'});
   document.querySelectorAll('.board .column-body').forEach(el=>el.scrollTo({top:0, behavior:'smooth'}));
 });
+/* ---- 动效：滚动浮现、数字滚动、弹窗从点击处展开、删除收起、轨道节点让位 ---- */
+const fxReduced = ()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function fxAfterRender(){ fxReveal(); fxColumnFade(); }
+
+// 滚动浮现：卡片第一次滑进屏幕时淡入上浮，同一批错开一点；看过的不再重复。
+// 重画时已经在屏幕上的卡交给补位/淡入那套动效，这里不藏。
+const fxSeen = new Set();
+let fxFirstPaint = true;
+function fxRevealKey(el){
+  return el.classList.contains('reminder-row') ? 'R|'+el.dataset.scope+'|'+el.dataset.id+'|'+el.dataset.key : cardKey(el);
+}
+const fxRevealIO = ('IntersectionObserver' in window) ? new IntersectionObserver(entries=>{
+  entries.filter(e=>e.isIntersecting)
+    .sort((a,b)=>(a.boundingClientRect.top-b.boundingClientRect.top) || (a.boundingClientRect.left-b.boundingClientRect.left))
+    .forEach((e,i)=>{
+      const el = e.target;
+      fxRevealIO.unobserve(el);
+      fxSeen.add(fxRevealKey(el));
+      el.style.transitionDelay = Math.min(i,6)*55 + 'ms';
+      el.classList.add('rv-in');
+      el.classList.remove('rv');
+      setTimeout(()=>{ el.classList.remove('rv-in'); el.style.transitionDelay = ''; }, 1000);
+    });
+}, {rootMargin:'0px 0px -30px 0px'}) : null;
+function fxOnScreen(el){
+  const r = el.getBoundingClientRect();
+  if(!r.width || r.bottom<=0 || r.top>=innerHeight) return false;
+  const col = el.closest('.board .column-body');
+  if(col){ const c = col.getBoundingClientRect(); if(r.bottom<=c.top || r.top>=c.bottom) return false; }
+  return true;
+}
+function fxReveal(){
+  if(!fxRevealIO) return;
+  fxRevealIO.disconnect();
+  const reduced = fxReduced();
+  document.querySelectorAll('#board .card[data-company-id], #submittedList .card[data-company-id], .reminder-row').forEach(el=>{
+    const k = fxRevealKey(el);
+    if(fxSeen.has(k)) return;
+    if(reduced || (!fxFirstPaint && fxOnScreen(el))){ fxSeen.add(k); return; }
+    el.classList.add('rv');
+    fxRevealIO.observe(el);
+  });
+  fxFirstPaint = false;
+}
+
+// 看板列：上面还有内容就顶部渐隐，下面还有就底部渐隐
+function fxColumnFade(only){
+  (only ? [only] : document.querySelectorAll('.board .column-body')).forEach(el=>{
+    const max = el.scrollHeight - el.clientHeight;
+    el.classList.toggle('fade-t', max>2 && el.scrollTop>2);
+    el.classList.toggle('fade-b', max>2 && el.scrollTop<max-2);
+  });
+}
+
+// 数字滚动：统计卡、进度概览的数字变了，从旧数滚到新数
+const fxNumPrev = new Map();
+function fxRoll(node, key, prefix){
+  if(!node || node.nodeType!==3) return;
+  const to = parseInt(node.nodeValue.replace(/[^\d]/g,''), 10);
+  if(isNaN(to)) return;
+  const from = fxNumPrev.get(key);
+  fxNumPrev.set(key, to);
+  if(from===undefined || from===to || fxReduced()) return;
+  const t0 = performance.now(), dur = Math.min(720, 320 + Math.abs(to-from)*40);
+  node.nodeValue = prefix + from;
+  const tick = now=>{
+    const k = Math.min(1, (now-t0)/dur), e = 1 - Math.pow(1-k, 3);
+    node.nodeValue = prefix + Math.round(from + (to-from)*e);
+    if(k<1 && node.isConnected) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  const host = node.parentElement && node.parentElement.closest('.num, strong');
+  if(host && !host.classList.contains('num-bump')){
+    host.classList.add('num-bump');
+    setTimeout(()=>host.classList.remove('num-bump'), 450);
+  }
+}
+function fxNumbers(){
+  document.querySelectorAll('#statsRow .stat-card').forEach(card=>{
+    const num = card.querySelector('.num');
+    if(num) fxRoll(num.firstChild, 'S|'+card.dataset.view+'|'+card.dataset.col, '');
+  });
+  document.querySelectorAll('#progressOverview .overview-item').forEach(btn=>{
+    const strong = btn.querySelector('strong');
+    if(!strong) return;
+    fxRoll(strong.firstChild, 'O|'+btn.dataset.key+'|c', '');
+    const small = strong.querySelector('small');
+    if(small) fxRoll(small.firstChild, 'O|'+btn.dataset.key+'|p', ' / ');
+  });
+}
+
+// 弹窗：从刚点的那张卡（或按钮）的位置放大出来，关的时候缩回去
+let fxPress = null;
+document.addEventListener('pointerdown', e=>{
+  const src = e.target.closest('.card, .reminder-row, .position-detail-item');
+  let x = e.clientX, y = e.clientY;
+  if(src && !e.target.closest('button, a')){ const r = src.getBoundingClientRect(); x = r.left + r.width/2; y = r.top + r.height/2; }
+  fxPress = {x, y, t: Date.now()};
+}, true);
+const fxDrawerState = new WeakMap();
+function fxDrawer(d){
+  const on = d.classList.contains('active');
+  const st = fxDrawerState.get(d);
+  if(st.on===on) return;
+  st.on = on;
+  if(fxReduced()) return;
+  d.getAnimations().forEach(a=>a.cancel());
+  const at = (dx,dy,s)=>`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${s})`;
+  if(on){
+    const near = fxPress && Date.now()-fxPress.t < 1200;
+    st.dx = near ? fxPress.x - innerWidth/2 : 0;
+    st.dy = near ? fxPress.y - innerHeight/2 : 0;
+    st.s = near ? .25 : .94;
+    d.animate([
+      {transform: at(st.dx, st.dy, st.s), opacity: 0},
+      {opacity: 1, offset: .3},
+      {transform: at(0, 0, 1), opacity: 1}
+    ], {duration: near ? 460 : 240, easing: 'cubic-bezier(.22,1,.36,1)'});
+  } else {
+    d.animate([
+      {transform: at(0, 0, 1), opacity: 1, visibility: 'visible'},
+      {opacity: 1, offset: .4},
+      {transform: at(st.dx||0, st.dy||0, st.s||.94), opacity: 0, visibility: 'visible'}
+    ], {duration: 280, easing: 'cubic-bezier(.4,0,.6,1)'});
+  }
+}
+document.querySelectorAll('.drawer').forEach(d=>{
+  fxDrawerState.set(d, {on: d.classList.contains('active')});
+  new MutationObserver(()=>fxDrawer(d)).observe(d, {attributes:true, attributeFilter:['class']});
+});
+
+// 删除：那一行先淡出、再收起高度，下面的顺势补上来，然后才重画
+function fxCollapse(el, done){
+  let called = false;
+  const fin = ()=>{ if(called) return; called = true; done(); };
+  if(!el || !el.isConnected || fxReduced() || !el.offsetHeight){ fin(); return; }
+  const cs = getComputedStyle(el);
+  const h = el.getBoundingClientRect().height;
+  Object.assign(el.style, {overflow:'hidden', pointerEvents:'none', boxSizing:'border-box'});
+  const a = el.animate([
+    {height: h+'px', opacity: 1, transform: 'scale(1)', marginTop: cs.marginTop, marginBottom: cs.marginBottom, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom},
+    {opacity: 0, transform: 'scale(.96)', offset: .45},
+    {height: '0px', opacity: 0, transform: 'scale(.96)', marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px'}
+  ], {duration: 360, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards'});
+  a.onfinish = fin;
+  setTimeout(fin, 520);
+}
+// 删掉一个岗位后收起：卡里只剩这一个岗位就收起整张卡
+function fxCollapseRow(rowEl, rowSelector, done){
+  const card = rowEl && rowEl.closest('.card');
+  const target = card && card.querySelectorAll(rowSelector).length<=1 ? card : rowEl;
+  fxCollapse(target, ()=>{ const b = snapshotCards(); done(); playFlip(b); });
+}
+
+// 进度轨道：加/删/换环节后，其它节点从原位置滑到新位置，新节点从小长出来
+function fxTrackKey(c){
+  if(c.classList.contains('step')) return 's|'+c.dataset.key;
+  if(c.classList.contains('seg')){ const n = c.nextElementSibling; return 'g|'+(n && n.classList.contains('step') ? n.dataset.key : 'add'); }
+  if(c.classList.contains('track-add')) return 'add';
+  return null;
+}
+function fxTrackId(t){ const s = t.querySelector('[data-id]'); return s && s.dataset.id; }
+function fxSnapTracks(){
+  const m = new Map();
+  document.querySelectorAll('#submittedList .track').forEach(t=>{
+    const id = fxTrackId(t), tr = t.getBoundingClientRect();
+    if(!id || !tr.width) return;
+    const kids = new Map();
+    [...t.children].forEach(c=>{
+      const k = fxTrackKey(c);
+      if(k){ const r = c.getBoundingClientRect(); kids.set(k, {x: r.left-tr.left, y: r.top-tr.top}); }
+    });
+    m.set(id, kids);
+  });
+  return m;
+}
+function fxPlayTracks(before){
+  if(!before.size || fxReduced()) return;
+  document.querySelectorAll('#submittedList .track').forEach(t=>{
+    const old = before.get(fxTrackId(t)), tr = t.getBoundingClientRect();
+    if(!old || !tr.width) return;
+    [...t.children].forEach(c=>{
+      const k = fxTrackKey(c);
+      if(!k) return;
+      const o = old.get(k);
+      if(o){
+        const r = c.getBoundingClientRect();
+        const dx = o.x-(r.left-tr.left), dy = o.y-(r.top-tr.top);
+        if(Math.abs(dx)<1 && Math.abs(dy)<1) return;
+        c.animate([{transform:`translate(${dx}px, ${dy}px)`}, {transform:'none'}], {duration:440, easing:'cubic-bezier(.22,1,.36,1)'});
+      } else if(c.classList.contains('step')){
+        c.animate([{transform:'scale(.2)', opacity:0}, {transform:'scale(1.12)', opacity:1, offset:.6}, {transform:'none', opacity:1}], {duration:500, easing:'cubic-bezier(.22,1,.36,1)'});
+      } else {
+        c.animate([{opacity:0}, {opacity:1}], {duration:300, delay:140, fill:'backwards'});
+      }
+    });
+  });
+}
 // 换肤：青柠（默认）和原来的 apple 配色之间切换，只记在这台设备的浏览器里。
 document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
   const next = document.documentElement.getAttribute('data-theme')==='lime' ? 'apple' : 'lime';
