@@ -1756,6 +1756,15 @@
   /* 滚动浮现：第一次滑进屏幕时淡入上浮 */
   .card.rv,.reminder-row.rv{opacity:0;transform:translateY(18px);}
   .card.rv-in,.reminder-row.rv-in{transition:opacity .45s ease, transform .55s cubic-bezier(.22,1,.36,1) !important;}
+  /* 跟着滚动走：卡片从屏幕（或看板列）底边进来时略小略淡，越往上滑越接近原样，往回滑就倒着放。
+     用 scale/translate 这两个单独的属性，不碰 transform，悬停上浮、补位飞行照常；
+     :where 让优先级为 0，其它卡片动画（闪一下、淡入）播的时候会临时盖过它。 */
+  @supports (animation-timeline: view()){
+    @keyframes scrollIn{from{opacity:.3;scale:.93;translate:0 30px;}to{opacity:1;scale:1;translate:0 0;}}
+    :where(#board .card, #submittedList .card, .reminder-row){
+      animation:scrollIn linear both;animation-timeline:view();animation-range:entry 0% entry 100%;}
+  }
+  @media (prefers-reduced-motion: reduce){ :where(#board .card, #submittedList .card, .reminder-row){animation:none;} }
   /* 看板列滑到头前，边缘渐隐提示还能滑 */
   @property --fade-t{syntax:'<length>';inherits:false;initial-value:0px;}
   @property --fade-b{syntax:'<length>';inherits:false;initial-value:0px;}
@@ -6558,8 +6567,10 @@ function fxOnScreen(el){
   if(col){ const c = col.getBoundingClientRect(); if(r.bottom<=c.top || r.top>=c.bottom) return false; }
   return true;
 }
+const fxScrollLinked = !!(window.CSS && CSS.supports('animation-timeline: view()'));
 function fxReveal(){
-  if(!fxRevealIO) return;
+  // 浏览器支持"跟着滚动走"的卡片动画时就用那个（见 CSS 的 scrollIn），这里只给老浏览器兜底
+  if(!fxRevealIO || fxScrollLinked) return;
   fxRevealIO.disconnect();
   const reduced = fxReduced();
   document.querySelectorAll('#board .card[data-company-id], #submittedList .card[data-company-id], .reminder-row').forEach(el=>{
