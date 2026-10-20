@@ -1352,7 +1352,7 @@
     font-size:11px;padding:3px 8px;border-radius:var(--radius-pill);pointer-events:none;
   }
   .paste-import-note{display:block;margin-top:2px;font-size:12px;color:var(--text-2);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
-  .reminder-book{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:999px;border:1.5px dashed var(--text-4);
+  .reminder-book{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:76px;height:28px;padding:0;border-radius:999px;border:1.5px dashed var(--text-4);box-sizing:border-box;
     background:none;color:var(--text-3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s ease;}
   .reminder-book:hover{border-color:var(--text-2);color:var(--text-2);}
   .reminder-book svg{width:12px;height:12px;}
@@ -1427,14 +1427,16 @@
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;}
   /* 没完成的提醒：预约 | 倒计时 | 日期 | 周几 | 时间 | 删除，各占固定宽度的一列，
      每张卡片的这几样上下严格对齐 */
-  .reminder-meta-grid{display:grid;grid-template-columns:78px 96px 196px 24px;column-gap:14px;justify-items:start;}
-  .rdue{justify-self:end;display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap;font-size:12.5px;color:var(--text-2);font-variant-numeric:tabular-nums;}
-  .rdue-date{color:var(--text-2);font-weight:650;}
-  .rdue-sep{color:var(--text-4);}
-  .rdue-count{font-weight:800;}
-  .rdue.danger .rdue-count{color:var(--red-ink);}
-  .rdue.warn .rdue-count{color:var(--orange-ink);}
-  .rdue.far .rdue-count{color:var(--text-3);}
+  /* 右侧：预约胶囊（固定宽） | 时间块（两行：日期 周几 时间 / 倒计时，左对齐固定宽） | 删除 */
+  .reminder-meta-grid{display:grid;grid-template-columns:76px 150px 24px;column-gap:18px;justify-items:start;align-items:center;}
+  .rwhen{display:flex;flex-direction:column;gap:3px;line-height:1.2;font-variant-numeric:tabular-nums;}
+  .rwhen-top{display:flex;align-items:baseline;gap:6px;white-space:nowrap;font-size:13px;}
+  .rwhen-top b{font-weight:800;color:var(--ink);}
+  .rwhen-top span{color:var(--text-3);font-size:12px;}
+  .rwhen-top em{font-style:normal;font-weight:800;color:var(--purple, var(--blue));}
+  .rwhen-count{font-size:12px;font-weight:750;color:var(--text-3);}
+  .rwhen.danger .rwhen-count{color:var(--red-ink);}
+  .rwhen.warn .rwhen-count{color:var(--orange-ink);}
   .rtag{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;}
   .rtag-time{gap:4px;background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));padding:0 10px;}
   .reminder-countdown-badge{
@@ -3407,20 +3409,15 @@ function getActiveReminders(){
 }
 // 提醒截止时间精确到分钟——离得远的还是按天算大概齐就行，但今天以内的要显示还剩
 // 几小时/几分钟，不然明明只剩 20 分钟了却只写"今天截止"，看不出紧不紧急。
+// 倒计时只精确到"天"，字越少越好认
 function reminderCountdownText(dateTimeStr){
-  const hasTime = dateTimeStr.includes('T');
-  const datePart = hasTime ? dateTimeStr.split('T')[0] : dateTimeStr;
+  const datePart = String(dateTimeStr||'').split('T')[0];
   const d = daysUntil(datePart);
-  if(d>0) return `${d}天后截止`;
-  if(d<0) return `已逾期 ${Math.abs(d)} 天`;
-  if(!hasTime) return '今天截止';
-  const mins = minutesUntil(dateTimeStr);
-  if(mins<0){
-    const absMin = Math.abs(mins);
-    return absMin<60 ? `已逾期 ${absMin} 分钟` : `已逾期 ${Math.floor(absMin/60)} 小时`;
-  }
-  if(mins<60) return `${mins}分钟后截止`;
-  return `${Math.floor(mins/60)}小时${mins%60}分钟后截止`;
+  if(d<0) return `已过期 ${Math.abs(d)} 天`;
+  if(d===0) return isOverdue(dateTimeStr) ? '今天已过' : '今天截止';
+  if(d===1) return '明天截止';
+  if(d===2) return '后天截止';
+  return `${d} 天后截止`;
 }
 // 标签页文字旁边不再显示数量了（数量移到顶部统计卡片里），这个函数留空
 // 只是为了不用挨个删掉原来那几处调用它的地方。
@@ -3443,11 +3440,14 @@ function linkifyNote(text){
     return `<a class="reminder-note-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u}</a>`;
   }).replace(/\*\*(.+?)\*\*/g, '<b class="note-strong">$1</b>');
 }
-// 截止时间：周几和几点合成一个标签放前面；日期和"几天后截止"一起作为普通文字放在最后
-function reminderWeekTimeTag(dt){
-  const [d, t] = String(dt||'').split('T');
-  const wd = d ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(d+'T00:00:00').getDay()] : '';
-  return `<span class="rtag rtag-time">${wd} ${t ? escapeHtml(t) : '全天'}</span>`;
+// 截止时间：日期、周几、几点放一行，倒计时放下一行，紧挨在一起
+function reminderWeekday(dt){
+  const d = String(dt||'').split('T')[0];
+  return d ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(d+'T00:00:00').getDay()] : '';
+}
+function reminderTime(dt){
+  const t = String(dt||'').split('T')[1];
+  return t ? escapeHtml(t) : '全天';
 }
 function reminderShortDate(dt){
   const d = String(dt||'').split('T')[0];
@@ -3503,9 +3503,11 @@ function renderReminderRow(item){
       </div>
       ${noteHtml}
       <div class="reminder-meta reminder-meta-grid">
-        <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'预约'}</button>
-        ${reminderWeekTimeTag(item.date)}
-        <span class="rdue ${badgeCls}"><span class="rdue-date">${reminderShortDate(item.date)}</span><span class="rdue-sep">·</span><span class="rdue-count">${dateText}</span></span>
+        <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'未预约'}</button>
+        <div class="rwhen ${badgeCls}">
+          <div class="rwhen-top"><b>${reminderShortDate(item.date)}</b><span>${reminderWeekday(item.date)}</span><em>${reminderTime(item.date)}</em></div>
+          <div class="rwhen-count">${dateText}</div>
+        </div>
         <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
       </div>
     </div>
