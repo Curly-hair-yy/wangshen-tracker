@@ -1008,11 +1008,14 @@
   .position-detail-item:hover .position-detail-del{display:flex;align-items:center;justify-content:center;}
   /* 名字一栏 + 右侧标签一栏：名字再长也只在自己那栏里换行，右边的日期标签永远在同一列，
      上下严格对齐，不会被挤到下一行的开头。 */
-  /* 岗位名 | 地点（固定宽度一列）| 截止日期：地点标签上下严格对齐 */
+  /* 岗位名 | 地点 | 截止日期：日期一列的宽度 = 这家公司里最宽的那个日期（脚本量出来写进 --dw），
+     日期左边缘上下对齐；地点靠右贴着日期，右边缘也上下对齐，中间只留一点空隙 */
   .position-detail-head{
-    display:grid;grid-template-columns:minmax(0,1fr) 86px auto;align-items:center;column-gap:12px;
+    display:grid;grid-template-columns:minmax(0,1fr) auto var(--dw,auto);align-items:center;column-gap:6px;
   }
-  .position-detail-loc{justify-self:start;}
+  .position-detail-loc{justify-self:end;}
+  .position-detail-date{justify-self:start;display:flex;}
+  .position-detail-note{color:#8194ad;font-size:14px;font-weight:400;margin-top:4px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;word-break:break-all;}
   .position-detail-item > a.position-link{margin-top:8px;padding:0 10px;}
   .position-detail-name{font-weight:600;font-size:14px;}
   /* 所有网申链接统一做成小按钮：平时浅底，悬停变成薰衣草紫（apple 皮肤下浅蓝），按下去
@@ -1601,6 +1604,7 @@
   :root[data-theme="lime"] .company-date{color:var(--text-2);}
   :root[data-theme="lime"] .date-line,
   :root[data-theme="lime"] .role-desc,
+  :root[data-theme="lime"] .position-detail-note,
   :root[data-theme="lime"] .job-note,
   :root[data-theme="lime"] .toolbar input[type=text]::placeholder{color:var(--text-3);}
   :root[data-theme="lime"] .view-tab.active,
@@ -6213,8 +6217,9 @@ function openCompanyDetail(companyId, status, reviewStage){
         <div class="position-detail-head">
           <span class="position-detail-name">${escapeHtml(p.position||'（未命名岗位）')}</span>
           <span class="position-detail-loc">${locationTag(p)}</span>
-          ${deadlineBadge(p)}
+          <span class="position-detail-date">${deadlineBadge(p)}</span>
         </div>
+        ${p.note ? `<div class="position-detail-note">${linkifyNote(p.note)}</div>` : ''}
         ${checklistText ? `<div class="field-hint" id="checklist-count-${p.id}">${checklistText}</div>` : ''}
         ${checklistHtml ? `<div class="detail-checklist">${checklistHtml}</div>` : ''}
         ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 打开网申链接 ↗</a>` : ''}
@@ -6228,6 +6233,12 @@ function openCompanyDetail(companyId, status, reviewStage){
       </div>
     `;
   }).join('');
+  // 日期一列统一取最宽那个日期的宽度，各行日期左边缘、地点右边缘都能上下对齐
+  const detailBody = document.getElementById('companyDetailBody');
+  detailBody.style.removeProperty('--dw');
+  // 用 offsetWidth（弹窗展开动画会缩放，getBoundingClientRect 量出来的是缩放后的宽度）
+  const dateW = Math.max(0, ...[...detailBody.querySelectorAll('.position-detail-date')].map(el=>el.offsetWidth));
+  detailBody.style.setProperty('--dw', dateW+'px');
 
   document.querySelectorAll('.detail-checklist-item input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
