@@ -1105,6 +1105,9 @@
   .dp-manage-row .dp-stage-input{height:30px;}
   .dp-manage-row small{font-size:11px;color:var(--text-3);white-space:nowrap;min-width:34px;text-align:right;}
   .dp-tools{display:flex;gap:6px;margin:-2px 0 10px;}
+  .dp-scope{display:flex;gap:3px;padding:3px;margin:-2px 0 10px;background:var(--field);border-radius:11px;}
+  .dp-scope-btn{flex:1;border:none;background:none;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:750;color:var(--text-2);cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .dp-scope-btn.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08);}
   .dp-tool{border:none;background:var(--field);color:var(--text-2);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:750;cursor:pointer;font-family:inherit;}
   .dp-tool:hover{background:var(--blue-soft);color:var(--blue);}
   .dp-tool.danger:hover,.dp-tool.danger.armed{background:var(--red-soft);color:var(--red-ink);}
@@ -2351,6 +2354,8 @@ let currentView = 'board';
 let submittedFavoriteFilter = false;
 // 「待处理」筛选：只看有橙色/红色提醒的公司，按最近的提醒时间从近到远排。
 let submittedAttentionFilter = false;
+// 「已进行」筛选：只看至少有一个岗位已经有环节（完成过或设了提醒）的公司
+let submittedStartedFilter = false;
 let submittedStageFilter = null;
 // 顶部四张统计卡片、分段控件右侧汇总行共用的口径：待填写/待提交/已提交都数
 // "有多少家公司"，不是"有多少个岗位"——一家公司名下不管挂几个岗位，只要有一个
@@ -2669,6 +2674,7 @@ function computeSubmittedGroups(){
   // 数字就精确看到那几家。一次只会有一个筛选生效（见 renderProgressOverview 的点击处理）。
   const overviewFilteredGroups = orderedListGroups.filter(g=>{
     if(submittedAttentionFilter && computeCompanyCandidates(g, getCompany(g.companyId)).length===0) return false;
+    if(submittedStartedFilter && !g.list.some(p=>trackVisibleSteps(p, getCompany(g.companyId)).length>0)) return false;
     if(submittedFavoriteFilter){
       const c = getCompany(g.companyId);
       if(!(c && c.favorite)) return false;
@@ -2926,18 +2932,19 @@ function renderProgressOverview(){
   const stageKeys = new Map(submitted.map(p=>[p.id, new Set(trackVisibleSteps(p, getCompany(p.companyId)).map(st=>st.key))]));
   const items = [
     {key:'all', label:'全部', ...countOf(submitted)},
+    {key:'started', label:'已进行', title:'至少有一个岗位已经走过环节或设了提醒的公司', ...countOf(submitted.filter(p=>stageKeys.get(p.id).size>0))},
     {key:'attention', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
       ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
     {key:'favorite', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
     ...PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key)).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), ...countOf(submitted.filter(p=>stageKeys.get(p.id).has(s.key)))}))
   ];
-  const noFilter = !submittedAttentionFilter && !submittedFavoriteFilter && !submittedStageFilter;
+  const noFilter = !submittedAttentionFilter && !submittedStartedFilter && !submittedFavoriteFilter && !submittedStageFilter;
   const el = document.getElementById('progressOverview');
   el.innerHTML = `
     <h3>进度概览<span class="overview-unit">公司 / 岗位</span></h3>
     <div class="overview-grid">
       ${items.map(it=>{
-        const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
+        const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : it.key==='started' ? submittedStartedFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
         return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
@@ -2955,10 +2962,12 @@ function renderProgressOverview(){
       const searchInput = document.getElementById('searchInput');
       if(searchInput.value){ searchInput.value = ''; updateSearchClearBtn(); }
       submittedAttentionFilter = false;
+      submittedStartedFilter = false;
       submittedFavoriteFilter = false;
       submittedStageFilter = null;
       if(key!=='all' && !wasActive){
         if(key==='attention') submittedAttentionFilter = true;
+        else if(key==='started') submittedStartedFilter = true;
         else if(key==='favorite') submittedFavoriteFilter = true;
         else submittedStageFilter = key;
       }
@@ -5130,8 +5139,32 @@ function saveStagePosition(pos){
 function positionHasOwnStage(p, key){
   return !!((p.progress && key in p.progress && p.progress[key]) || (p.progressDates && p.progressDates[key]) || (p.stageDeadlines && p.stageDeadlines[key]));
 }
+// 小菜单顶部可以切"这个岗位 / 整家公司"：选整家公司时，改日期、删除、换环节会一起作用到
+// 这家公司所有已提交的岗位，同一家公司流程一样的就不用一个个点。
 function openStageNodePop(stepEl, pos, initialKey){
   let key = initialKey;
+  let scope = 'one';
+  const siblingsOf = p=>positions.filter(x=>!x.deleted && x.status==='submitted' && x.companyId===p.companyId);
+  const targets = ()=>{
+    const p = positions.find(x=>x.id===pos.id);
+    if(!p) return [];
+    return scope==='all' ? siblingsOf(p) : [p];
+  };
+  const commitAll = list=>{
+    const now = new Date().toISOString();
+    list.forEach(x=>{ x.updatedAt = now; queueUpsert('positions', x.id); });
+    saveData();
+    flushQueue();
+    renderAll();
+  };
+  const scopeHtml = p=>{
+    const n = siblingsOf(p).length;
+    if(n<2) return '';
+    return `<div class="dp-scope">
+      <button type="button" class="dp-scope-btn${scope==='one'?' on':''}" data-action="scope:one">这个岗位</button>
+      <button type="button" class="dp-scope-btn${scope==='all'?' on':''}" data-action="scope:all">整家公司 · ${n} 个岗位</button>
+    </div>`;
+  };
   let mode = 'normal'; // normal | relabel
   let armedRemove = false; // 删除要点两下：第一下变成"确认删除"，不用 confirm()
   let suggestions = [];
@@ -5154,7 +5187,9 @@ function openStageNodePop(stepEl, pos, initialKey){
       const p = positions.find(x=>x.id===pos.id);
       if(!p) return null;
       const company = getCompany(p.companyId);
-      const sub = `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`;
+      const sub = scope==='all'
+        ? `${company?company.name:'（未知公司）'} · 全部 ${siblingsOf(p).length} 个岗位`
+        : `${company?company.name:'（未知公司）'} · ${p.position||'（未命名岗位）'}`;
       if(mode==='relabel'){
         const shown = new Set(trackVisibleSteps(p, company).map(st=>st.key));
         suggestions = PROGRESS_STAGES.filter(s=>!shown.has(s.key))
@@ -5169,7 +5204,7 @@ function openStageNodePop(stepEl, pos, initialKey){
             </div>
             ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip chip ${stageColor(s.key)}" data-action="relabel-pick:${i}">${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}
             <div class="dp-tools" style="margin-top:12px;"><button type="button" class="dp-tool" data-action="relabel-cancel">← 返回</button></div>
-            <div class="dp-hint">只改这一个岗位；要把所有岗位里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
+            <div class="dp-hint">${scope==='all' ? '会把这家公司所有岗位里的这个环节一起换掉' : '只改这一个岗位'}；要把所有公司里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
         };
       }
       // 不再有"标记完成"按钮：选的时间已经过去了 = 这个环节已经发生（记成完成，日期就是
@@ -5188,30 +5223,32 @@ function openStageNodePop(stepEl, pos, initialKey){
       return {
         title: labelOf(key), sub, mode:'datetime', value, quick: dpQuickAll(),
         defaultTime: d=>d<=todayDateStr() ? dpNowTime() : '23:59',
-        topHtml: toolsHtml(p) + status,
+        topHtml: scopeHtml(p) + toolsHtml(p) + status,
         note,
         section: '过去 = 已完成 · 将来 = 提醒',
       };
     },
     onAction(action){
-      const p = positions.find(x=>x.id===pos.id);
-      if(!p) return;
-      if(!p.progress) p.progress = {};
-      if(!p.progressDates) p.progressDates = {};
+      if(action==='scope:one' || action==='scope:all'){ scope = action.slice(6); armedRemove = false; return; }
+      const list = targets();
+      if(!list.length) return;
+      list.forEach(p=>{ if(!p.progress) p.progress = {}; if(!p.progressDates) p.progressDates = {}; });
       if(action!=='remove') armedRemove = false;
       if(action==='relabel'){ mode = 'relabel'; err = ''; return; }
       if(action==='relabel-cancel'){ mode = 'normal'; return; }
       if(action==='remove'){
         if(!armedRemove){ armedRemove = true; return; }
-        // 只删这一个岗位：删掉自己的勾/日期/提醒；如果是公司级通用的环节，在这个岗位上
-        // 记一个 hidden 标记，公司那条和其它岗位都不受影响。
-        delete p.progress[key];
-        delete p.progressDates[key];
-        if(!p.stageDeadlines) p.stageDeadlines = {};
-        delete p.stageDeadlines[key];
-        if(hasCompanyStage(p)) p.stageDeadlines[key] = {date:'', note:'', hidden:true};
+        // 删掉这个（这些）岗位上这个环节的勾/日期/提醒；如果是公司级通用的环节，在岗位上
+        // 记一个 hidden 标记，公司那条提醒本身不动。
+        list.forEach(p=>{
+          delete p.progress[key];
+          delete p.progressDates[key];
+          if(!p.stageDeadlines) p.stageDeadlines = {};
+          delete p.stageDeadlines[key];
+          if(hasCompanyStage(p)) p.stageDeadlines[key] = {date:'', note:'', hidden:true};
+        });
         closeDatePop();
-        saveStagePosition(p);
+        commitAll(list);
         return;
       }
       if(action==='relabel-to' || action.startsWith('relabel-pick:')){
@@ -5225,40 +5262,44 @@ function openStageNodePop(stepEl, pos, initialKey){
           newKey = s ? s.key : '';
         }
         if(!newKey || newKey===key){ mode = 'normal'; return; }
-        // 把这个岗位上旧环节的勾/完成日期/提醒搬到新环节下；新环节上已经有的保留不覆盖
-        [p.progress, p.progressDates, p.stageDeadlines].forEach(obj=>{
-          if(!obj || !(key in obj)) return;
-          if(!obj[newKey]) obj[newKey] = obj[key];
-          delete obj[key];
+        // 把旧环节的勾/完成日期/提醒搬到新环节下；新环节上已经有的保留不覆盖
+        list.forEach(p=>{
+          [p.progress, p.progressDates, p.stageDeadlines].forEach(obj=>{
+            if(!obj || !(key in obj)) return;
+            if(!obj[newKey]) obj[newKey] = obj[key];
+            delete obj[key];
+          });
+          if(p.progress[newKey]) applyProgressExclusivity(p.progress, newKey, p.progressDates);
         });
-        if(p.progress[newKey]) applyProgressExclusivity(p.progress, newKey, p.progressDates);
         key = newKey;
         mode = 'normal';
-        saveStagePosition(p);
+        commitAll(list);
         return;
       }
-      setProgressChecked(p.progress, p.progressDates, key, action==='done');
-      saveStagePosition(p);
+      list.forEach(p=>setProgressChecked(p.progress, p.progressDates, key, action==='done'));
+      commitAll(list);
     },
     onPick(v){
       armedRemove = false;
-      const p = positions.find(x=>x.id===pos.id);
-      if(!p) return;
-      if(!p.progress) p.progress = {};
-      if(!p.progressDates) p.progressDates = {};
+      const list = targets();
+      if(!list.length) return;
       const [datePart, timePart] = v.split('T');
       const ts = timePart ? new Date(v).getTime() : new Date(datePart+'T00:00:00').getTime();
-      if(stageHiddenOnPosition(p, key)) delete p.stageDeadlines[key];
-      if(ts <= Date.now()){
-        if(!p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, true);
-        p.progressDates[key] = datePart;
-      } else {
-        if(p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, false);
-        // 这里只是改时间，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
-        const existing = stageDeadlineEntry(p.stageDeadlines||{}, key);
-        setStageDeadline(p, key, timePart ? v : `${datePart}T23:59`, existing?existing.note:'');
-      }
-      saveStagePosition(p);
+      list.forEach(p=>{
+        if(!p.progress) p.progress = {};
+        if(!p.progressDates) p.progressDates = {};
+        if(stageHiddenOnPosition(p, key)) delete p.stageDeadlines[key];
+        if(ts <= Date.now()){
+          if(!p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, true);
+          p.progressDates[key] = datePart;
+        } else {
+          if(p.progress[key]) setProgressChecked(p.progress, p.progressDates, key, false);
+          // 这里只是改时间，不动备注——备注要去"提醒事项"里点开这条提醒单独改。
+          const existing = stageDeadlineEntry(p.stageDeadlines||{}, key);
+          setStageDeadline(p, key, timePart ? v : `${datePart}T23:59`, existing?existing.note:'');
+        }
+      });
+      commitAll(list);
     },
   });
 }
