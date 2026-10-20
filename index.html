@@ -1336,6 +1336,7 @@
   .card-summary-line .progress-checkbox-item{
     font-size:11px;padding:3px 8px;border-radius:var(--radius-pill);pointer-events:none;
   }
+  .paste-import-note{display:block;margin-top:2px;font-size:12px;color:var(--text-2);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   .reminders-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;}
   .paste-import-row{
     display:flex;align-items:center;gap:8px;
@@ -1937,8 +1938,8 @@
   <div class="drawer-body">
     <div class="field">
       <label>把每天的总结文字贴在这里</label>
-      <textarea id="pasteImportInput" rows="8" placeholder="比如：&#10;杭州银行（全部岗位）测评 截止 2026-09-18 08:48&#10;阳光保险（全部岗位）测评 截止 2026-09-28 20:32"></textarea>
-      <div class="field-hint">按"公司名 环节 日期 时间"这样的格式逐行识别，都会按"整个公司通用"导入；识别之后可以在下面挑要导入哪几条，导入后也可以再改成挂到具体某个岗位上。</div>
+      <textarea id="pasteImportInput" rows="8" placeholder="比如：&#10;杭州银行（全部岗位）测评 截止 2026-09-18 08:48&#10;阳光保险（全部岗位）测评 截止 2026-09-28 20:32 需要带耳机"></textarea>
+      <div class="field-hint">按"公司名 环节 日期 时间 备注"这样的格式逐行识别，时间后面的文字会当成备注（可以不写）；都会按"整个公司通用"导入；识别之后可以在下面挑要导入哪几条，导入后也可以再改成挂到具体某个岗位上。</div>
     </div>
     <button class="add-item-btn" id="pasteImportParseBtn" type="button">识别</button>
     <div id="pasteImportResults"></div>
@@ -3834,8 +3835,14 @@ function parsePasteText(text){
     const candidates = companies.filter(c=>!c.deleted && (c.name===companyText || c.name.includes(companyText) || companyText.includes(c.name)));
     const matchedCompany = candidates.length===1 ? candidates[0] : (candidates.find(c=>c.name===companyText) || null);
     const stage = PROGRESS_STAGES.find(s=>s.key===stageKey);
+    // 时间后面剩下的文字就当备注：去掉开头的标点和"备注："，也认括号包着的写法
+    const note = line.slice(m.index + m[0].length).trim()
+      .replace(/^[，,;；:：\-—|·\s]+/, '')
+      .replace(/^备注\s*[:：]?\s*/, '')
+      .replace(/^[（(](.*)[）)]$/, '$1')
+      .trim();
     return {
-      raw:line, ok:true, companyText, stageKey, stageLabel: stage ? stage.label : `${trackStepLabel(stageKey)}（新环节）`, dateTime,
+      raw:line, ok:true, companyText, stageKey, note, stageLabel: stage ? stage.label : `${trackStepLabel(stageKey)}（新环节）`, dateTime,
       matchedCompany, ambiguous: candidates.length>1 && !matchedCompany,
     };
   });
@@ -3853,7 +3860,7 @@ function renderPasteImportResults(items){
     return `
       <label class="paste-import-row">
         <input type="checkbox" class="paste-import-check" data-idx="${idx}" checked>
-        <span class="paste-import-row-main">${escapeHtml(item.matchedCompany.name)}（全部岗位） ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}</span>
+        <span class="paste-import-row-main">${escapeHtml(item.matchedCompany.name)}（全部岗位） ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}${item.note ? `<span class="paste-import-note">备注：${escapeHtml(item.note)}</span>` : ''}</span>
       </label>
     `;
   }).join('');
@@ -3910,7 +3917,9 @@ document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
   checkedIdxs.forEach(idx=>{
     const item = pasteImportParsed[idx];
     if(!item || !item.ok || !item.matchedCompany) return;
-    setCompanyStageDeadline(item.matchedCompany, item.stageKey, item.dateTime, '');
+    // 这一行写了备注就用它；没写的话，保留这条提醒原来的备注，不把它清空
+    const existingEntry = companyStageDeadlineEntry(item.matchedCompany, item.stageKey);
+    setCompanyStageDeadline(item.matchedCompany, item.stageKey, item.dateTime, item.note || (existingEntry ? existingEntry.note : ''));
     item.matchedCompany.updatedAt = new Date().toISOString();
     saveData();
     queueUpsert('companies', item.matchedCompany.id);
