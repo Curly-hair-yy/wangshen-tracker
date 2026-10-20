@@ -6605,8 +6605,12 @@ function fxColumnFade(only){
 
 // 数字滚动：统计卡、进度概览的数字变了，从旧数滚到新数
 const fxNumPrev = new Map();
+// 已经处理过的数字节点不再读第二遍：一次重画里 fxNumbers 会被调两次（统计卡、进度概览各一次），
+// 第二次读到的是正在滚动中的旧数，会把它当成新数，最后停在旧值上
+const fxNumDone = new WeakSet();
 function fxRoll(node, key, prefix){
-  if(!node || node.nodeType!==3) return;
+  if(!node || node.nodeType!==3 || fxNumDone.has(node)) return;
+  fxNumDone.add(node);
   const to = parseInt(node.nodeValue.replace(/[^\d]/g,''), 10);
   if(isNaN(to)) return;
   const from = fxNumPrev.get(key);
