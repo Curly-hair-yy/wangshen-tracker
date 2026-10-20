@@ -350,9 +350,7 @@
   :root{--nav-h:72px;}
   .nav-row{
     position:sticky;top:0;z-index:45;
-    background:var(--page-bg);
     padding:10px 0;margin-top:-10px;
-    transition:box-shadow .2s ease;
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -1429,11 +1427,16 @@
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;}
   /* 没完成的提醒：预约 | 倒计时 | 日期 | 周几 | 时间 | 删除，各占固定宽度的一列，
      每张卡片的这几样上下严格对齐 */
-  .reminder-meta-grid{display:grid;grid-template-columns:78px 106px 78px 40px 50px 24px;gap:8px;justify-items:start;}
-  .reminder-meta-grid .reminder-countdown-badge{justify-self:start;white-space:nowrap;}
+  .reminder-meta-grid{display:grid;grid-template-columns:78px 96px 196px 24px;column-gap:14px;justify-items:start;}
+  .rdue{justify-self:end;display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap;font-size:12.5px;color:var(--text-2);font-variant-numeric:tabular-nums;}
+  .rdue-date{color:var(--text-2);font-weight:650;}
+  .rdue-sep{color:var(--text-4);}
+  .rdue-count{font-weight:800;}
+  .rdue.danger .rdue-count{color:var(--red-ink);}
+  .rdue.warn .rdue-count{color:var(--orange-ink);}
+  .rdue.far .rdue-count{color:var(--text-3);}
   .rtag{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;}
-  .rtag-week{background:var(--field);color:var(--text-2);}
-  .rtag-time{background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));}
+  .rtag-time{gap:4px;background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));padding:0 10px;}
   .reminder-countdown-badge{
     padding:3px 10px;border-radius:var(--radius-pill);font-size:12px;font-weight:900;
   }
@@ -1640,7 +1643,11 @@
   .move-toast .toast-go{background:var(--lime,var(--blue));color:var(--ink);}
   @keyframes cardArrive{0%{box-shadow:0 0 0 0 var(--lime,var(--blue));transform:scale(.98);}40%{box-shadow:0 0 0 4px var(--lime,var(--blue));transform:scale(1);}100%{box-shadow:var(--shadow-card);}}
   .card.just-moved{animation:cardArrive 1.6s ease;}
-  .nav-row.stuck{box-shadow:0 10px 14px -14px rgba(0,0,0,.35);}
+  /* 吸顶栏的底色用伪元素铺满整个窗口宽度（不只是内容区那一截），左右不会有断口 */
+  .nav-row:before{content:"";position:absolute;top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);z-index:-1;
+    background:var(--page-bg);transition:box-shadow .2s ease;}
+  .nav-row.stuck:before{box-shadow:0 6px 16px -10px rgba(0,0,0,.25);}
+  html{overflow-x:clip;}
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
@@ -3436,13 +3443,16 @@ function linkifyNote(text){
     return `<a class="reminder-note-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u}</a>`;
   }).replace(/\*\*(.+?)\*\*/g, '<b class="note-strong">$1</b>');
 }
-// 截止时间拆成三块：日期（普通字）+ 周几标签 + 时间标签，比一整串字好认
-function reminderDateTags(dt){
+// 截止时间：周几和几点合成一个标签放前面；日期和"几天后截止"一起作为普通文字放在最后
+function reminderWeekTimeTag(dt){
   const [d, t] = String(dt||'').split('T');
   const wd = d ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(d+'T00:00:00').getDay()] : '';
-  return `<span class="reminder-datetime">${escapeHtml(d||'')}</span>`
-    + `<span class="rtag rtag-week">${wd}</span>`
-    + `<span class="rtag rtag-time">${t ? escapeHtml(t) : '全天'}</span>`;
+  return `<span class="rtag rtag-time">${wd} ${t ? escapeHtml(t) : '全天'}</span>`;
+}
+function reminderShortDate(dt){
+  const d = String(dt||'').split('T')[0];
+  const [y, m, day] = d.split('-').map(Number);
+  return (m && day) ? `${m}月${day}日` : '';
 }
 function renderReminderRow(item){
   const isCompanyScope = item.scope==='company';
@@ -3494,8 +3504,8 @@ function renderReminderRow(item){
       ${noteHtml}
       <div class="reminder-meta reminder-meta-grid">
         <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'预约'}</button>
-        <span class="reminder-countdown-badge ${badgeCls}">${dateText}</span>
-        ${reminderDateTags(item.date)}
+        ${reminderWeekTimeTag(item.date)}
+        <span class="rdue ${badgeCls}"><span class="rdue-date">${reminderShortDate(item.date)}</span><span class="rdue-sep">·</span><span class="rdue-count">${dateText}</span></span>
         <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
       </div>
     </div>
