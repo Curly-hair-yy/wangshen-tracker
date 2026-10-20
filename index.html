@@ -1629,6 +1629,7 @@
   /* 岗位名前面留一个固定宽度的位置给"+"：有加号的、没加号的、备注，左边缘都对齐在同一条线上 */
   .role-name{position:relative;padding-left:28px;}
   .role-desc{padding-left:28px;}
+  .job-note,.role-desc,.paste-import-note{overflow-wrap:anywhere;}
   .role-name .track-add-inline{position:absolute;left:0;top:1px;margin:0;}
   .loc-tag svg{width:11px;height:11px;flex-shrink:0;}
   .theme-btn{display:inline-flex;align-items:center;gap:6px;}
@@ -2548,7 +2549,7 @@ function renderGroupedCards(list, status, reviewStage){
               </span>
               <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
             </div>
-            ${p.note ? `<div class="job-note">${escapeHtml(p.note)}</div>` : ''}
+            ${p.note ? `<div class="job-note">${linkifyNote(p.note)}</div>` : ''}
           </div>
         `;
       }).join('');
@@ -3078,7 +3079,7 @@ function renderSubmittedList(){
             <span>${escapeHtml(p.position||'（未命名岗位）')}</span>
             ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
           </div>
-          ${p.note ? `<div class="role-desc">${escapeHtml(p.note)}</div>` : ''}
+          ${p.note ? `<div class="role-desc">${linkifyNote(p.note)}</div>` : ''}
         </div>
         ${compact ? '<div></div>' : renderTrackHtml(p, company)}
       </div>
@@ -3395,8 +3396,13 @@ function reminderGroupOf(item){
   const datePart = item.date.includes('T') ? item.date.split('T')[0] : item.date;
   return daysUntil(datePart)<=7 ? 'soon' : 'later';
 }
+// 备注里的网址变成可点的链接（http/https 开头，或 www. 开头），全站所有备注共用。
+// 点链接只打开网页，不会顺带触发卡片本身的点击（打开详情/编辑）。
 function linkifyNote(text){
-  return escapeHtml(text).replace(/https?:\/\/[^\s<>"'，。；）)]+/g, u=>`<a class="reminder-note-link" href="${u}" target="_blank" rel="noopener">${u}</a>`);
+  return escapeHtml(text).replace(/(https?:\/\/|www\.)[^\s<>"'，。；、）)]+/g, u=>{
+    const href = u.startsWith('www.') ? 'https://'+u : u;
+    return `<a class="reminder-note-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u}</a>`;
+  });
 }
 function renderReminderRow(item){
   const isCompanyScope = item.scope==='company';
@@ -3906,7 +3912,7 @@ function renderPasteImportResults(items){
     return `
       <label class="paste-import-row">
         <input type="checkbox" class="paste-import-check" data-idx="${idx}" checked>
-        <span class="paste-import-row-main">${escapeHtml(item.matchedCompany.name)}（全部岗位） ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}${item.note ? `<span class="paste-import-note">备注：${escapeHtml(item.note)}</span>` : ''}</span>
+        <span class="paste-import-row-main">${escapeHtml(item.matchedCompany.name)}（全部岗位） ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}${item.note ? `<span class="paste-import-note">备注：${linkifyNote(item.note)}</span>` : ''}</span>
       </label>
     `;
   }).join('');
