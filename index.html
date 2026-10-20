@@ -1697,6 +1697,16 @@
   .list-refresh .progress-company:nth-of-type(3){animation-delay:.08s;}
   .list-refresh .progress-company:nth-of-type(4){animation-delay:.12s;}
   .list-refresh .progress-company:nth-of-type(n+5){animation-delay:.16s;}
+  /* 同公司其它岗位 */
+  .other-positions{display:flex;flex-direction:column;gap:4px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);}
+  .op-title{font-size:11px;font-weight:800;color:var(--text-3);margin-bottom:2px;}
+  .op-jump{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;text-align:left;
+    border:none;background:none;padding:5px 8px;border-radius:9px;cursor:pointer;font-family:inherit;transition:background .15s ease;}
+  .op-jump:hover{background:var(--field);}
+  .op-stage{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));white-space:nowrap;}
+  .op-names{font-size:12.5px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .op-arrow{font-size:12px;color:var(--text-4);transition:transform .15s ease, color .15s ease;}
+  .op-jump:hover .op-arrow{transform:translateX(3px);color:var(--ink);}
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
@@ -2571,6 +2581,63 @@ function matchesFilters(r, opts){
 function reviewStageOf(p){
   return p.reviewStage==='reviewed' ? 'reviewed' : 'pending';
 }
+// 卡片底部"同公司其它岗位"：按阶段分组写清楚是哪些岗位，每组点一下跳到那张卡片
+function siblingsElsewhere(companyId, status, reviewStage){
+  return positions.filter(p=>{
+    if(p.deleted || p.companyId!==companyId) return false;
+    if(p.status!==status) return true;
+    if(status==='inprogress' && reviewStage!==undefined) return reviewStageOf(p)!==reviewStage;
+    return false;
+  });
+}
+function otherPositionsHtml(companyId, status, reviewStage){
+  const list = siblingsElsewhere(companyId, status, reviewStage);
+  if(!list.length) return '';
+  const order = ['todo','inprogress:pending','inprogress:reviewed','submitted'];
+  const labels = {'todo':'待填写','inprogress:pending':'待审核','inprogress:reviewed':'待提交','submitted':'已提交'};
+  const groups = new Map();
+  list.forEach(p=>{
+    const k = p.status==='inprogress' ? 'inprogress:'+reviewStageOf(p) : p.status;
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(p);
+  });
+  const rows = order.filter(k=>groups.has(k)).map(k=>{
+    const [st, rs] = k.split(':');
+    const names = groups.get(k).map(p=>escapeHtml(p.position||'（未命名岗位）')).join('、');
+    return `<button type="button" class="op-jump" data-company-id="${companyId}" data-status="${st}" data-review-stage="${rs||''}" title="点击跳到这张卡片">
+      <span class="op-stage">${labels[k]}</span><span class="op-names">${names}</span><span class="op-arrow">→</span></button>`;
+  }).join('');
+  return `<div class="other-positions"><div class="op-title">同公司其它岗位</div>${rows}</div>`;
+}
+// 跳到某家公司在某个阶段的卡片：切到对应页面，必要时清掉筛选让它显示出来，滚过去闪一下
+function jumpToCompanyCard(companyId, status, reviewStage){
+  const view = status==='submitted' ? 'submitted' : 'board';
+  if(currentView!==view) setActiveView(view);
+  const find = ()=> status==='submitted'
+    ? document.querySelector(`#submittedList .card[data-company-id="${companyId}"]`)
+    : document.querySelector(`#board .card[data-company-id="${companyId}"][data-status="${status}"]${status==='inprogress' && reviewStage ? `[data-review-stage="${reviewStage}"]` : ''}`);
+  let card = find();
+  if(!card){
+    const input = document.getElementById('searchInput');
+    if(input.value){ input.value = ''; updateSearchClearBtn(); }
+    submittedAttentionFilter = false; submittedStartedFilter = false; submittedFavoriteFilter = false; submittedStageFilter = null;
+    renderFilteredViews();
+    card = find();
+  }
+  if(!card) return;
+  setTimeout(()=>{
+    card.scrollIntoView({block:'center', behavior:'smooth'});
+    card.classList.remove('just-moved'); void card.offsetWidth; card.classList.add('just-moved');
+  }, 80);
+}
+// 用捕获阶段处理，抢在卡片本身的点击（打开详情）之前，不会顺带打开弹窗
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.op-jump');
+  if(!btn) return;
+  e.stopPropagation();
+  e.preventDefault();
+  jumpToCompanyCard(btn.dataset.companyId, btn.dataset.status, btn.dataset.reviewStage || undefined);
+}, true);
 function siblingElsewhereCount(companyId, status, reviewStage){
   return positions.filter(p=>{
     if(p.deleted) return false;
@@ -2681,7 +2748,7 @@ function renderGroupedCards(list, status, reviewStage){
           </div>
           <div class="position-list">${positionLines}</div>
           ${totalCount>0 ? `<div class="meta-row" style="justify-content:flex-end;"><span class="chip gray">待办 ${doneCount}/${totalCount}</span></div>` : ''}
-          ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
+          ${crossCount>0 ? otherPositionsHtml(g.companyId, status, reviewStage) : ''}
         </div>
       `;
     }).join('');
@@ -3264,7 +3331,7 @@ function renderSubmittedList(){
           </div>
         </div>
         ${sortPositions(g.list).map(p=>renderRole(p, defaultLink, company)).join('')}
-        ${crossCount>0 ? `<div class="other-positions">该公司在其他阶段还有 ${crossCount} 个岗位</div>` : ''}
+        ${crossCount>0 ? otherPositionsHtml(g.companyId, 'submitted', undefined) : ''}
       </article>
     `;
   }
