@@ -2727,6 +2727,7 @@ function renderGroupedCards(list, status, reviewStage){
       const defaultLink = companyLevelLink(g.list);
       const doneCount = g.list.reduce((sum,p)=>sum+(p.checklist||[]).filter(i=>i.done).length, 0);
       const totalCount = g.list.reduce((sum,p)=>sum+(p.checklist||[]).length, 0);
+      const sharedLoc = sharedLocation(g.list);
       const positionLines = sortPositions(g.list).map(p=>{
         const ownLink = normalizeLink(p.link);
         const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
@@ -2735,8 +2736,8 @@ function renderGroupedCards(list, status, reviewStage){
             <div class="position-line">
               <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
               <span class="position-line-meta">
-                ${locationTag(p)}
                 ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
+                ${sharedLoc ? '' : locationTag(p)}
               </span>
               <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
             </div>
@@ -2751,6 +2752,7 @@ function renderGroupedCards(list, status, reviewStage){
             <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
             <div class="right-tags">
+              ${singleLocationTag(sharedLoc)}
               ${cardDeadlineBadge(g.list)}
               ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
             </div>
@@ -2974,6 +2976,14 @@ function locationColor(name){
   let h = 7;
   for(const ch of String(name)) h = (h*131 + ch.codePointAt(0)) >>> 0;
   return STAGE_COLOR_POOL[h % STAGE_COLOR_POOL.length];
+}
+// 这张卡里每个岗位的地点都一样（而且都填了）时，返回这个地点：只在卡片右上角显示一次
+function sharedLocation(list){
+  const locs = list.map(p=>(p.location||'').trim());
+  return (locs.length>0 && locs[0] && locs.every(l=>l===locs[0])) ? locs[0] : '';
+}
+function singleLocationTag(loc){
+  return loc ? `<span class="loc-tag ${locationColor(loc)}" title="工作地点">${ICON_PIN}${escapeHtml(loc)}</span>` : '';
 }
 // 公司卡右上角：这张卡里所有岗位的地点去重后各显示一个
 function locationTagsFor(list){
@@ -3321,7 +3331,7 @@ function renderSubmittedList(){
     return;
   }
 
-  function renderRole(p, defaultLink, company){
+  function renderRole(p, defaultLink, company, sharedLoc){
     const ownLink = normalizeLink(p.link);
     const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
     // 还没有任何进度、也没设提醒的岗位，不画整条 8 个空节点的轨道（大多数岗位都是这样，
@@ -3339,7 +3349,7 @@ function renderSubmittedList(){
           ${p.note ? `<div class="role-desc">${linkifyNote(p.note)}</div>` : ''}
         </div>
         ${compact ? '<div></div>' : renderTrackHtml(p, company)}
-        <div class="role-loc">${locationTag(p)}</div>
+        <div class="role-loc">${sharedLoc ? '' : locationTag(p)}</div>
       </div>
     `;
   }
@@ -3351,6 +3361,7 @@ function renderSubmittedList(){
     const defaultLink = companyLevelLink(g.list);
     const ended = allProgressEnded(g.list);
     const chipsHtml = computeCompanyChips(g, company);
+    const sharedLoc = sharedLocation(g.list);
     return `
       <article class="card progress-company${ended?' ended':''}" data-company-id="${g.companyId}">
         <span class="drag-handle" draggable="true" title="拖动调整顺序">⠿</span>
@@ -3366,11 +3377,12 @@ function renderSubmittedList(){
           </div>
           <div class="company-head-right">
             ${ended ? `<span class="chip gray">已结束</span>` : ''}
+            ${singleLocationTag(sharedLoc)}
             <span class="company-date">${dateLabel}</span>
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </div>
         </div>
-        ${sortPositions(g.list).map(p=>renderRole(p, defaultLink, company)).join('')}
+        ${sortPositions(g.list).map(p=>renderRole(p, defaultLink, company, sharedLoc)).join('')}
         ${crossCount>0 ? otherPositionsHtml(g.companyId, 'submitted', undefined) : ''}
       </article>
     `;
