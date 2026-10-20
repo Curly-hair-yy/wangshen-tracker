@@ -570,7 +570,8 @@
     font-size:12px;
   }
   .checklist-mini{color:var(--text-2);}
-  .job-note{color:#8ca0b7;font-size:13px;margin-top:8px;}
+  /* 备注：楷体 + 紫色，紧贴自己那个岗位，跟下一条分隔线留出同样的距离 */
+  .job-note{color:var(--purple);font-size:14px;line-height:1.5;margin:-2px 0 5px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   .right-tags{
     position:absolute;
     top:18px;right:20px;
@@ -1015,7 +1016,7 @@
   }
   .position-detail-loc{justify-self:end;}
   .position-detail-date{justify-self:start;display:flex;}
-  .position-detail-note{color:#8194ad;font-size:14px;font-weight:400;margin-top:4px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;word-break:break-all;}
+  .position-detail-note{color:var(--purple);font-size:14px;font-weight:400;margin-top:4px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;word-break:break-all;}
   .position-detail-item > a.position-link{margin-top:8px;padding:0 10px;}
   .position-detail-name{font-weight:600;font-size:14px;}
   /* 所有网申链接统一做成小按钮：平时浅底，悬停变成薰衣草紫（apple 皮肤下浅蓝），按下去
@@ -1205,7 +1206,7 @@
   .role-name{font-size:15px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
   .role-name > span{min-width:0;}
 
-  .role-desc{color:#8194ad;font-size:14px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
+  .role-desc{color:var(--purple);font-size:14px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
     position:absolute;top:10px;right:0;opacity:0;
     background:none;border:none;color:var(--text-3);cursor:pointer;
@@ -1603,9 +1604,6 @@
   :root[data-theme="lime"] .overview-item,
   :root[data-theme="lime"] .company-date{color:var(--text-2);}
   :root[data-theme="lime"] .date-line,
-  :root[data-theme="lime"] .role-desc,
-  :root[data-theme="lime"] .position-detail-note,
-  :root[data-theme="lime"] .job-note,
   :root[data-theme="lime"] .toolbar input[type=text]::placeholder{color:var(--text-3);}
   :root[data-theme="lime"] .view-tab.active,
   :root[data-theme="lime"] .btn-ghost{color:var(--ink);}
