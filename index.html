@@ -1717,8 +1717,10 @@
   .op-arrow{font-size:12px;color:var(--text-4);transition:transform .15s ease, color .15s ease;}
   .op-jump:hover .op-arrow{transform:translateX(3px);color:var(--ink);}
   /* 卡片移动的影子、新卡淡入、标签页"接住"卡片时弹一下 */
-  .card-ghost{position:fixed !important;margin:0 !important;z-index:50;pointer-events:none;box-shadow:0 18px 40px rgba(0,0,0,.18) !important;
-    transition:transform .52s cubic-bezier(.22,1,.36,1), width .52s cubic-bezier(.22,1,.36,1), height .52s cubic-bezier(.22,1,.36,1), opacity .25s ease;
+  /* 影子放在弹窗的半透明模糊遮罩下面（遮罩 z-index 50），跟背景一起被模糊，不会突然变亮；
+     飞得慢一点、起落都柔和 */
+  .card-ghost{position:fixed !important;margin:0 !important;z-index:49;pointer-events:none;box-shadow:0 14px 32px rgba(0,0,0,.12) !important;
+    transition:transform .9s cubic-bezier(.45,0,.2,1), width .9s cubic-bezier(.45,0,.2,1), height .9s cubic-bezier(.45,0,.2,1), opacity .35s ease;
     transform-origin:center center;}
   @keyframes cardPopIn{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:none;}}
   .card-pop-in{animation:cardPopIn .4s cubic-bezier(.22,1,.36,1);}
@@ -5239,9 +5241,9 @@ function playFlip(before, skipKeys){
       el.style.transition = 'none';
       el.style.transform = `translate(${dx}px, ${dy}px)`;
       requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
-        el.style.transition = 'transform .45s cubic-bezier(.22,1,.36,1)';
+        el.style.transition = 'transform .6s cubic-bezier(.45,0,.2,1)';
         el.style.transform = '';
-        setTimeout(()=>{ el.style.transition = ''; }, 480);
+        setTimeout(()=>{ el.style.transition = ''; }, 640);
       }); });
     } else {
       el.classList.add('card-pop-in');
@@ -5263,18 +5265,19 @@ function flyCardGhost(fromEl, fromRect, toKey, toStatus){
       ghost.style.transform = `translate(${r.left-fromRect.left}px, ${r.top-fromRect.top}px)`;
       ghost.style.width = r.width+'px';
       ghost.style.height = r.height+'px';
-      setTimeout(()=>{ target.style.transition='opacity .2s ease'; target.style.opacity=''; ghost.style.opacity='0'; }, 520);
-      setTimeout(()=>{ ghost.remove(); target.style.transition=''; }, 760);
+      setTimeout(()=>{ target.style.transition='opacity .3s ease'; target.style.opacity=''; ghost.style.opacity='0'; }, 880);
+      setTimeout(()=>{ ghost.remove(); target.style.transition=''; }, 1250);
     } else {
       // 新位置在别的页面：飞向对应的标签页按钮，缩小淡出
       const tab = document.getElementById(toStatus==='submitted' ? 'viewTabSubmitted' : 'viewTabBoard');
       const t = tab ? tab.getBoundingClientRect() : {left: fromRect.left, top: fromRect.top-200, width: 0, height: 0};
       const tx = t.left + t.width/2 - (fromRect.left + fromRect.width/2);
       const ty = t.top + t.height/2 - (fromRect.top + fromRect.height/2);
+      ghost.style.transition = 'transform .9s cubic-bezier(.45,0,.2,1), opacity .9s cubic-bezier(.6,0,.8,1)';
       ghost.style.transform = `translate(${tx}px, ${ty}px) scale(.12)`;
       ghost.style.opacity = '0';
-      if(tab) setTimeout(()=>{ tab.classList.remove('tab-receive'); void tab.offsetWidth; tab.classList.add('tab-receive'); }, 480);
-      setTimeout(()=>ghost.remove(), 700);
+      if(tab) setTimeout(()=>{ tab.classList.remove('tab-receive'); void tab.offsetWidth; tab.classList.add('tab-receive'); }, 820);
+      setTimeout(()=>ghost.remove(), 1000);
     }
   }); });
 }
