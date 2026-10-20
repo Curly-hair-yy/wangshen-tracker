@@ -1352,7 +1352,7 @@
     font-size:11px;padding:3px 8px;border-radius:var(--radius-pill);pointer-events:none;
   }
   .paste-import-note{display:block;margin-top:2px;font-size:12px;color:var(--text-2);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
-  .reminder-book{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:76px;height:28px;padding:0;border-radius:999px;border:1.5px dashed var(--text-4);box-sizing:border-box;
+  .reminder-book{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:72px;height:28px;padding:0;border-radius:999px;border:1.5px dashed var(--text-4);box-sizing:border-box;
     background:none;color:var(--text-3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s ease;}
   .reminder-book:hover{border-color:var(--text-2);color:var(--text-2);}
   .reminder-book svg{width:12px;height:12px;}
@@ -1428,7 +1428,10 @@
   /* 没完成的提醒：预约 | 倒计时 | 日期 | 周几 | 时间 | 删除，各占固定宽度的一列，
      每张卡片的这几样上下严格对齐 */
   /* 右侧：预约胶囊 | 周几+时间标签 | 日期（按紧急程度变色）| 删除，每样固定宽度，上下对齐 */
-  .reminder-meta-grid{display:grid;grid-template-columns:76px 96px 70px 24px;column-gap:14px;justify-items:start;align-items:center;}
+  .reminder-meta-grid{display:grid;grid-template-columns:72px 88px 64px;column-gap:8px;justify-items:start;align-items:center;}
+  /* 没完成的提醒：删除按钮不占右边的一列，悬停时出现在卡片右上角，日期就能贴近卡片右边 */
+  .reminder-row{position:relative;}
+  .reminder-meta-grid .reminder-delete-btn{position:absolute;top:6px;right:6px;width:22px;height:22px;font-size:12px;}
   .rdate{font-size:13.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;cursor:default;}
   .rdate.u-over{color:var(--red-ink);opacity:.7;}
   .rdate.u-today{color:var(--red-ink);}
