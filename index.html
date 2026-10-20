@@ -1279,11 +1279,16 @@
   .dp-day.today{box-shadow:inset 0 0 0 1.5px var(--blue-line);}
   .dp-day.sel{background:var(--blue);color:#fff;font-weight:900;}
   .dp-time{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  /* 自定义时间：做成一个看得出能打字的输入框（白底 + 虚线框 + 左边"自定义"字样），
+     填了值的时候变成实线高亮，跟上面快捷时间的胶囊区分开 */
+  .dp-time-custom{display:inline-flex;align-items:center;gap:6px;flex:1 1 100%;margin-top:2px;font-size:12px;color:var(--text-2);font-weight:750;}
   .dp-time-input{
-    width:64px;height:28px;border:none;border-radius:999px;background:var(--field);text-align:center;
-    font-size:12px;font-weight:750;font-family:inherit;color:var(--ink);box-sizing:border-box;
+    flex:1;min-width:0;height:30px;border:1.5px dashed var(--text-4);border-radius:10px;background:#fff;text-align:left;padding:0 10px;
+    font-size:13px;font-weight:750;font-family:inherit;color:var(--ink);box-sizing:border-box;
   }
-  .dp-time-input:focus{outline:none;box-shadow:0 0 0 2px var(--blue-soft);background:var(--glass-strong);}
+  .dp-time-input::placeholder{color:var(--text-4);font-weight:600;}
+  .dp-time-input:focus{outline:none;border-style:solid;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft);}
+  .dp-time-input.has-value{border-style:solid;border-color:var(--blue);background:var(--blue-soft);}
   .dp-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;gap:8px;}
   .dp-current{font-size:12px;color:var(--text-2);font-weight:750;}
   .dp-clear{border:none;background:none;color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;padding:0;}
@@ -1394,6 +1399,10 @@
     background:var(--field);border-radius:12px;padding:7px 12px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all;
   }
+  .note-strong{font-weight:800;color:var(--ink);background:var(--lime-soft, var(--orange-soft));border-radius:4px;padding:0 3px;font-family:-apple-system,"PingFang SC",sans-serif;}
+  .note-tools{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-3);}
+  .note-bold-btn{border:none;background:var(--field);color:var(--text-2);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .note-bold-btn:hover{background:var(--lavender-soft, var(--blue-soft));color:var(--ink);}
   .reminder-note-link{color:var(--purple,var(--blue));text-decoration:underline;text-underline-offset:2px;}
   @media(max-width:860px){
     .reminder-row{grid-template-columns:32px minmax(0,1fr) auto;}
@@ -1935,6 +1944,7 @@
     <div class="field">
       <label>备注（选填）</label>
       <textarea id="reminderNoteInput" rows="2" placeholder="比如：笔试范围、面试形式…"></textarea>
+      <div class="note-tools"><button type="button" class="note-bold-btn" data-target="reminderNoteInput" title="选中文字后点这里加粗"><b>B</b> 加粗</button><span>选中要强调的文字点一下，或者手动写成 **文字**</span></div>
     </div>
     <div class="field-hint" id="reminderEmptyHint" style="display:none;">还没有已提交的岗位，或者这个岗位的环节都已经完成了，没法加提醒。</div>
   </div>
@@ -3398,11 +3408,13 @@ function reminderGroupOf(item){
 }
 // 备注里的网址变成可点的链接（http/https 开头，或 www. 开头），全站所有备注共用。
 // 点链接只打开网页，不会顺带触发卡片本身的点击（打开详情/编辑）。
+// 另外支持 **加粗**：两边各两个星号包起来的部分显示成加粗 + 浅青柠底，用来标重点
+// （比如"**提前半小时登录**"）。
 function linkifyNote(text){
-  return escapeHtml(text).replace(/(https?:\/\/|www\.)[^\s<>"'，。；、）)]+/g, u=>{
+  return escapeHtml(text).replace(/(https?:\/\/|www\.)[^\s<>"'，。；、）)*]+/g, u=>{
     const href = u.startsWith('www.') ? 'https://'+u : u;
     return `<a class="reminder-note-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u}</a>`;
-  });
+  }).replace(/\*\*(.+?)\*\*/g, '<b class="note-strong">$1</b>');
 }
 function renderReminderRow(item){
   const isCompanyScope = item.scope==='company';
@@ -3986,6 +3998,20 @@ document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
   } else {
     setPasteImportStatus('没有能导入的内容。');
   }
+});
+
+// "加粗"按钮：把选中的文字用 ** ** 包起来；没选中就插一对 ** ** 并把光标放中间
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.note-bold-btn');
+  if(!btn) return;
+  const ta = document.getElementById(btn.dataset.target);
+  if(!ta) return;
+  const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
+  const sel = v.slice(a, b);
+  ta.value = v.slice(0, a) + '**' + sel + '**' + v.slice(b);
+  ta.focus();
+  if(sel) ta.setSelectionRange(a, b + 4); else ta.setSelectionRange(a + 2, a + 2);
+  ta.dispatchEvent(new Event('input', {bubbles:true}));
 });
 
 /* ---- 抽屉表单 ---- */
@@ -5033,10 +5059,14 @@ function dpValueLabel(v){
 }
 // 手打时间：认 "14:30" "1430" "930" "9" "9:5" 这几种，认不出返回空串
 function dpParseTime(raw){
-  const str = String(raw||'').trim().replace('：',':');
+  let str = String(raw||'').trim().replace('：',':').replace(/\s+/g,'');
+  // 认"下午2点""晚上8点半""18点30""9点半""9点"这些口语写法
+  let pm = /^(下午|晚上|傍晚)/.test(str);
+  str = str.replace(/^(上午|早上|中午|下午|晚上|傍晚)/, '');
   let h, m;
-  let mt = str.match(/^(\d{1,2}):(\d{1,2})$/);
-  if(mt){ h = +mt[1]; m = +mt[2]; }
+  let mt = str.match(/^(\d{1,2})(?:点|时)(半|(\d{1,2})分?)?$/);
+  if(mt){ h = +mt[1]; m = mt[2]==='半' ? 30 : (mt[3] ? +mt[3] : 0); if(pm && h<12) h += 12; }
+  else if((mt = str.match(/^(\d{1,2}):(\d{1,2})$/))){ h = +mt[1]; m = +mt[2]; if(pm && h<12) h += 12; }
   else if(/^\d{1,4}$/.test(str)){
     if(str.length<=2){ h = +str; m = 0; }
     else { h = +str.slice(0, str.length-2); m = +str.slice(-2); }
@@ -5108,7 +5138,7 @@ function renderDatePop(){
     <div class="dp-section">时间</div>
     <div class="dp-time">
       ${DP_TIMES.map(t=>`<button type="button" class="dp-chip${t===selTime?' on':''}" data-time="${t}">${t}</button>`).join('')}
-      <input type="text" class="dp-time-input" inputmode="numeric" placeholder="自定义" value="${selTime && !DP_TIMES.includes(selTime) ? selTime : ''}" title="直接打字，比如 1430 或 14:30，回车确定">
+      <label class="dp-time-custom"><span>自定义</span><input type="text" class="dp-time-input${selTime && !DP_TIMES.includes(selTime) ? ' has-value' : ''}" placeholder="如 18:30" value="${selTime && !DP_TIMES.includes(selTime) ? selTime : ''}" title="直接打字：1830、18:30、18点半、下午2点 都行，回车确定"></label>
     </div>` : '';
   datePop.innerHTML = `
     <div class="dp-head">
