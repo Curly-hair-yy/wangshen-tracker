@@ -2934,8 +2934,39 @@ function normalizeLocation(raw){
   const key = v.replace(/(壮族自治区|回族自治区|维吾尔自治区|自治区|省)$/, '');
   return PROVINCE_CAPITAL[key] || v;
 }
+function locationPlaceholder(positionName){
+  const compInput = document.getElementById('f-company');
+  const g = guessLocation(positionName, compInput ? compInput.value : '');
+  return g ? `自动：${g}` : '地点';
+}
 // 每个地点按名字算一个固定颜色（同一套 st1–st7 色板），同一个城市在哪都是同一个颜色
+// 常见城市固定配色，保证彼此不撞色；其它城市按名字算
+const CITY_COLOR = {'西安':'st1','武汉':'st2','成都':'st3','杭州':'st4','郑州':'st5','南京':'st6','天津':'st7',
+  '北京':'st6','上海':'st3','深圳':'st2','广州':'st7','雄安':'st4'};
+// 没填地点时从岗位名（再不行看公司名）里认：括号里的城市 > "地点："后面的城市 > 名字里出现的城市
+// > 名字里的省份（换成省会）> 公司名里的城市 > 公司名里的省份
+const KNOWN_CITIES = ['乌鲁木齐','呼和浩特','石家庄','哈尔滨','西安','郑州','成都','武汉','杭州','南京','天津','雄安','北京','上海','深圳','广州','苏州','长沙','合肥','青岛','洛阳','宝鸡','厦门','济南','沈阳','大连','宁波','无锡','昆明','贵阳','兰州','太原','南昌','福州','南宁','海口','长春','银川','西宁','拉萨','珠海','东莞','佛山','绵阳','烟台','重庆'];
+function guessLocation(positionName, companyName){
+  const name = String(positionName||''), comp = String(companyName||'');
+  const cityRe = new RegExp('(' + KNOWN_CITIES.join('|') + ')');
+  const paren = name.match(/[（(]([^）)]*)[）)]/g) || [];
+  for(const p of paren){ const m = p.match(cityRe); if(m) return m[1]; }
+  const at = name.match(new RegExp('地点[:：]\\s*(' + KNOWN_CITIES.join('|') + ')'));
+  if(at) return at[1];
+  // 名字里直接出现的城市（"重庆医药集团—河南…"这种公司前缀不算，所以重庆不参与这一步）
+  const plain = name.match(new RegExp('(' + KNOWN_CITIES.filter(c=>c!=='重庆').join('|') + ')'));
+  if(plain) return plain[1];
+  const provs = Object.keys(PROVINCE_CAPITAL);
+  let lastProv = null, lastIdx = -1;
+  provs.forEach(pv=>{ const i = name.lastIndexOf(pv); if(i>lastIdx){ lastIdx = i; lastProv = pv; } });
+  if(lastProv) return PROVINCE_CAPITAL[lastProv];
+  const cm = comp.match(cityRe);
+  if(cm) return cm[1];
+  for(const pv of provs){ if(comp.includes(pv)) return PROVINCE_CAPITAL[pv]; }
+  return '';
+}
 function locationColor(name){
+  if(CITY_COLOR[name]) return CITY_COLOR[name];
   let h = 7;
   for(const ch of String(name)) h = (h*131 + ch.codePointAt(0)) >>> 0;
   return STAGE_COLOR_POOL[h % STAGE_COLOR_POOL.length];
@@ -4528,7 +4559,7 @@ function renderPositionEditor(){
       <div class="position-group" data-idx="${idx}">
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
-          <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="地点" maxlength="20">
+          <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
           ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
         <textarea class="position-note-input" data-idx="${idx}" placeholder="备注">${escapeHtml(item.note||'')}</textarea>
@@ -4552,6 +4583,10 @@ function renderPositionEditor(){
     });
     block.querySelector('.position-note-input').addEventListener('input', e=>{
       positionDraft[idx].note = e.target.value;
+    });
+    // 打岗位名时，地点框里用灰字提示自动认出来的地点（不填就按这个存）
+    block.querySelector('.position-name-input').addEventListener('input', e=>{
+      block.querySelector('.position-location-input').placeholder = locationPlaceholder(e.target.value);
     });
     block.querySelector('.position-location-input').addEventListener('input', e=>{
       positionDraft[idx].location = e.target.value;
@@ -5001,7 +5036,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       id: 'r_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2,7),
       companyId: company.id,
       position: entry.name.trim(),
-      location: normalizeLocation(entry.location),
+      location: normalizeLocation(entry.location) || guessLocation(entry.name, company.name),
       status,
       deadline: companyDeadlineDraft||'',
       link: (entry.link && entry.link.trim()) ? entry.link.trim() : link,
@@ -5043,7 +5078,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
         const status = effectiveStatus(entry, sharedStatus);
         r.companyId = company.id;
         r.position = (entry.name||'').trim();
-        r.location = normalizeLocation(entry.location);
+        r.location = normalizeLocation(entry.location) || guessLocation(entry.name, company.name);
         r.status = status;
         r.deadline = companyDeadlineDraft||'';
         r.link = (entry.link && entry.link.trim()) ? entry.link.trim() : link;
