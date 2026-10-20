@@ -1190,7 +1190,7 @@
     position:relative;
     /* 名字栏固定一个舒服的宽度（卡片宽的 24%，夹在 200–300px 之间），长名字在栏里换行，
        整页所有卡片的轨道起点都在同一条竖线上。 */
-    display:grid;grid-template-columns:clamp(200px, 24%, 300px) 1fr;gap:20px;align-items:start;
+    display:grid;grid-template-columns:clamp(200px, 24%, 300px) 1fr auto;gap:20px;align-items:start;
     padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
@@ -1331,7 +1331,8 @@
   @media(max-width:860px){
     .progress-layout{grid-template-columns:1fr;}
     .overview{position:static;}
-    .role{grid-template-columns:1fr;}
+    .role{grid-template-columns:1fr auto;}
+    .role > :nth-child(3){grid-column:1 / -1;}
     .company-title{font-size:18px;}
     .company-head{flex-wrap:wrap;}
   }
@@ -1723,6 +1724,9 @@
   .loc-tag{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 9px 0 7px;border-radius:999px;
     background:var(--st1-soft);color:var(--st1);font-size:12px;font-weight:800;vertical-align:1px;white-space:nowrap;flex-shrink:0;}
   .position-detail-name .loc-tag{margin-left:6px;}
+  /* 地点标签跟着各自的岗位，放在那一行最右边；已提交页每行多一列放它，右边缘对齐 */
+  .role{padding-right:26px;}
+  .role-loc{justify-self:end;align-self:start;padding-top:1px;}
   .loc-tag.st2{background:var(--st2-soft);color:var(--st2);} .loc-tag.st3{background:var(--st3-soft);color:var(--st3);}
   .loc-tag.st4{background:var(--st4-soft);color:var(--st4);} .loc-tag.st5{background:var(--st5-soft);color:var(--st5);}
   .loc-tag.st6{background:var(--st6-soft);color:var(--st6);} .loc-tag.st7{background:var(--st7-soft);color:var(--st7);}
@@ -2731,6 +2735,7 @@ function renderGroupedCards(list, status, reviewStage){
             <div class="position-line">
               <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
               <span class="position-line-meta">
+                ${locationTag(p)}
                 ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
               </span>
               <button class="position-line-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
@@ -2746,7 +2751,6 @@ function renderGroupedCards(list, status, reviewStage){
             <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
             <div class="right-tags">
-              ${locationTagsFor(g.list)}
               ${cardDeadlineBadge(g.list)}
               ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
             </div>
@@ -3335,6 +3339,7 @@ function renderSubmittedList(){
           ${p.note ? `<div class="role-desc">${linkifyNote(p.note)}</div>` : ''}
         </div>
         ${compact ? '<div></div>' : renderTrackHtml(p, company)}
+        <div class="role-loc">${locationTag(p)}</div>
       </div>
     `;
   }
@@ -3361,7 +3366,6 @@ function renderSubmittedList(){
           </div>
           <div class="company-head-right">
             ${ended ? `<span class="chip gray">已结束</span>` : ''}
-            ${locationTagsFor(g.list)}
             <span class="company-date">${dateLabel}</span>
             ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
           </div>
