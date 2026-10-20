@@ -1337,6 +1337,11 @@
     font-size:11px;padding:3px 8px;border-radius:var(--radius-pill);pointer-events:none;
   }
   .paste-import-note{display:block;margin-top:2px;font-size:12px;color:var(--text-2);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
+  .reminder-book{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:999px;border:1.5px dashed var(--text-4);
+    background:none;color:var(--text-3);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s ease;}
+  .reminder-book:hover{border-color:var(--text-2);color:var(--text-2);}
+  .reminder-book svg{width:12px;height:12px;}
+  .reminder-book.on{border:1.5px solid transparent;background:var(--green-soft);color:var(--green);}
   .reminders-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;}
   .paste-import-row{
     display:flex;align-items:center;gap:8px;
@@ -2143,12 +2148,15 @@ function stageDeadlineEntry(stageDeadlines, key){
   const v = stageDeadlines && stageDeadlines[key];
   if(!v) return null;
   if(typeof v === 'string') return {date: v, note: ''};
-  return {date: v.date || '', note: v.note || ''};
+  return {date: v.date || '', note: v.note || '', booked: !!v.booked};
 }
 function setStageDeadline(pos, key, date, note){
   if(!pos.stageDeadlines) pos.stageDeadlines = {};
   if(!date){ delete pos.stageDeadlines[key]; return; }
+  const prev = pos.stageDeadlines[key];
   pos.stageDeadlines[key] = {date, note: note||''};
+  // "已预约"跟着这条提醒走，改日期、改备注都不丢
+  if(prev && typeof prev==='object' && prev.booked) pos.stageDeadlines[key].booked = true;
 }
 // 公司级提醒：有些环节（比如测评）是整个公司通用的，投的好几个岗位共用同一个链接/
 // 同一场面试，不用挂在某一个具体岗位上。跟岗位级提醒的区别是这里没有 progress 可以
@@ -2157,19 +2165,21 @@ function companyStageDeadlineEntry(company, key){
   const v = company && company.stageDeadlines && company.stageDeadlines[key];
   if(!v) return null;
   if(typeof v === 'string') return {date: v, note:'', done:false, doneDate:''};
-  return {date: v.date||'', note: v.note||'', done: !!v.done, doneDate: v.doneDate||''};
+  return {date: v.date||'', note: v.note||'', done: !!v.done, doneDate: v.doneDate||'', booked: !!v.booked};
 }
 function setCompanyStageDeadline(company, key, date, note){
   if(!company.stageDeadlines) company.stageDeadlines = {};
   if(!date){ delete company.stageDeadlines[key]; return; }
   const existing = companyStageDeadlineEntry(company, key);
   company.stageDeadlines[key] = {date, note: note||'', done: existing?existing.done:false, doneDate: existing?existing.doneDate:''};
+  if(existing && existing.booked) company.stageDeadlines[key].booked = true;
 }
 function setCompanyStageDone(company, key, done){
   if(!company.stageDeadlines) return;
   const existing = companyStageDeadlineEntry(company, key);
   if(!existing) return;
   company.stageDeadlines[key] = {date: existing.date, note: existing.note, done, doneDate: done ? todayDateStr() : ''};
+  if(existing.booked) company.stageDeadlines[key].booked = true;
 }
 // stageDeadlines 是"这个环节的提醒截止时间"，跟 dates（真正完成的时间）是两码事——
 // 已经打勾完成的，看 dates，颜色跟原来一样（靠 .checked 的样式）；没完成但设了提醒
@@ -3325,7 +3335,7 @@ function getActiveReminders(){
     PROGRESS_STAGES.forEach(s=>{
       const entry = stageDeadlineEntry(deadlines, s.key);
       if(entry && entry.date){
-        items.push({scope:'position', position:p, stage:s, date:entry.date, note:entry.note, done:!!progress[s.key], doneDate: dates[s.key]||''});
+        items.push({scope:'position', position:p, stage:s, date:entry.date, note:entry.note, booked:entry.booked, done:!!progress[s.key], doneDate: dates[s.key]||''});
       }
     });
   });
@@ -3335,7 +3345,7 @@ function getActiveReminders(){
     PROGRESS_STAGES.forEach(s=>{
       const entry = companyStageDeadlineEntry(c, s.key);
       if(entry && entry.date){
-        items.push({scope:'company', company:c, stage:s, date:entry.date, note:entry.note, done:entry.done, doneDate:entry.doneDate});
+        items.push({scope:'company', company:c, stage:s, date:entry.date, note:entry.note, booked:entry.booked, done:entry.done, doneDate:entry.doneDate});
       }
     });
   });
@@ -3419,6 +3429,7 @@ function renderReminderRow(item){
         ${noteHtml}
       </div>
       <div class="reminder-meta">
+        <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'预约'}</button>
         <span class="reminder-countdown-badge ${badgeCls}">${dateText}</span>
         <span class="reminder-datetime">${fmtDeadlineDateTime(item.date)}</span>
         <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
@@ -3477,7 +3488,7 @@ function renderRemindersList(){
 
   list.querySelectorAll('.reminder-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.reminder-check, .reminder-delete-btn, .position-link')) return;
+      if(e.target.closest('.reminder-check, .reminder-delete-btn, .reminder-book, .position-link')) return;
       openReminderDrawerForEdit(row.dataset.scope, row.dataset.id, row.dataset.key);
     });
   });
@@ -3522,6 +3533,23 @@ function renderRemindersList(){
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
+      flushQueue();
+      renderAll();
+    });
+  });
+  // "已预约"打勾：存在这条提醒自己身上（stageDeadlines 里那条记录的 booked），再点一下取消
+  list.querySelectorAll('.reminder-book').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      const owner = btn.dataset.scope==='company' ? getCompany(btn.dataset.id) : positions.find(x=>x.id===btn.dataset.id);
+      if(!owner || !owner.stageDeadlines || !owner.stageDeadlines[key]) return;
+      let v = owner.stageDeadlines[key];
+      if(typeof v==='string') v = owner.stageDeadlines[key] = {date:v, note:''};
+      if(v.booked) delete v.booked; else v.booked = true;
+      owner.updatedAt = new Date().toISOString();
+      saveData();
+      queueUpsert(btn.dataset.scope==='company' ? 'companies' : 'positions', owner.id);
       flushQueue();
       renderAll();
     });
@@ -3927,7 +3955,13 @@ document.getElementById('pasteImportConfirmBtn').addEventListener('click', ()=>{
   });
   flushQueue();
   renderAll();
-  setPasteImportStatus(count>0 ? `已导入 ${count} 条提醒，看完可以点右上角关闭。` : '没有能导入的内容。');
+  if(count>0){
+    // 导入成功就直接关掉弹窗，底部弹一句提示
+    closePasteImportDrawer();
+    showSimpleToast(`已导入 ${count} 条提醒`);
+  } else {
+    setPasteImportStatus('没有能导入的内容。');
+  }
 });
 
 /* ---- 抽屉表单 ---- */
@@ -4833,6 +4867,13 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
 // 换状态后卡片不是"凭空消失"：底部弹一条提示，说清楚挪到哪去了，可以撤销；还在看板上
 // 的话，把那张卡滚到眼前并闪一下。
 let moveToastTimer = null;
+function showSimpleToast(text){
+  const toast = document.getElementById('moveToast');
+  toast.innerHTML = `<span>${escapeHtml(text)}</span>`;
+  toast.classList.add('show');
+  clearTimeout(moveToastTimer);
+  moveToastTimer = setTimeout(()=>toast.classList.remove('show'), 3000);
+}
 function moveTargetLabel(status, reviewStage){
   if(status==='inprogress') return reviewStage==='reviewed' ? '待提交' : '待审核';
   return STATUS_LABEL[status] || status;
