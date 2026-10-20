@@ -2354,8 +2354,12 @@ let currentView = 'board';
 let submittedFavoriteFilter = false;
 // 「待处理」筛选：只看有橙色/红色提醒的公司，按最近的提醒时间从近到远排。
 let submittedAttentionFilter = false;
-// 「已进行」筛选：只看至少有一个岗位已经有环节（完成过或设了提醒）的公司
+// 「已进行」筛选：只看至少有一个岗位已经有环节（完成过或设了提醒）、而且还没"结束"的公司
 let submittedStartedFilter = false;
+function positionInProgress(p, company){
+  if(effectiveProgress(p, company).progress.ended) return false;
+  return trackVisibleSteps(p, company).length>0;
+}
 let submittedStageFilter = null;
 // 顶部四张统计卡片、分段控件右侧汇总行共用的口径：待填写/待提交/已提交都数
 // "有多少家公司"，不是"有多少个岗位"——一家公司名下不管挂几个岗位，只要有一个
@@ -2674,7 +2678,7 @@ function computeSubmittedGroups(){
   // 数字就精确看到那几家。一次只会有一个筛选生效（见 renderProgressOverview 的点击处理）。
   const overviewFilteredGroups = orderedListGroups.filter(g=>{
     if(submittedAttentionFilter && computeCompanyCandidates(g, getCompany(g.companyId)).length===0) return false;
-    if(submittedStartedFilter && !g.list.some(p=>trackVisibleSteps(p, getCompany(g.companyId)).length>0)) return false;
+    if(submittedStartedFilter && !g.list.some(p=>positionInProgress(p, getCompany(g.companyId)))) return false;
     if(submittedFavoriteFilter){
       const c = getCompany(g.companyId);
       if(!(c && c.favorite)) return false;
@@ -2932,7 +2936,7 @@ function renderProgressOverview(){
   const stageKeys = new Map(submitted.map(p=>[p.id, new Set(trackVisibleSteps(p, getCompany(p.companyId)).map(st=>st.key))]));
   const items = [
     {key:'all', label:'全部', ...countOf(submitted)},
-    {key:'started', label:'已进行', title:'至少有一个岗位已经走过环节或设了提醒的公司', ...countOf(submitted.filter(p=>stageKeys.get(p.id).size>0))},
+    {key:'started', label:'已进行', title:'已经走过环节或设了提醒、还没结束的公司', ...countOf(submitted.filter(p=>positionInProgress(p, getCompany(p.companyId))))},
     {key:'attention', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
       ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
     {key:'favorite', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
