@@ -1092,7 +1092,10 @@
   .overview h3{margin:0 0 16px;font-size:18px;letter-spacing:-.02em;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;}
   .overview-unit{font-size:11px;font-weight:750;color:var(--text-3);letter-spacing:0;}
   .overview-item strong small{font-size:12px;font-weight:700;opacity:.55;}
-  .overview-all{margin-bottom:6px;}
+  .overview-item.ov-gap{margin-bottom:6px;}
+  .overview-grid .overview-item.ov-purple:not(.active){color:var(--purple, var(--blue));}
+  .overview-grid .overview-item.ov-lime:not(.active){color:#7f9a2e;}
+  .overview-item.ov-purple strong small,.overview-item.ov-lime strong small{color:inherit;}
   .overview-item span{display:inline-flex;align-items:center;gap:7px;}
   .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--ended);}
   .sdot.st1{background:var(--st1);} .sdot.st2{background:var(--st2);} .sdot.st3{background:var(--st3);}
@@ -3041,11 +3044,11 @@ function renderProgressOverview(){
   // 不只算最新那一个——跟点进去筛选的口径一致（见 computeSubmittedGroups）。
   const stageKeys = new Map(submitted.map(p=>[p.id, new Set(trackVisibleSteps(p, getCompany(p.companyId)).map(st=>st.key))]));
   const items = [
+    {key:'attention', tone:'ov-purple', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
+      ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
+    {key:'favorite', tone:'ov-lime ov-gap', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
     {key:'all', label:'全部', ...countOf(submitted)},
     {key:'started', label:'已进行', title:'已经走过环节或设了提醒、还没结束的公司', ...countOf(submitted.filter(p=>positionInProgress(p, getCompany(p.companyId))))},
-    {key:'attention', label:'待处理', title:'有橙色/红色提醒的公司，按时间从近到远排',
-      ...countOf(submitted.filter(p=>computeCompanyCandidates({list:[p]}, getCompany(p.companyId)).length>0))},
-    {key:'favorite', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
     ...PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key)).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), ...countOf(submitted.filter(p=>stageKeys.get(p.id).has(s.key)))}))
   ];
   const noFilter = !submittedAttentionFilter && !submittedStartedFilter && !submittedFavoriteFilter && !submittedStageFilter;
@@ -3055,7 +3058,7 @@ function renderProgressOverview(){
     <div class="overview-grid">
       ${items.map(it=>{
         const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : it.key==='started' ? submittedStartedFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        return `<button type="button" class="overview-item${it.key==='all'?' overview-all':''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
+        return `<button type="button" class="overview-item${it.tone?' '+it.tone:''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
     <button type="button" class="overview-manage" id="manageStagesBtn">管理环节 · 改名</button>
