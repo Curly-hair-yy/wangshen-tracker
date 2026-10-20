@@ -1257,7 +1257,8 @@
     background:#fff;border:1px solid var(--glass-border);border-radius:18px;
     box-shadow:var(--shadow-2);padding:14px;color:var(--ink);font-size:13px;
   }
-  .date-pop.open{display:block;}
+  .date-pop.open{display:block;animation:popIn .18s cubic-bezier(.22,1,.36,1);}
+  @keyframes popIn{from{opacity:0;transform:translateY(-4px) scale(.97);}to{opacity:1;transform:none;}}
   .dp-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;}
   .dp-head-text{flex:1;min-width:0;}
   .dp-title{font-size:15px;font-weight:900;}
@@ -1715,6 +1716,18 @@
   .op-names{font-size:12.5px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .op-arrow{font-size:12px;color:var(--text-4);transition:transform .15s ease, color .15s ease;}
   .op-jump:hover .op-arrow{transform:translateX(3px);color:var(--ink);}
+  /* 卡片移动的影子、新卡淡入、标签页"接住"卡片时弹一下 */
+  .card-ghost{position:fixed !important;margin:0 !important;z-index:50;pointer-events:none;box-shadow:0 18px 40px rgba(0,0,0,.18) !important;
+    transition:transform .52s cubic-bezier(.22,1,.36,1), width .52s cubic-bezier(.22,1,.36,1), height .52s cubic-bezier(.22,1,.36,1), opacity .25s ease;
+    transform-origin:center center;}
+  @keyframes cardPopIn{from{opacity:0;transform:translateY(8px) scale(.98);}to{opacity:1;transform:none;}}
+  .card-pop-in{animation:cardPopIn .4s cubic-bezier(.22,1,.36,1);}
+  @keyframes tabReceive{0%{transform:scale(1);}40%{transform:scale(1.12);}100%{transform:scale(1);}}
+  .view-tab.tab-receive{animation:tabReceive .45s cubic-bezier(.34,1.4,.5,1);}
+  /* 提醒标记完成：勾选圈弹一下，这一行往右滑出、高度收起 */
+  @keyframes checkPop{0%{transform:scale(1);}45%{transform:scale(1.3);}100%{transform:scale(1);}}
+  .reminder-check.check-pop{animation:checkPop .3s cubic-bezier(.34,1.4,.5,1);background:var(--green);border-color:var(--green);color:#fff;}
+  .reminder-row.row-out{transition:opacity .3s ease, transform .3s cubic-bezier(.4,0,.6,1);opacity:0;transform:translateX(24px);pointer-events:none;}
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
@@ -3812,6 +3825,15 @@ function renderRemindersList(){
   list.querySelectorAll('.reminder-check').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
+      // 先播一下动效（勾选圈弹一下，这一行往右滑出淡掉），再真正改数据、重画列表
+      const row = btn.closest('.reminder-row');
+      if(row && !row.classList.contains('row-out')){
+        btn.classList.add('check-pop');
+        if(!btn.classList.contains('checked')) btn.innerHTML = ICON_CHECK;
+        row.classList.add('row-out');
+        setTimeout(()=>btn.click(), 320);
+        return;
+      }
       const nowDone = !btn.classList.contains('checked');
       if(btn.dataset.scope==='company'){
         const c = getCompany(btn.dataset.id);
@@ -5135,7 +5157,12 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   touchedPositionIds.forEach(id=>queueUpsert('positions', id));
   flushQueue();
   closeDrawer();
+  const cardsBefore = snapshotCards();
   renderAll();
+  playFlip(cardsBefore);
+  // 刚保存的那家公司的卡片闪一下，知道改的是哪张
+  const savedCard = document.querySelector(`#board .card[data-company-id="${company.id}"], #submittedList .card[data-company-id="${company.id}"]`);
+  if(savedCard && savedCard.getBoundingClientRect().width){ savedCard.classList.remove('just-moved'); void savedCard.offsetWidth; savedCard.classList.add('just-moved'); }
 });
 
 /* ---- 删除岗位 / 整张卡（软删除：只打标记，不物理移除，避免多设备同步时复活，见文件顶部说明） ---- */
@@ -5185,6 +5212,72 @@ function toggleFavorite(companyId){
   clearTimeout(favoriteRenderTimer);
   favoriteRenderTimer = setTimeout(renderAll, 380);
 }
+// ---- 卡片移动动效（FLIP）：重画前记下每张卡的位置，重画后让留下来的卡从旧位置顺滑地
+// 挪到新位置（同一栏里其它卡补上空位时不会"跳"），新出现的卡淡入；被改状态的那张卡用一个
+// 影子从原位置飞到它的新位置，新位置不在当前页面就飞向对应的标签页并缩小淡出。
+function cardKey(el){
+  return (el.closest('#submittedList') ? 'S|' : 'B|') + el.dataset.companyId + '|' + (el.dataset.status||'submitted') + '|' + (el.dataset.reviewStage||'');
+}
+function snapshotCards(){
+  const map = new Map();
+  document.querySelectorAll('#board .card[data-company-id], #submittedList .card[data-company-id]').forEach(el=>{
+    const r = el.getBoundingClientRect();
+    if(r.width) map.set(cardKey(el), r);
+  });
+  return map;
+}
+function playFlip(before, skipKeys){
+  document.querySelectorAll('#board .card[data-company-id], #submittedList .card[data-company-id]').forEach(el=>{
+    const k = cardKey(el);
+    if(skipKeys && skipKeys.has(k)) return;
+    const r = el.getBoundingClientRect();
+    if(!r.width) return;
+    const old = before.get(k);
+    if(old){
+      const dx = old.left - r.left, dy = old.top - r.top;
+      if(Math.abs(dx)<1 && Math.abs(dy)<1) return;
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
+        el.style.transition = 'transform .45s cubic-bezier(.22,1,.36,1)';
+        el.style.transform = '';
+        setTimeout(()=>{ el.style.transition = ''; }, 480);
+      }); });
+    } else {
+      el.classList.add('card-pop-in');
+      setTimeout(()=>el.classList.remove('card-pop-in'), 500);
+    }
+  });
+}
+function flyCardGhost(fromEl, fromRect, toKey, toStatus){
+  if(!fromEl || !fromRect) return;
+  const ghost = fromEl.cloneNode(true);
+  ghost.classList.add('card-ghost');
+  Object.assign(ghost.style, {left: fromRect.left+'px', top: fromRect.top+'px', width: fromRect.width+'px', height: fromRect.height+'px'});
+  document.body.appendChild(ghost);
+  const target = [...document.querySelectorAll('#board .card[data-company-id], #submittedList .card[data-company-id]')].find(el=>cardKey(el)===toKey && el.getBoundingClientRect().width);
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
+    if(target){
+      const r = target.getBoundingClientRect();
+      target.style.opacity = '0';
+      ghost.style.transform = `translate(${r.left-fromRect.left}px, ${r.top-fromRect.top}px)`;
+      ghost.style.width = r.width+'px';
+      ghost.style.height = r.height+'px';
+      setTimeout(()=>{ target.style.transition='opacity .2s ease'; target.style.opacity=''; ghost.style.opacity='0'; }, 520);
+      setTimeout(()=>{ ghost.remove(); target.style.transition=''; }, 760);
+    } else {
+      // 新位置在别的页面：飞向对应的标签页按钮，缩小淡出
+      const tab = document.getElementById(toStatus==='submitted' ? 'viewTabSubmitted' : 'viewTabBoard');
+      const t = tab ? tab.getBoundingClientRect() : {left: fromRect.left, top: fromRect.top-200, width: 0, height: 0};
+      const tx = t.left + t.width/2 - (fromRect.left + fromRect.width/2);
+      const ty = t.top + t.height/2 - (fromRect.top + fromRect.height/2);
+      ghost.style.transform = `translate(${tx}px, ${ty}px) scale(.12)`;
+      ghost.style.opacity = '0';
+      if(tab) setTimeout(()=>{ tab.classList.remove('tab-receive'); void tab.offsetWidth; tab.classList.add('tab-receive'); }, 480);
+      setTimeout(()=>ghost.remove(), 700);
+    }
+  }); });
+}
 function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toReviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===fromStatus
     && (fromReviewStage===undefined || reviewStageOf(p)===fromReviewStage));
@@ -5201,7 +5294,16 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   saveData();
   list.forEach(p=>queueUpsert('positions', p.id));
   flushQueue();
+  const fromSel = fromStatus==='submitted'
+    ? `#submittedList .card[data-company-id="${companyId}"]`
+    : `#board .card[data-company-id="${companyId}"][data-status="${fromStatus}"]${fromStatus==='inprogress' && fromReviewStage ? `[data-review-stage="${fromReviewStage}"]` : ''}`;
+  const fromEl = document.querySelector(fromSel);
+  const fromRect = fromEl ? fromEl.getBoundingClientRect() : null;
+  const cardsBefore = snapshotCards();
   renderAll();
+  const toKey = (toStatus==='submitted' ? 'S|' : 'B|') + companyId + '|' + toStatus + '|' + (toStatus==='inprogress' ? finalReviewStage : '');
+  playFlip(cardsBefore, new Set([toKey]));
+  if(fromRect && fromRect.width) flyCardGhost(fromEl, fromRect, toKey, toStatus);
   // 改完状态弹窗不关：直接切到新状态下的这张卡（标题、归类按钮都跟着变），让人看得见
   // "确实挪过去了"，想再改也不用重新找；底部提示照样可以撤销。
   openCompanyDetail(companyId, toStatus, toStatus==='inprogress' ? finalReviewStage : undefined);
@@ -5251,7 +5353,9 @@ function showMoveToast(companyId, snapshot, toStatus, toReviewStage, opts){
     });
     saveData();
     flushQueue();
+    const cardsBefore = snapshotCards();
     renderAll();
+    playFlip(cardsBefore);
     toast.classList.remove('show');
     const s0 = snapshot[0];
     if(s0 && companyDetailDrawer.classList.contains('active')){
