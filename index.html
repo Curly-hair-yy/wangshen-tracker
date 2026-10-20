@@ -1427,16 +1427,14 @@
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;}
   /* 没完成的提醒：预约 | 倒计时 | 日期 | 周几 | 时间 | 删除，各占固定宽度的一列，
      每张卡片的这几样上下严格对齐 */
-  /* 右侧：预约胶囊（固定宽） | 时间块（两行：日期 周几 时间 / 倒计时，左对齐固定宽） | 删除 */
-  .reminder-meta-grid{display:grid;grid-template-columns:76px 150px 24px;column-gap:18px;justify-items:start;align-items:center;}
-  .rwhen{display:flex;flex-direction:column;gap:3px;line-height:1.2;font-variant-numeric:tabular-nums;}
-  .rwhen-top{display:flex;align-items:baseline;gap:6px;white-space:nowrap;font-size:13px;}
-  .rwhen-top b{font-weight:800;color:var(--ink);}
-  .rwhen-top span{color:var(--text-3);font-size:12px;}
-  .rwhen-top em{font-style:normal;font-weight:800;color:var(--purple, var(--blue));}
-  .rwhen-count{font-size:12px;font-weight:750;color:var(--text-3);}
-  .rwhen.danger .rwhen-count{color:var(--red-ink);}
-  .rwhen.warn .rwhen-count{color:var(--orange-ink);}
+  /* 右侧：预约胶囊 | 周几+时间标签 | 日期（按紧急程度变色）| 删除，每样固定宽度，上下对齐 */
+  .reminder-meta-grid{display:grid;grid-template-columns:76px 96px 70px 24px;column-gap:14px;justify-items:start;align-items:center;}
+  .rdate{font-size:13.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;cursor:default;}
+  .rdate.u-over{color:var(--red-ink);opacity:.7;}
+  .rdate.u-today{color:var(--red-ink);}
+  .rdate.u-tomorrow{color:#c27a2c;}
+  .rdate.u-soon{color:var(--purple, var(--blue));}
+  .rdate.u-far{color:var(--text-2);font-weight:700;}
   .rtag{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;}
   .rtag-time{gap:4px;background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));padding:0 10px;}
   .reminder-countdown-badge{
@@ -3440,7 +3438,16 @@ function linkifyNote(text){
     return `<a class="reminder-note-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u}</a>`;
   }).replace(/\*\*(.+?)\*\*/g, '<b class="note-strong">$1</b>');
 }
-// 截止时间：日期、周几、几点放一行，倒计时放下一行，紧挨在一起
+// 截止时间：周几+几点做成一个标签；日期放最后，用颜色表示紧急程度（不再写"几天后截止"，
+// 鼠标停在日期上能看到）：过期/今天 = 红，明天 = 橙，3 天内 = 紫，更远 = 灰
+function reminderUrgency(dt){
+  const d = daysUntil(String(dt||'').split('T')[0]);
+  if(d<0) return 'u-over';
+  if(d===0) return 'u-today';
+  if(d===1) return 'u-tomorrow';
+  if(d<=3) return 'u-soon';
+  return 'u-far';
+}
 function reminderWeekday(dt){
   const d = String(dt||'').split('T')[0];
   return d ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(d+'T00:00:00').getDay()] : '';
@@ -3504,10 +3511,8 @@ function renderReminderRow(item){
       ${noteHtml}
       <div class="reminder-meta reminder-meta-grid">
         <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'未预约'}</button>
-        <div class="rwhen ${badgeCls}">
-          <div class="rwhen-top"><b>${reminderShortDate(item.date)}</b><span>${reminderWeekday(item.date)}</span><em>${reminderTime(item.date)}</em></div>
-          <div class="rwhen-count">${dateText}</div>
-        </div>
+        <span class="rtag rtag-time">${reminderWeekday(item.date)} ${reminderTime(item.date)}</span>
+        <span class="rdate ${reminderUrgency(item.date)}" title="${dateText}">${reminderShortDate(item.date)}</span>
         <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
       </div>
     </div>
