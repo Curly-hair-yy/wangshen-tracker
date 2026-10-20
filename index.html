@@ -1651,6 +1651,26 @@
     background:var(--page-bg);transition:box-shadow .2s ease;}
   .nav-row.stuck:before{box-shadow:0 6px 16px -10px rgba(0,0,0,.25);}
   html{overflow-x:clip;}
+  /* 切页：从切换方向那侧滑入 + 淡入 */
+  @keyframes viewFromRight{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:none;}}
+  @keyframes viewFromLeft{from{opacity:0;transform:translateX(-18px);}to{opacity:1;transform:none;}}
+  .view-enter.from-right{animation:viewFromRight .32s cubic-bezier(.2,.8,.2,1);}
+  .view-enter.from-left{animation:viewFromLeft .32s cubic-bezier(.2,.8,.2,1);}
+  /* 进度概览：选中底块滑动 */
+  .overview-grid{position:relative;}
+  .ov-slider{position:absolute;left:0;right:0;top:0;z-index:0;border-radius:var(--radius-overview);
+    background:var(--charcoal, var(--blue));box-shadow:0 6px 14px rgba(0,0,0,.14);pointer-events:none;
+    transition:transform .32s cubic-bezier(.2,.8,.2,1), height .32s cubic-bezier(.2,.8,.2,1);}
+  .overview-grid .overview-item{position:relative;z-index:1;}
+  .overview-grid .overview-item.active,
+  :root[data-theme="lime"] .overview-grid .overview-item.active{background:transparent;box-shadow:none;color:#fff;transition:color .2s ease .08s;}
+  /* 筛选后列表里的卡片依次轻轻浮上来 */
+  @keyframes cardIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  .list-refresh .progress-company{animation:cardIn .34s cubic-bezier(.2,.8,.2,1) both;}
+  .list-refresh .progress-company:nth-of-type(2){animation-delay:.04s;}
+  .list-refresh .progress-company:nth-of-type(3){animation-delay:.08s;}
+  .list-refresh .progress-company:nth-of-type(4){animation-delay:.12s;}
+  .list-refresh .progress-company:nth-of-type(n+5){animation-delay:.16s;}
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
@@ -2990,6 +3010,28 @@ function renderTrackHtml(p, company){
 }
 // 左侧"进度概览"：收藏公司数 + 七个环节里"当前最新已发生步骤是它"的岗位数，
 // 全部现算，不受搜索/筛选影响，范围是所有未删除的已提交岗位。
+// 进度概览的"选中"背景是一块单独的滑块：每次重画后先放在上一次的位置，下一帧再滑到
+// 新选中的那一项上，看起来就是黑色底块从一项滑到另一项。
+let overviewSliderLast = null;
+function placeOverviewSlider(el){
+  const grid = el.querySelector('.overview-grid');
+  const active = grid && grid.querySelector('.overview-item.active');
+  if(!grid) return;
+  const slider = document.createElement('div');
+  slider.className = 'ov-slider';
+  grid.prepend(slider);
+  if(!active){ slider.style.opacity = '0'; overviewSliderLast = null; return; }
+  const to = {top: active.offsetTop, height: active.offsetHeight};
+  const from = overviewSliderLast || to;
+  slider.style.transition = 'none';
+  slider.style.transform = `translateY(${from.top}px)`;
+  slider.style.height = from.height + 'px';
+  void slider.offsetWidth;
+  slider.style.transition = '';
+  slider.style.transform = `translateY(${to.top}px)`;
+  slider.style.height = to.height + 'px';
+  overviewSliderLast = to;
+}
 function renderProgressOverview(){
   // 每一项都显示"公司数 / 岗位数"：公司数跟顶部统计、看板的口径一致（数公司），
   // 岗位数是同样条件下满足的岗位本身。
@@ -3021,6 +3063,7 @@ function renderProgressOverview(){
   document.getElementById('manageStagesBtn').addEventListener('click', e=>{ e.stopPropagation(); openStageManagePop(e.currentTarget); });
   // 点一下按筛选条件显示，再点一下（或点另一个）取消/切换——语义跟数字本身
   // 的统计口径完全一致（见上面 favCount/stageCounts 怎么数的）。
+  placeOverviewSlider(el);
   el.querySelectorAll('.overview-item').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       // 一次只选一项：点一项就只按这一项筛（其它的取消），再点一下已选中的就回到"全部"。
@@ -3040,6 +3083,11 @@ function renderProgressOverview(){
         else submittedStageFilter = key;
       }
       renderFilteredViews();
+      const listEl = document.getElementById('submittedList');
+      listEl.classList.remove('list-refresh'); void listEl.offsetWidth; listEl.classList.add('list-refresh');
+      // 动画放完就去掉，免得之后别的操作重画列表时卡片又全部重新浮一遍
+      clearTimeout(listEl._refreshTimer);
+      listEl._refreshTimer = setTimeout(()=>listEl.classList.remove('list-refresh'), 700);
     });
   });
 }
@@ -5650,7 +5698,11 @@ function positionTabSlider(){
 }
 window.addEventListener('resize', positionTabSlider);
 
+// 切页动效：新页面从切换方向那一侧轻轻滑入并淡入（往右边的标签切就从右边进，反之从左边）
+const VIEW_ORDER = ['board','submitted','reminders'];
+const VIEW_EL = {board:'board', submitted:'submittedView', reminders:'remindersView'};
 function setActiveView(view){
+  const prevView = currentView;
   currentView = view;
   const tabs = [
     {id:'viewTabBoard', v:'board'},
@@ -5678,6 +5730,13 @@ function setActiveView(view){
   renderStats();
   positionTabSlider();
   if(view==='reminders') renderRemindersList();
+  if(prevView!==view){
+    const el = document.getElementById(VIEW_EL[view]);
+    const dir = VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(prevView) ? 'from-right' : 'from-left';
+    el.classList.remove('view-enter','from-right','from-left');
+    void el.offsetWidth;
+    el.classList.add('view-enter', dir);
+  }
 }
 document.getElementById('viewTabBoard').addEventListener('click', ()=>setActiveView('board'));
 document.getElementById('viewTabSubmitted').addEventListener('click', ()=>setActiveView('submitted'));
