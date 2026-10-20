@@ -237,6 +237,11 @@
     backdrop-filter:blur(22px);
     -webkit-backdrop-filter:blur(22px);
   }
+  .stat-card{cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
+  .stat-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.1);}
+  .stat-card:active{transform:translateY(-1px) scale(.99);}
+  @keyframes colFlash{0%{box-shadow:0 0 0 0 rgba(0,0,0,0);}30%{box-shadow:0 0 0 3px var(--charcoal, var(--blue));}100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}}
+  .board .column.col-flash{animation:colFlash .9s ease;}
   .stat-card .num{display:block;font-size:34px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--ink);margin-bottom:10px;}
   .stat-card .label{font-size:14px;color:#506984;font-weight:850;}
   .stat-card.warn .num{color:var(--orange-ink);}
@@ -2463,19 +2468,34 @@ function computeTopStats(){
     remindersCount: getActiveReminders().filter(i=>!i.done).length,
   };
 }
+// 顶部四张大卡片可以点：待填写 / 待提交 → 看板（对应那一栏闪一下），已提交、提醒事项 → 对应页面
+document.getElementById('statsRow').addEventListener('click', e=>{
+  const card = e.target.closest('.stat-card');
+  if(!card) return;
+  setActiveView(card.dataset.view);
+  if(card.dataset.col){
+    const col = document.querySelector(`#board .column[data-status="${card.dataset.col}"]`);
+    if(col){ col.classList.remove('col-flash'); void col.offsetWidth; col.classList.add('col-flash'); }
+  }
+  const nav = document.querySelector('.nav-row');
+  if(nav && window.scrollY > nav.offsetTop) window.scrollTo({top: nav.offsetTop, behavior:'smooth'});
+});
+document.getElementById('statsRow').addEventListener('keydown', e=>{
+  if((e.key==='Enter' || e.key===' ') && e.target.classList.contains('stat-card')){ e.preventDefault(); e.target.click(); }
+});
 function renderStats(){
   const {todoCompanyCount, inprogressCompanyCount, submittedCompanyCount, remindersCount} = computeTopStats();
 
   const stats = [
-    {label:'待填写', num:todoCompanyCount, cls:''},
-    {label:'待提交', num:inprogressCompanyCount, cls:'warn'},
-    {label:'已提交', num:submittedCompanyCount, cls:'blue'},
-    {label:'提醒事项', num:remindersCount, cls:'danger'},
+    {label:'待填写', num:todoCompanyCount, cls:'', view:'board', col:'todo'},
+    {label:'待提交', num:inprogressCompanyCount, cls:'warn', view:'board', col:'inprogress'},
+    {label:'已提交', num:submittedCompanyCount, cls:'blue', view:'submitted'},
+    {label:'提醒事项', num:remindersCount, cls:'danger', view:'reminders'},
   ];
   const row = document.getElementById('statsRow');
   row.className = 'stats';
   row.innerHTML = stats.map(s=>`
-    <div class="stat-card ${s.cls}">
+    <div class="stat-card ${s.cls}" role="button" tabindex="0" data-view="${s.view}" data-col="${s.col||''}" title="点击查看">
       <div class="num">${s.num}</div>
       <div class="label">${s.label}</div>
     </div>
