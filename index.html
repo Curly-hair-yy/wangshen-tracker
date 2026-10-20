@@ -1007,9 +1007,11 @@
   .position-detail-item:hover .position-detail-del{display:flex;align-items:center;justify-content:center;}
   /* 名字一栏 + 右侧标签一栏：名字再长也只在自己那栏里换行，右边的日期标签永远在同一列，
      上下严格对齐，不会被挤到下一行的开头。 */
+  /* 岗位名 | 地点（固定宽度一列）| 截止日期：地点标签上下严格对齐 */
   .position-detail-head{
-    display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:12px;
+    display:grid;grid-template-columns:minmax(0,1fr) 86px auto;align-items:center;column-gap:12px;
   }
+  .position-detail-loc{justify-self:start;}
   .position-detail-item > a.position-link{margin-top:8px;padding:0 10px;}
   .position-detail-name{font-weight:600;font-size:14px;}
   /* 所有网申链接统一做成小按钮：平时浅底，悬停变成薰衣草紫（apple 皮肤下浅蓝），按下去
@@ -6051,7 +6053,8 @@ function openCompanyDetail(companyId, status, reviewStage){
         ${list.length>1 ? `<span class="position-drag-handle" title="按住拖动调整顺序" aria-label="拖动调整顺序">⠿</span>` : ''}
         <button class="position-detail-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
         <div class="position-detail-head">
-          <span class="position-detail-name">${escapeHtml(p.position||'（未命名岗位）')}${locationTag(p)}</span>
+          <span class="position-detail-name">${escapeHtml(p.position||'（未命名岗位）')}</span>
+          <span class="position-detail-loc">${locationTag(p)}</span>
           ${deadlineBadge(p)}
         </div>
         ${checklistText ? `<div class="field-hint" id="checklist-count-${p.id}">${checklistText}</div>` : ''}
