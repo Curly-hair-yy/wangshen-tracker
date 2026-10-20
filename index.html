@@ -1915,7 +1915,6 @@
         <input type="text" id="syncCodeDisplay" readonly style="flex:1;">
         <button class="btn btn-ghost" id="syncCopyBtn" type="button">复制</button>
       </div>
-      <div class="field-hint">在另一台设备上打开这个页面，在下面"连接到已有同步码"里粘贴这个码，两边数据会自动合并。</div>
     </div>
 
     <div class="meta-readonly" id="syncStateText">未连接同步</div>
@@ -1930,13 +1929,11 @@
           <button class="btn btn-primary" id="syncGenConfirmBtn" type="button">确定换新的</button>
         </div>
       </div>
-      <div class="field-hint">会切换到一个全新的空间，当前设备上的数据会自动上传过去。如果只是想在新设备上接入已有数据，不要点这个，用下面的"连接到已有同步码"。</div>
     </div>
 
     <div class="field" id="syncHistoryField" style="display:none;">
       <label>之前用过的同步码</label>
       <div id="syncHistoryList" class="sync-history-list"></div>
-      <div class="field-hint">换码或者连接别的码之前，旧的同步码会自动记在这里（最多留 10 条）。点"切回"就能换回去，当前这个码也会同样被记下来，不会丢。</div>
     </div>
 
     <div class="field">
@@ -1954,14 +1951,12 @@
         <button class="btn btn-ghost" id="backupImportBtn" type="button">导入备份</button>
         <input type="file" id="backupImportInput" accept="application/json" style="display:none;">
       </div>
-      <div class="field-hint">导出是把当前所有网申记录存成一个 JSON 文件，方便自己留一份、或者搬到别的设备。导入会<b>完全覆盖</b>当前设备上的所有记录（包括已经连接的同步空间），导入前会再确认一次。</div>
     </div>
 
     <div class="field">
       <label>Supabase 项目配置</label>
       <input type="text" id="syncUrlInput" placeholder="Project URL" style="margin-bottom:8px;">
       <input type="text" id="syncKeyInput" placeholder="anon public key">
-      <div class="field-hint">这两项是设计上允许暴露在前端的公开凭证。真正隔离数据的是上面的同步码本身，请不要把同步码分享给不信任的人。</div>
     </div>
   </div>
   <div class="drawer-foot">
