@@ -537,6 +537,10 @@
     transition:color .15s ease;
   }
   .favorite-star:hover{color:var(--text-2);}
+  .favorite-star{display:inline-block;transition:transform .15s ease;}
+  .favorite-star:active{transform:scale(.85);}
+  .favorite-star.star-pop{animation:starPop .38s cubic-bezier(.2,.8,.2,1.4);}
+  @keyframes starPop{0%{transform:scale(.6) rotate(-15deg);}55%{transform:scale(1.35) rotate(8deg);}100%{transform:scale(1) rotate(0);}}
   .favorite-star.active{color:var(--orange-ink);}
   .favorite-star.active:hover{color:var(--orange-ink);}
   .card .position{font-size:14px;color:var(--text-2);font-weight:400;line-height:1.65;}
@@ -4882,15 +4886,25 @@ function deletePosition(id, {skipConfirm=false, confirmMessage} = {}){
   flushQueue();
   return true;
 }
+// 点星星：先把页面上这家公司所有的星星立刻改过来并弹一下（不等重绘），保存、同步照常；
+// 动画放完再整体重绘一次（收藏筛选、进度概览里的收藏数要跟着变）。之前只重绘了看板，
+// 在已提交页面点星星要等下次刷新才看得到变化。
+let favoriteRenderTimer = null;
 function toggleFavorite(companyId){
   const company = getCompany(companyId);
   if(!company) return;
   company.favorite = !company.favorite;
   company.updatedAt = new Date().toISOString();
+  document.querySelectorAll(`.favorite-star[data-company-id="${companyId}"], #companyDetailFavoriteBtn[data-company-id="${companyId}"]`).forEach(btn=>{
+    btn.classList.toggle('active', company.favorite);
+    btn.textContent = company.favorite ? '★' : '☆';
+    btn.classList.remove('star-pop'); void btn.offsetWidth; btn.classList.add('star-pop');
+  });
   saveData();
   queueUpsert('companies', companyId);
   flushQueue();
-  renderBoard();
+  clearTimeout(favoriteRenderTimer);
+  favoriteRenderTimer = setTimeout(renderAll, 380);
 }
 function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toReviewStage){
   const list = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===fromStatus
@@ -5660,6 +5674,7 @@ function openCompanyDetail(companyId, status, reviewStage){
   }
 
   const favBtn = document.getElementById('companyDetailFavoriteBtn');
+  favBtn.dataset.companyId = companyId;
   favBtn.classList.toggle('active', !!(company && company.favorite));
   favBtn.textContent = (company && company.favorite) ? '★' : '☆';
   favBtn.onclick = ()=>{
