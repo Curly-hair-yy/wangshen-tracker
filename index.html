@@ -1660,18 +1660,33 @@
   .nav-row.stuck:before{box-shadow:0 6px 16px -10px rgba(0,0,0,.25);}
   html{overflow-x:clip;}
   /* 切页：从切换方向那侧滑入 + 淡入 */
-  @keyframes viewFromRight{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:none;}}
-  @keyframes viewFromLeft{from{opacity:0;transform:translateX(-18px);}to{opacity:1;transform:none;}}
-  .view-enter.from-right{animation:viewFromRight .32s cubic-bezier(.2,.8,.2,1);}
-  .view-enter.from-left{animation:viewFromLeft .32s cubic-bezier(.2,.8,.2,1);}
+  /* 切页像左右翻：新页面从一侧滑进来，旧页面同时往另一侧滑出去淡掉 */
+  .wrap{position:relative;}
+  @keyframes viewFromRight{from{opacity:0;transform:translateX(70px);}to{opacity:1;transform:none;}}
+  @keyframes viewFromLeft{from{opacity:0;transform:translateX(-70px);}to{opacity:1;transform:none;}}
+  @keyframes viewToLeft{from{opacity:1;transform:none;}to{opacity:0;transform:translateX(-70px);}}
+  @keyframes viewToRight{from{opacity:1;transform:none;}to{opacity:0;transform:translateX(70px);}}
+  .view-enter.from-right{animation:viewFromRight .42s cubic-bezier(.22,1,.36,1);}
+  .view-enter.from-left{animation:viewFromLeft .42s cubic-bezier(.22,1,.36,1);}
+  .view-leave{position:absolute !important;left:0;right:0;pointer-events:none;z-index:0;}
+  .view-leave.to-left{animation:viewToLeft .36s cubic-bezier(.4,0,.6,1) forwards;}
+  .view-leave.to-right{animation:viewToRight .36s cubic-bezier(.4,0,.6,1) forwards;}
   /* 进度概览：选中底块滑动 */
   .overview-grid{position:relative;}
-  .ov-slider{position:absolute;left:0;right:0;top:0;z-index:0;border-radius:var(--radius-overview);
+  .ov-slider{position:absolute;left:0;right:0;top:0;z-index:1;border-radius:var(--radius-overview);
     background:var(--charcoal, var(--blue));box-shadow:0 6px 14px rgba(0,0,0,.14);pointer-events:none;
-    transition:transform .32s cubic-bezier(.2,.8,.2,1), height .32s cubic-bezier(.2,.8,.2,1);}
-  .overview-grid .overview-item{position:relative;z-index:1;}
+    transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1);}
+  /* 分层：每一项的灰底画在 ::before（最下层）→ 滑块（中间）→ 文字（最上层），
+     滑块移动途中不会被别的项的灰底盖住，整段都看得见 */
+  .overview-grid .overview-item{position:relative;z-index:auto;background:transparent !important;box-shadow:none !important;}
+  .overview-grid .overview-item:before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--overview-item);z-index:0;transition:background .2s ease;}
+  .overview-grid .overview-item:hover:before{background:var(--blue-soft);}
+  .overview-grid .overview-item > *{position:relative;z-index:2;}
   .overview-grid .overview-item.active,
-  :root[data-theme="lime"] .overview-grid .overview-item.active{background:transparent;box-shadow:none;color:#fff;transition:color .2s ease .08s;}
+  :root[data-theme="lime"] .overview-grid .overview-item.active{background:transparent;box-shadow:none;color:#fff;}
+  .overview-grid .overview-item{transition:color .3s ease, background .3s ease;}
+  .overview-grid .overview-item.ov-arrive{animation:ovArrive .5s ease;}
+  @keyframes ovArrive{from{color:var(--text-2);}to{color:#fff;}}
   /* 筛选后列表里的卡片依次轻轻浮上来 */
   @keyframes cardIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
   .list-refresh .progress-company{animation:cardIn .34s cubic-bezier(.2,.8,.2,1) both;}
@@ -3053,6 +3068,7 @@ function placeOverviewSlider(el){
   slider.style.transition = '';
   slider.style.transform = `translateY(${to.top}px)`;
   slider.style.height = to.height + 'px';
+  if(overviewSliderLast && overviewSliderLast.top!==to.top) active.classList.add('ov-arrive');
   overviewSliderLast = to;
 }
 function renderProgressOverview(){
@@ -5727,6 +5743,10 @@ const VIEW_EL = {board:'board', submitted:'submittedView', reminders:'remindersV
 function setActiveView(view){
   const prevView = currentView;
   currentView = view;
+  // 旧页面先"拍"下当前位置，切换后让它绝对定位在原处、往反方向滑出去再隐藏
+  const prevEl = (prevView!==view) ? document.getElementById(VIEW_EL[prevView]) : null;
+  const prevTop = prevEl ? prevEl.offsetTop : 0;
+  const prevDisplay = prevEl ? getComputedStyle(prevEl).display : '';
   const tabs = [
     {id:'viewTabBoard', v:'board'},
     {id:'viewTabSubmitted', v:'submitted'},
@@ -5755,10 +5775,26 @@ function setActiveView(view){
   if(view==='reminders') renderRemindersList();
   if(prevView!==view){
     const el = document.getElementById(VIEW_EL[view]);
-    const dir = VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(prevView) ? 'from-right' : 'from-left';
+    const forward = VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(prevView);
+    // 快速来回切时，要进来的页面可能还在"滑出去"的半路上，先把滑出的状态清掉
+    clearTimeout(el._leaveTimer);
+    el.classList.remove('view-leave','to-left','to-right');
+    el.style.top = '';
     el.classList.remove('view-enter','from-right','from-left');
     void el.offsetWidth;
-    el.classList.add('view-enter', dir);
+    el.classList.add('view-enter', forward ? 'from-right' : 'from-left');
+    if(prevEl && prevDisplay!=='none'){
+      clearTimeout(prevEl._leaveTimer);
+      prevEl.classList.remove('view-leave','to-left','to-right');
+      prevEl.style.display = prevDisplay;
+      prevEl.style.top = prevTop + 'px';
+      prevEl.classList.add('view-leave', forward ? 'to-left' : 'to-right');
+      prevEl._leaveTimer = setTimeout(()=>{
+        prevEl.classList.remove('view-leave','to-left','to-right');
+        prevEl.style.top = '';
+        if(currentView!==prevView) prevEl.style.display = 'none';
+      }, 420);
+    }
   }
 }
 document.getElementById('viewTabBoard').addEventListener('click', ()=>setActiveView('board'));
