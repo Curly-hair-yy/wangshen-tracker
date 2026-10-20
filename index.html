@@ -1677,6 +1677,13 @@
   .overview-grid .overview-item{position:relative;z-index:auto;background:transparent !important;box-shadow:none !important;}
   .overview-grid .overview-item:before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--overview-item);z-index:0;transition:background .2s ease;}
   .overview-grid .overview-item:hover:before{background:var(--blue-soft);}
+  /* 选中项平时自己画深色底（不依赖滑块，滑块量不准时也不会出现"白字没底色"）；
+     只有正在滑动的那 0.5 秒里交给滑块画 */
+  .overview-grid .overview-item.active:before,
+  .overview-grid .overview-item.active:hover:before{background:var(--charcoal, var(--blue));}
+  .overview-grid.ov-moving .overview-item.active:before{background:var(--overview-item);}
+  .ov-slider{opacity:0;}
+  .overview-grid.ov-moving .ov-slider{opacity:1;}
   .overview-grid .overview-item > *{position:relative;z-index:2;}
   .overview-grid .overview-item.active,
   :root[data-theme="lime"] .overview-grid .overview-item.active{background:transparent;box-shadow:none;color:#fff;}
@@ -3067,11 +3074,17 @@ function placeOverviewSlider(el){
   const slider = document.createElement('div');
   slider.className = 'ov-slider';
   grid.prepend(slider);
-  if(!active){ slider.style.opacity = '0'; overviewSliderLast = null; return; }
-  // 列表这时候是隐藏的（在别的页面上重画），量不出高度：先不动，切到已提交页面时再放
-  if(!active.offsetHeight){ slider.style.opacity = '0'; return; }
+  if(!active){ overviewSliderLast = null; return; }
+  // 列表这时候是隐藏的（在别的页面上重画），量不出位置：不做动画，选中项自己会画深色底
+  if(!active.offsetHeight) return;
   const to = {top: active.offsetTop, height: active.offsetHeight};
   const from = overviewSliderLast || to;
+  overviewSliderLast = to;
+  if(from.top===to.top && from.height===to.height) return;
+  // 只在"换了选中项"时显示滑块：滑动期间选中项先不画深色底，滑块到位后再交还给它
+  grid.classList.add('ov-moving');
+  clearTimeout(grid._movingTimer);
+  grid._movingTimer = setTimeout(()=>grid.classList.remove('ov-moving'), 520);
   slider.style.transition = 'none';
   slider.style.transform = `translateY(${from.top}px)`;
   slider.style.height = from.height + 'px';
@@ -3079,8 +3092,7 @@ function placeOverviewSlider(el){
   slider.style.transition = '';
   slider.style.transform = `translateY(${to.top}px)`;
   slider.style.height = to.height + 'px';
-  if(overviewSliderLast && overviewSliderLast.top!==to.top) active.classList.add('ov-arrive');
-  overviewSliderLast = to;
+  active.classList.add('ov-arrive');
 }
 function renderProgressOverview(){
   // 每一项都显示"公司数 / 岗位数"：公司数跟顶部统计、看板的口径一致（数公司），
@@ -5755,7 +5767,6 @@ function snapOverviewSlider(){
   const active = el && el.querySelector('.overview-item.active');
   if(!slider || !active || !active.offsetHeight) return;
   slider.style.transition = 'none';
-  slider.style.opacity = '1';
   slider.style.transform = `translateY(${active.offsetTop}px)`;
   slider.style.height = active.offsetHeight + 'px';
   void slider.offsetWidth;
