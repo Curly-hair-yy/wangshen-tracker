@@ -345,12 +345,19 @@
   /* 分段控件（标签页）+ 右侧汇总行，一行放下，两端对齐（参考稿 .nav-row）。
      滑块位置由 JS 量出当前项的 offsetLeft/offsetWidth 后写到 .view-tab-slider
      的 transform/width 上——标签文字带的数字变长变短、窗口缩放时都要重新量。 */
+  /* 页面切换栏（待提交/已提交/提醒事项）吸顶：往下翻多远都能直接切页。底色跟页面背景一样，
+     滚过去的内容从它下面经过时被盖住；滚动后底部出现一道很淡的阴影（见 .nav-row.stuck）。 */
+  :root{--nav-h:72px;}
   .nav-row{
+    position:sticky;top:0;z-index:45;
+    background:var(--page-bg);
+    padding:10px 0;margin-top:-10px;
+    transition:box-shadow .2s ease;
     display:flex;
     justify-content:space-between;
     align-items:center;
     gap:20px;
-    margin-bottom:20px;
+    margin-bottom:10px;
     flex-wrap:wrap;
   }
   .view-tabs{
@@ -479,7 +486,8 @@
   /* 宽屏下两栏各自滚动：整栏吸顶、高度=一屏，栏里的内容在栏内滚，页面本身只滚掉
      顶部那一点头部。手机单栏时还是整页滚。 */
   @media(min-width:861px){
-    .board .column{position:sticky;top:12px;height:calc(100vh - 24px);min-height:0;box-sizing:border-box;}
+    /* 高度 = 一屏 - 吸顶切换栏 - 页面底部留白：滚到最底时两栏也正好停在切换栏下面，不会被顶上去 */
+    .board .column{position:sticky;top:calc(var(--nav-h) + 8px);height:calc(100vh - var(--nav-h) - 92px);min-height:0;box-sizing:border-box;}
     /* 右边多留 14px 给滚动条，让它落在栏的内边距里，不压到卡片上 */
     .board .column-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 16px 12px 6px;margin:-6px -16px 0 -6px;
       scrollbar-width:thin;scrollbar-color:var(--sb,var(--blue-line)) transparent;}
@@ -1076,7 +1084,7 @@
   .overview{
     margin-top:0;
     position:sticky;
-    top:20px;
+    top:calc(var(--nav-h) + 12px);
     border-radius:var(--radius-panel);
     padding:20px;
     background:var(--glass);
@@ -1419,6 +1427,13 @@
   .reminders-done-group .reminders-day-label:first-of-type{margin-top:4px;}
   .reminder-done-label{font-size:12px;color:var(--text-2);}
   .reminder-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:auto;}
+  /* 没完成的提醒：预约 | 倒计时 | 日期 | 周几 | 时间 | 删除，各占固定宽度的一列，
+     每张卡片的这几样上下严格对齐 */
+  .reminder-meta-grid{display:grid;grid-template-columns:78px 106px 78px 40px 50px 24px;gap:8px;justify-items:start;}
+  .reminder-meta-grid .reminder-countdown-badge{justify-self:start;white-space:nowrap;}
+  .rtag{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .rtag-week{background:var(--field);color:var(--text-2);}
+  .rtag-time{background:var(--lavender-soft, var(--blue-soft));color:var(--purple, var(--blue));}
   .reminder-countdown-badge{
     padding:3px 10px;border-radius:var(--radius-pill);font-size:12px;font-weight:900;
   }
@@ -1625,6 +1640,7 @@
   .move-toast .toast-go{background:var(--lime,var(--blue));color:var(--ink);}
   @keyframes cardArrive{0%{box-shadow:0 0 0 0 var(--lime,var(--blue));transform:scale(.98);}40%{box-shadow:0 0 0 4px var(--lime,var(--blue));transform:scale(1);}100%{box-shadow:var(--shadow-card);}}
   .card.just-moved{animation:cardArrive 1.6s ease;}
+  .nav-row.stuck{box-shadow:0 10px 14px -14px rgba(0,0,0,.35);}
   .back-top{
     position:fixed;right:24px;bottom:28px;z-index:150;width:46px;height:46px;border-radius:50%;
     border:none;background:var(--charcoal,var(--blue));color:#fff;font-size:20px;font-weight:900;cursor:pointer;
@@ -3420,6 +3436,14 @@ function linkifyNote(text){
     return `<a class="reminder-note-link" href="${href}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${u}</a>`;
   }).replace(/\*\*(.+?)\*\*/g, '<b class="note-strong">$1</b>');
 }
+// 截止时间拆成三块：日期（普通字）+ 周几标签 + 时间标签，比一整串字好认
+function reminderDateTags(dt){
+  const [d, t] = String(dt||'').split('T');
+  const wd = d ? ['周日','周一','周二','周三','周四','周五','周六'][new Date(d+'T00:00:00').getDay()] : '';
+  return `<span class="reminder-datetime">${escapeHtml(d||'')}</span>`
+    + `<span class="rtag rtag-week">${wd}</span>`
+    + `<span class="rtag rtag-time">${t ? escapeHtml(t) : '全天'}</span>`;
+}
 function renderReminderRow(item){
   const isCompanyScope = item.scope==='company';
   const company = isCompanyScope ? item.company : getCompany(item.position.companyId);
@@ -3468,10 +3492,10 @@ function renderReminderRow(item){
         <span class="reminder-position">${escapeHtml(positionText)}</span>
       </div>
       ${noteHtml}
-      <div class="reminder-meta">
+      <div class="reminder-meta reminder-meta-grid">
         <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'预约'}</button>
         <span class="reminder-countdown-badge ${badgeCls}">${dateText}</span>
-        <span class="reminder-datetime">${fmtDeadlineDateTime(item.date)}</span>
+        ${reminderDateTags(item.date)}
         <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
       </div>
     </div>
@@ -6026,6 +6050,10 @@ function restoreDeletedPosition(id){
   renderAll();
 }
 document.getElementById('recycleBinBtn').addEventListener('click', openRecycleBin);
+// 切换栏吸顶后，滚动时底部加一道淡阴影，跟下面的内容分开
+const navRowEl = document.querySelector('.nav-row');
+function updateNavStuck(){ navRowEl.classList.toggle('stuck', navRowEl.getBoundingClientRect().top <= 0 && window.scrollY > 0); }
+window.addEventListener('scroll', updateNavStuck, {passive:true});
 // 回到顶部：页面往下滚过一屏左右才出现；看板两栏是各自滚动的，所以也看栏里滚了没有，
 // 点了把整页和两栏一起滚回顶部。
 const backTopBtn = document.getElementById('backTopBtn');
