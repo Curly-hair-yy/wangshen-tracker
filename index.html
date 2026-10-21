@@ -1989,10 +1989,13 @@
     .nav-summary{font-size:13px;}
     .toolbar{gap:10px;}
     .search-wrap{min-width:0;flex:1 1 0;}
-    .toolbar .date-filter-group{order:3;width:100%;margin-left:0;display:grid !important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;}
+    .toolbar .date-filter-group{order:3;width:100%;margin-left:0;}
+    .toolbar .date-filter-group:not([style*="none"]){display:grid !important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;}
     .date-filter-group select{grid-column:1 / -1;width:100%;}
     .date-filter-group .dp-trigger{width:100%;white-space:nowrap;}
   }
+  /* 触屏没有悬停，卡片右边给悬停 × 留的空位用不上，去掉让左右留白一样 */
+  @media (hover:none){ .card .company-row{padding-right:0;} .position-line{padding-right:0;} .company-head{padding-right:0;} .role{padding-right:0;} }
 </style>
 </head>
 <body>
