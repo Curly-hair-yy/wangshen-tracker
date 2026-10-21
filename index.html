@@ -1997,6 +1997,45 @@
   }
   /* 触屏没有悬停，卡片右边给悬停 × 留的空位用不上，去掉让左右留白一样 */
   @media (hover:none){ .card .company-row{padding-right:0;} .position-line{padding-right:0;} .company-head{padding-right:0;} .role{padding-right:0;} }
+  /* 手机字号/间距/圆角体系：电脑版尺寸直接搬到 375px 宽显得臃肿，这里整体缩一档。
+     字号阶梯 26 / 16 / 15 / 14 / 13 / 12 / 11；间距按 4 的倍数；圆角 面板 20 / 卡片 16 / 输入框 12 */
+  @media (max-width:640px){
+    :root{--radius-panel:20px;--radius-card:16px;--radius-field:12px;--radius-overview:11px;}
+    header h1{font-size:26px;}
+    header .sub{font-size:12.5px;margin-top:6px;}
+    .today{font-size:12px;}
+    .top-actions .sync-indicator{height:30px;}
+    .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+    .stat-card{padding:12px 10px 11px 12px;border-radius:16px;}
+    .stat-card .num{font-size:22px;margin-bottom:2px;}
+    .stat-card .label{font-size:11.5px;white-space:nowrap;}
+    .view-tabs{height:44px;padding:4px;border-radius:16px;}
+    .view-tab-slider{top:4px;left:4px;height:36px;border-radius:12px;}
+    .view-tab{height:36px;border-radius:12px;font-size:13px;}
+    .toolbar input[type=text],.btn,.toolbar select,.dp-trigger{height:40px;font-size:13px;}
+    .overview{padding:14px;}
+    .overview h3{font-size:15px;margin-bottom:10px;}
+    .overview-grid{gap:4px;}
+    .overview-item{min-height:36px;font-size:13px;}
+    .overview-item strong{font-size:14px;}
+    .date-line{font-size:12.5px;margin-bottom:12px;}
+    .card{padding:14px 16px;}
+    .company-title{font-size:16px;gap:6px;}
+    .company-head{padding-bottom:10px;}
+    .role-name{font-size:15px;line-height:24px;}
+    .role-desc{font-size:14px;}
+    .company-note-label{font-size:13px;}
+    .company-note-text{font-size:14px;}
+    .column{padding:16px;min-height:0;}
+    .column-head{margin-bottom:14px;}
+    .column-head h2{font-size:15px;}
+    .card .company{font-size:16px;}
+    .position-line{font-size:14px;}
+    .job-note{font-size:14px;}
+    .reminder-company{font-size:15px;}
+    .reminder-note{font-size:14px;}
+    .reminder-row{min-height:0;}
+  }
 </style>
 </head>
 <body>
