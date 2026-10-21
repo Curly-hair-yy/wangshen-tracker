@@ -3018,13 +3018,18 @@ function computeSubmittedGroups(){
 
 // 七个节点固定顺序（跟 PROGRESS_STAGES 完全一致），轨道上"Offer"只是 Offered 的
 // 显示简写，进度概览那边继续用完整的"Offered"。
-// 同一家公司卡片里岗位的先后顺序：按 sortIndex（在公司详情里拖拽调的），没调过的保持原来的顺序排在后面
+// 同一家公司卡片里岗位的先后顺序：按 sortIndex（拖拽/上下移动调的），没调过的按创建时间，
+// 再按 id——不依赖数组里的先后（保存、同步会把改过的记录挪位置），所以看板、已提交、
+// 公司详情、编辑弹窗几处永远是同一个顺序，点开编辑也不会把谁挪到第一个。
 function sortPositions(list){
-  return list.map((p,i)=>({p,i})).sort((a,b)=>{
-    const x = typeof a.p.sortIndex==='number' ? a.p.sortIndex : Infinity;
-    const y = typeof b.p.sortIndex==='number' ? b.p.sortIndex : Infinity;
-    return x!==y ? x-y : a.i-b.i;
-  }).map(o=>o.p);
+  return list.slice().sort((a,b)=>{
+    const x = typeof a.sortIndex==='number' ? a.sortIndex : Infinity;
+    const y = typeof b.sortIndex==='number' ? b.sortIndex : Infinity;
+    if(x!==y) return x-y;
+    const ta = new Date(a.createdAt||0).getTime(), tb = new Date(b.createdAt||0).getTime();
+    if(ta!==tb) return ta-tb;
+    return String(a.id).localeCompare(String(b.id));
+  });
 }
 // 岗位地点（base）小标签，跟在岗位名后面
 function locationTag(p){
@@ -4552,7 +4557,7 @@ function openDrawer(id){
   positionDraftReordered = false;
   if(r){
     // 编辑框里的岗位按卡片上的顺序列（拖拽/上下移动调过的 sortIndex），没调过的按创建时间
-    positionDraft = sortPositions([...allPositions].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))).map(toDraftEntry);
+    positionDraft = sortPositions(allPositions).map(toDraftEntry);
   } else {
     positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false,
       _statusOverride:false, _ownStatus:'todo', _checklistOverride:false, _ownChecklist:[], _exclusiveOpen:false}];
@@ -4986,8 +4991,8 @@ function closeDrawer(){
   editingId = null;
 }
 // 误关保护：弹窗打开时拍一份"快照"，关闭前跟当下状态比一比——没改过东西就直接
-// 关；改过的话，先在弹窗里叠一层"放弃填写？"确认，不用系统 confirm()。点遮罩
-// 不再关闭弹窗（防止手滑），只有 ×/取消/Esc 会走这个判断流程。
+// 关；改过的话，先在弹窗里叠一层"放弃填写？"确认，不用系统 confirm()。点遮罩、
+// ×/取消/Esc 都走这个判断流程。
 let drawerOpenSnapshot = null;
 function captureDrawerSnapshot(){
   return JSON.stringify({
@@ -5225,7 +5230,8 @@ document.getElementById('addItemBtn').addEventListener('click', ()=>{
 document.getElementById('addBtn').addEventListener('click', ()=>openDrawer(null));
 document.getElementById('drawerClose').addEventListener('click', attemptCloseDrawer);
 document.getElementById('cancelBtn').addEventListener('click', attemptCloseDrawer);
-// 点遮罩不关闭这个弹窗了（防手滑漏填），只有 ×/取消/Esc 会触发关闭流程。
+// 点弹窗外面也能关：跟 ×/取消/Esc 走同一个流程，改过东西会先问"放弃填写？"，不会手滑丢内容。
+overlay.addEventListener('click', attemptCloseDrawer);
 
 // 每个岗位实际生效的状态/待办清单：专属设置开着就用它自己的值，没开就用共用值——
 // 状态/网申链接/待办清单这三个字段都是这套"共用为主、可专属覆盖"的规则，截止
