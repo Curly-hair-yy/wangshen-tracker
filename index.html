@@ -751,6 +751,12 @@
     padding:2px 6px;flex-shrink:0;
   }
   .position-group-del:hover{color:var(--red);}
+  .position-move{display:flex;gap:2px;flex-shrink:0;}
+  .position-move-btn{width:26px;height:26px;border:none;border-radius:8px;background:transparent;color:var(--text-3);
+    font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:background .15s ease,color .15s ease,transform .1s ease;}
+  .position-move-btn:hover:not(:disabled){background:var(--field);color:var(--ink);}
+  .position-move-btn:active:not(:disabled){transform:scale(.88);}
+  .position-move-btn:disabled{opacity:.25;cursor:default;}
   .exclusive-toggle{
     margin-top:10px;font-size:12px;color:var(--text-2);background:none;border:none;
     cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:6px;
@@ -2438,6 +2444,7 @@ let checklistDraft = [];
 // positionDraft: [{ name, requirement, images:[{path}|{uploading:true}], _jdOpen }]
 // 新增网申时每个岗位一条，各自的岗位要求/图片互不共用；只有编辑单个岗位时数组长度固定为 1
 let positionDraft = [{name:'', requirement:'', images:[], _jdOpen:false}];
+let positionDraftReordered = false; // 这次编辑里用上下按钮调过岗位顺序，保存时才写 sortIndex
 let reviewStageDraft = '';
 let progressDraft = {};
 let progressDatesDraft = {};
@@ -4513,8 +4520,10 @@ function openDrawer(id){
       _exclusiveOpen: hasOwnLink || hasOwnStatus || hasOwnChecklist,
     };
   }
+  positionDraftReordered = false;
   if(r){
-    positionDraft = allPositions.map(toDraftEntry);
+    // 编辑框里的岗位按卡片上的顺序列（拖拽/上下移动调过的 sortIndex），没调过的按创建时间
+    positionDraft = sortPositions([...allPositions].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))).map(toDraftEntry);
   } else {
     positionDraft = [{name:'', note:'', link:'', _linkOpen:false, requirement:'', images:[], _jdOpen:false,
       _statusOverride:false, _ownStatus:'todo', _checklistOverride:false, _ownChecklist:[], _exclusiveOpen:false}];
@@ -4733,7 +4742,12 @@ function renderPositionEditor(){
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
-          ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
+          ${positionDraft.length>1 ? `<span class="position-move">
+            <button class="position-move-btn" type="button" data-dir="-1" title="上移" aria-label="上移"${idx===0?' disabled':''}>↑</button>
+            <button class="position-move-btn" type="button" data-dir="1" title="下移" aria-label="下移"${idx===positionDraft.length-1?' disabled':''}>↓</button>
+          </span>` : ''}
+          ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>'
+            : (positionDraft.length>1 && positionDraft.some(x=>!x._existingId)) ? '<span class="position-group-del" aria-hidden="true" style="visibility:hidden">&times;</span>' : ''}
         </div>
         <textarea class="position-note-input" data-idx="${idx}" placeholder="备注">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
@@ -4751,6 +4765,24 @@ function renderPositionEditor(){
 
   box.querySelectorAll('.position-group').forEach(block=>{
     const idx = Number(block.dataset.idx);
+    block.querySelectorAll('.position-move-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const to = idx + Number(btn.dataset.dir);
+        if(to<0 || to>=positionDraft.length) return;
+        // 交换前记下每个岗位块的位置，重画后从旧位置滑到新位置
+        const before = new Map([...box.querySelectorAll('.position-group')].map(el=>[positionDraft[Number(el.dataset.idx)], el.getBoundingClientRect().top]));
+        [positionDraft[idx], positionDraft[to]] = [positionDraft[to], positionDraft[idx]];
+        positionDraftReordered = true;
+        renderPositionEditor();
+        box.querySelectorAll('.position-group').forEach(el=>{
+          const old = before.get(positionDraft[Number(el.dataset.idx)]);
+          const dy = old==null ? 0 : old - el.getBoundingClientRect().top;
+          if(Math.abs(dy)>1 && !fxReduced()) el.animate([{transform:`translateY(${dy}px)`},{transform:'none'}], {duration:360, easing:'cubic-bezier(.22,1,.36,1)'});
+        });
+        const moved = box.querySelector(`.position-group[data-idx="${to}"] .position-move-btn[data-dir="${btn.dataset.dir}"]`);
+        if(moved && !moved.disabled) moved.focus();
+      });
+    });
     block.querySelector('.position-name-input').addEventListener('input', e=>{
       positionDraft[idx].name = e.target.value;
     });
@@ -5260,6 +5292,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
         r.requirementImages = (entry.images||[]).filter(x=>!x.uploading && x.path).map(x=>x.path);
         r.reviewStage = status==='inprogress' ? reviewStageDraft : '';
         r.checklist = effectiveChecklist(entry, cleanSharedChecklist);
+        if(positionDraftReordered) r.sortIndex = i;
         if(isPrimary && status==='submitted'){
           r.progress = JSON.parse(JSON.stringify(progressDraft));
           r.progressDates = JSON.parse(JSON.stringify(progressDatesDraft));
@@ -5272,6 +5305,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
         touchedPositionIds.push(r.id);
       } else if(entry.name.trim()!==''){
         const newPos = buildNewPosition(entry, i);
+        if(positionDraftReordered) newPos.sortIndex = i;
         positions.push(newPos);
         touchedPositionIds.push(newPos.id);
       }
