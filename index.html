@@ -1755,6 +1755,29 @@
     background:conic-gradient(var(--lime,#fff) calc(var(--p)*1turn), rgba(255,255,255,.14) 0);
     -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));
     mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));}
+  /* ---- 页面内确认框 ---- */
+  .ask-wrap{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;
+    background:rgba(20,22,26,.18);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    opacity:0;transition:opacity .2s ease;}
+  .ask-wrap.show{opacity:1;}
+  .ask-card{width:min(340px,100%);background:var(--surface,#fff);border-radius:22px;padding:22px 22px 18px;
+    box-shadow:0 24px 60px rgba(0,0,0,.22);transform:translateY(10px) scale(.94);
+    transition:transform .32s cubic-bezier(.34,1.4,.5,1);}
+  .ask-wrap.show .ask-card{transform:none;}
+  .ask-title{font-size:17px;font-weight:900;color:var(--ink);letter-spacing:-.01em;}
+  .ask-subject{margin-top:10px;font-size:14px;font-weight:700;color:var(--text);line-height:1.45;word-break:break-all;
+    background:var(--field);border-radius:12px;padding:9px 12px;}
+  .ask-hint{margin-top:8px;font-size:12px;color:var(--text-3);}
+  .ask-btns{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .ask-btn{height:40px;border:none;border-radius:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;
+    transition:filter .15s ease,transform .1s ease;}
+  .ask-btn:active{transform:scale(.96);}
+  .ask-cancel{background:var(--field);color:var(--text);}
+  .ask-cancel:hover{filter:brightness(.96);}
+  .ask-ok{background:var(--charcoal,var(--blue));color:#fff;}
+  .ask-ok.danger{background:var(--red);}
+  .ask-ok:hover{filter:brightness(1.08);}
+  .ask-btn:focus-visible{outline:2px solid var(--lavender,var(--blue));outline-offset:2px;}
   /* ---- 动效 ---- */
   @keyframes numBump{0%{transform:none;}35%{transform:translateY(-2px) scale(1.08);}100%{transform:none;}}
   .num-bump{display:inline-block;animation:numBump .45s cubic-bezier(.34,1.56,.64,1);}
@@ -2905,10 +2928,9 @@ function renderBoard(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const id = btn.dataset.id;
-      const pos = positions.find(p=>p.id===id);
-      if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这个岗位吗？此操作无法撤销。`})){
-        fxCollapseRow(btn.closest('.position-line'), '.position-line', renderAll);
-      }
+      askDeletePosition(id).then(ok=>{
+        if(ok && deletePosition(id)) fxCollapseRow(btn.closest('.position-line'), '.position-line', renderAll);
+      });
     });
   });
 }
@@ -3524,10 +3546,9 @@ function renderSubmittedList(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const id = btn.dataset.id;
-      const pos = positions.find(p=>p.id===id);
-      if(deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这条已提交记录吗？此操作无法撤销。`})){
-        fxCollapseRow(btn.closest('.role'), '.role', renderAll);
-      }
+      askDeletePosition(id).then(ok=>{
+        if(ok && deletePosition(id)) fxCollapseRow(btn.closest('.role'), '.role', renderAll);
+      });
     });
   });
   // 轨道节点：点哪里都弹出同一个节点小菜单（见 openStageNodePop）——里面可以一键
@@ -5340,10 +5361,56 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   if(savedCard && savedCard.getBoundingClientRect().width){ savedCard.classList.remove('just-moved'); void savedCard.offsetWidth; savedCard.classList.add('just-moved'); }
 });
 
+/* ---- 页面内的确认框（代替浏览器自带的 confirm，手机主屏幕 App 里系统弹窗会被吞掉） ----
+   askConfirm({title, subject, hint, okText, danger}) → Promise<boolean>。Esc/点遮罩 = 取消，回车 = 确定。 */
+function askConfirm({title='确定吗？', subject='', hint='', okText='确定', cancelText='取消', danger=false} = {}){
+  return new Promise(resolve=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'ask-wrap';
+    wrap.innerHTML = `
+      <div class="ask-card" role="alertdialog" aria-modal="true">
+        <div class="ask-title">${escapeHtml(title)}</div>
+        ${subject ? `<div class="ask-subject">${escapeHtml(subject)}</div>` : ''}
+        ${hint ? `<div class="ask-hint">${escapeHtml(hint)}</div>` : ''}
+        <div class="ask-btns">
+          <button type="button" class="ask-btn ask-cancel">${escapeHtml(cancelText)}</button>
+          <button type="button" class="ask-btn ask-ok${danger?' danger':''}">${escapeHtml(okText)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    const prevFocus = document.activeElement;
+    const done = v=>{
+      document.removeEventListener('keydown', onKey, true);
+      wrap.classList.remove('show');
+      setTimeout(()=>wrap.remove(), 200);
+      if(prevFocus && prevFocus.focus) try{ prevFocus.focus({preventScroll:true}); }catch(e){}
+      resolve(v);
+    };
+    const onKey = e=>{
+      if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); done(false); }
+      else if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); done(true); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    wrap.addEventListener('click', e=>{ if(e.target===wrap) done(false); });
+    wrap.querySelector('.ask-cancel').addEventListener('click', ()=>done(false));
+    wrap.querySelector('.ask-ok').addEventListener('click', ()=>done(true));
+    requestAnimationFrame(()=>{ wrap.classList.add('show'); wrap.querySelector('.ask-ok').focus({preventScroll:true}); });
+  });
+}
+function askDeletePosition(id){
+  const pos = positions.find(p=>p.id===id);
+  const company = pos && getCompany(pos.companyId);
+  return askConfirm({
+    title: '删除这个岗位？',
+    subject: `${company ? company.name+' · ' : ''}${pos ? (pos.position||'未命名岗位') : '这个岗位'}`,
+    hint: '可以在回收站恢复',
+    okText: '删除', danger: true,
+  });
+}
+
 /* ---- 删除岗位 / 整张卡（软删除：只打标记，不物理移除，避免多设备同步时复活，见文件顶部说明） ---- */
-function deletePosition(id, {skipConfirm=false, confirmMessage} = {}){
-  const msg = confirmMessage || '确定删除这条网申记录吗？此操作无法撤销。';
-  if(!skipConfirm && !confirm(msg)) return false;
+// 确认放在调用的地方用 askConfirm 做（页面内的确认框），这里只管删
+function deletePosition(id){
   const r = positions.find(x=>x.id===id);
   if(!r || r.deleted) return false;
   const now = new Date().toISOString();
@@ -5555,18 +5622,27 @@ function deleteCardGroup(companyId, status, reviewStage, cardEl){
   if(list.length===0) return;
   const company = getCompany(companyId);
   const stageLabel = reviewStage ? `·${REVIEW_STAGE_LABEL[reviewStage]}` : '';
-  const msg = `确定要删除「${company?company.name:'该公司'}」在"${STATUS_LABEL[status]}${stageLabel}"的这 ${list.length} 个岗位吗？此操作无法撤销。`;
-  if(!confirm(msg)) return;
-  list.forEach(p=>deletePosition(p.id, {skipConfirm:true}));
-  fxCollapse(cardEl, ()=>{ const b = snapshotCards(); renderAll(); playFlip(b); });
+  askConfirm({
+    title: list.length>1 ? `删除这 ${list.length} 个岗位？` : '删除这个岗位？',
+    subject: `${company?company.name:'该公司'} · ${STATUS_LABEL[status]}${stageLabel}`,
+    hint: '可以在回收站恢复',
+    okText: '删除', danger: true,
+  }).then(ok=>{
+    if(!ok) return;
+    list.forEach(p=>deletePosition(p.id));
+    fxCollapse(cardEl, ()=>{ const b = snapshotCards(); renderAll(); playFlip(b); });
+  });
 }
 
 document.getElementById('deleteBtn').addEventListener('click', ()=>{
   if(!editingId) return;
-  if(deletePosition(editingId)){
-    closeDrawer();
-    renderAll();
-  }
+  const id = editingId;
+  askDeletePosition(id).then(ok=>{
+    if(ok && deletePosition(id)){
+      closeDrawer();
+      renderAll();
+    }
+  });
 });
 
 function renderFilteredViews(){
@@ -6443,9 +6519,8 @@ function openCompanyDetail(companyId, status, reviewStage){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const id = btn.dataset.id;
-      const pos = positions.find(p=>p.id===id);
-      const ok = deletePosition(id, {confirmMessage:`确定要删除"${pos?(pos.position||'该岗位'):'该岗位'}"这个岗位吗？此操作无法撤销。`});
-      if(!ok) return;
+      askDeletePosition(id).then(ok=>{
+      if(!ok || !deletePosition(id)) return;
       const remaining = positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
         && (reviewStage===undefined || reviewStageOf(p)===reviewStage));
       fxCollapse(remaining.length ? btn.closest('.position-detail-item') : null, ()=>{
@@ -6455,6 +6530,7 @@ function openCompanyDetail(companyId, status, reviewStage){
         } else {
           openCompanyDetail(companyId, status, reviewStage);
         }
+      });
       });
     });
   });
@@ -7395,7 +7471,7 @@ document.getElementById('backupImportInput').addEventListener('change', (e)=>{
   e.target.value = '';
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = ()=>{
+  reader.onload = async ()=>{
     let data;
     try{ data = JSON.parse(reader.result); }
     catch(err){ alert('这个文件不是有效的备份文件（JSON 解析失败）。'); return; }
@@ -7403,12 +7479,12 @@ document.getElementById('backupImportInput').addEventListener('change', (e)=>{
       alert('这个文件看起来不是本工具导出的备份（缺少 companies / positions）。');
       return;
     }
-    const ok = confirm(
-      `确定要导入这份备份吗？\n\n`+
-      `备份时间：${data.exportedAt ? fmtDateTime(data.exportedAt) : '未知'}\n`+
-      `包含 ${data.companies.length} 家公司、${data.positions.length} 条岗位记录\n\n`+
-      `导入会完全覆盖当前设备上的所有记录，这一步无法撤销。`
-    );
+    const ok = await askConfirm({
+      title: '导入这份备份？',
+      subject: `${data.exportedAt ? fmtDateTime(data.exportedAt) : '时间未知'} · ${data.companies.length} 家公司、${data.positions.length} 条岗位`,
+      hint: '会覆盖当前所有记录',
+      okText: '导入', danger: true,
+    });
     if(!ok) return;
     // 导入等于"以这份备份为准，覆盖现在的一切"——把所有记录的 updatedAt 都刷新成现在，
     // 这样如果已经连接了同步，推上去的时候能按"最后修改时间更新"的规则真正盖过云端数据，
@@ -7560,12 +7636,12 @@ function dateStrToIso(d){
   const y = d.slice(0,4), m = d.slice(4,6), day = d.slice(6,8);
   return new Date(`${y}-${m}-${day}T00:00:00`).toISOString();
 }
-function runHistoryImport(){
+async function runHistoryImport(){
   if(localStorage.getItem(HISTORY_IMPORT_KEY)){
     alert('历史数据已经导入过了，不会重复导入。');
     return;
   }
-  if(!confirm(`即将导入 ${HISTORY_IMPORT_DATA.length} 条历史投递记录（都标记为"已提交"状态），确定吗？`)) return;
+  if(!(await askConfirm({title:'导入历史投递记录？', subject:`${HISTORY_IMPORT_DATA.length} 条，都标记为已提交`, okText:'导入'}))) return;
   const baseTs = Date.now();
   const touchedCompanyIds = [];
   const touchedPositionIds = [];
