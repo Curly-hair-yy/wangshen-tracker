@@ -2344,12 +2344,12 @@ function todayDateStr(){
   const pad = n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
-// 卡片上展示进度日期用的短格式，只要月/日，不带年份，比如 "2026-09-02" -> "9/2"
+// 卡片上展示进度日期用的短格式，只要月.日，不带年份，比如 "2026-09-02" -> "9.2"（用户不喜欢斜杠）
 function shortDateLabel(dateStr){
   if(!dateStr) return '';
   const parts = dateStr.split('-');
   if(parts.length<3) return dateStr;
-  return `${Number(parts[1])}/${Number(parts[2])}`;
+  return `${Number(parts[1])}.${Number(parts[2])}`;
 }
 // 提醒时间精确到分钟，存的是 datetime-local 格式 "YYYY-MM-DDTHH:mm"；老数据可能只有
 // "YYYY-MM-DD"（没有时间），这几个 helper 统一处理这两种格式，不用每处都自己判断。
