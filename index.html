@@ -2016,6 +2016,14 @@
     <div class="meta-readonly" id="syncStateText">未连接同步</div>
 
     <div class="field">
+      <label>订阅日历网址</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="calendarFeedDisplay" readonly style="flex:1;">
+        <button class="btn btn-ghost" id="calendarFeedCopyBtn" type="button">复制</button>
+      </div>
+    </div>
+
+    <div class="field">
       <label>生成一个新的同步空间</label>
       <div id="syncGenNormal"><button class="btn btn-ghost" id="syncGenNewBtn" type="button">生成新同步码</button></div>
       <div id="syncGenConfirm" class="sync-gen-confirm" style="display:none;">
@@ -7224,6 +7232,7 @@ function openSyncDrawer(){
   hideSyncGenConfirm();
   renderSyncHistory();
   renderSyncIndicator();
+  loadCalendarFeedUrl();
   syncOverlay.classList.add('active');
   syncDrawer.classList.add('active');
 }
@@ -7244,6 +7253,28 @@ document.getElementById('syncCopyBtn').addEventListener('click', ()=>{
   const old = btn.textContent;
   btn.textContent = '已复制';
   setTimeout(()=>{ btn.textContent = old; }, 1200);
+});
+
+// 订阅日历网址：拿当前同步码去数据库换订阅密钥（密钥不写进网页代码，代码在 GitHub 上是公开的）
+async function loadCalendarFeedUrl(){
+  const input = document.getElementById('calendarFeedDisplay');
+  input.value = '';
+  if(!syncId || !sb){ input.value = '（连上同步后显示）'; return; }
+  input.value = '读取中…';
+  try{
+    const {data, error} = await sb.rpc('get_calendar_feed_token', {p_sync_id: syncId});
+    if(error || !data){ input.value = '（读取失败，稍后再打开试试）'; return; }
+    const host = String(syncConfig.url||'').replace(/^https?:\/\//,'').replace(/\/+$/,'');
+    input.value = `webcal://${host}/functions/v1/calendar-feed?token=${data}`;
+  }catch(e){ input.value = '（读取失败，稍后再打开试试）'; }
+}
+document.getElementById('calendarFeedCopyBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('calendarFeedDisplay').value;
+  if(!val || !val.startsWith('webcal://')) return;
+  copyText(val);
+  const btn = document.getElementById('calendarFeedCopyBtn');
+  btn.textContent = '已复制';
+  setTimeout(()=>{ btn.textContent = '复制'; }, 1200);
 });
 
 document.getElementById('firstRunSetupBtn').addEventListener('click', ()=>{
