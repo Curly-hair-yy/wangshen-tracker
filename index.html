@@ -1769,6 +1769,8 @@
   .position-note-peek{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-3);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   .position-note-input{margin-top:6px;}
   .position-jd-toggle,.position-jd-body{display:none !important;}
+  /* 岗位的"设置/专属设置"（单独状态、单独链接、单独待办）也不用了，藏起来；已经单独设过的岗位，保存时照样保留原来的设置 */
+  #positionItems .exclusive-toggle,#positionItems .exclusive-body{display:none !important;}
   /* ---- 页面内确认框 ---- */
   .ask-wrap{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:16px;
     background:rgba(20,22,26,.18);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
