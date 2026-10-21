@@ -1015,8 +1015,7 @@
   /* 拖动时：被拖的卡片浮起来跟手（不加过渡，保证跟手）；其它卡片让位时用顺滑的缓动；
      松手落位时被拖卡片也缓动过去 */
   .position-detail-item.dragging{box-shadow:0 16px 36px rgba(0,0,0,.18);z-index:5;transition:box-shadow .15s ease;cursor:grabbing;}
-  .position-detail-item.drag-shift{transition:transform .22s cubic-bezier(.2,.8,.2,1);}
-  .position-detail-item.dragging.drag-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;box-shadow:var(--shadow-1);}
+  .position-detail-item.dragging.drag-settle{box-shadow:var(--shadow-1);}
   body:has(.position-detail-item.dragging){user-select:none;cursor:grabbing;}
   .position-detail-item.dragging .position-drag-handle{cursor:grabbing;}
   #companyDetailBody{padding-left:18px;}
@@ -1191,7 +1190,7 @@
   .progress-company .drag-handle{left:-22px;}
   .company-head{
     display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
-    padding-bottom:14px;padding-right:18px;border-bottom:1px solid var(--line);margin-bottom:4px;
+    padding-bottom:14px;padding-right:26px;border-bottom:1px solid var(--line);margin-bottom:4px;
   }
   .company-title{
     font-size:18px;font-weight:950;letter-spacing:-.02em;
@@ -1200,7 +1199,7 @@
   .company-title .favorite-star{font-size:16px;}
   .company-title .seq{
     font-size:11px;font-weight:800;color:var(--blue);background:var(--blue-soft);
-    padding:2px 7px;border-radius:var(--radius-pill);
+    padding:2px 7px;border-radius:var(--radius-pill);font-variant-numeric:tabular-nums;
   }
   .company-head-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
   .company-date{color:#4a6381;font-weight:950;font-size:12px;white-space:nowrap;}
@@ -1216,13 +1215,14 @@
   }
   .role:last-child{border-bottom:0;}
   .role-compact{padding:8px 0;}
+  .role-compact .role-del-btn{top:8px;}
   .submitted-list.attention-mode .drag-handle{display:none;}
   .role-name{font-size:16px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
   .role-name > span{min-width:0;}
 
   .role-desc{color:var(--text-3);font-size:15px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
-    position:absolute;top:10px;right:0;opacity:0;
+    position:absolute;top:12px;right:0;opacity:0;
     background:none;border:none;color:var(--text-3);cursor:pointer;
     font-size:16px;line-height:1;padding:4px;
     transition:opacity .15s ease,color .15s ease;
@@ -1352,10 +1352,15 @@
   @media(max-width:860px){
     .progress-layout{grid-template-columns:1fr;}
     .overview{position:static;}
-    .role{grid-template-columns:1fr auto;}
-    .role > :nth-child(3){grid-column:1 / -1;}
+    /* 窄屏：第一行 岗位名 | 地点，轨道单独一行、第一个环节的标签左边跟岗位名文字对齐；空的轨道/地点格不占行距 */
+    .role{grid-template-columns:1fr auto;row-gap:10px;}
+    .role > :nth-child(2){grid-row:1;grid-column:1;}
+    .role > .role-loc{grid-row:1;grid-column:2;}
+    .role > .track{grid-row:2;grid-column:1 / -1;margin-left:14px;}
+    .role > :empty{display:none;}
     .company-title{font-size:18px;}
-    .company-head{flex-wrap:wrap;}
+    .company-head{flex-wrap:wrap;row-gap:8px;}
+    .company-head-right{margin-left:auto;}
   }
 
   /* v3：筛选弹层作废，所有筛选控件原地常驻在工具栏这一行里，两个页面都一样
@@ -1452,6 +1457,14 @@
     .reminder-note-col{grid-column:2 / -1;grid-row:2;}
     .reminder-note-col:empty{display:none;}
   }
+  /* 手机：勾选框一列，右边从上到下 公司+环节+岗位 / 预约·时间·日期 / 备注，左边缘都对齐公司名 */
+  @media(max-width:640px){
+    .reminder-row{grid-template-columns:23px minmax(0,1fr);column-gap:12px;row-gap:10px;padding:14px 16px;align-items:start;}
+    .reminder-check{margin-top:2.5px;}
+    .reminder-main{grid-column:2;grid-row:1;}
+    .reminder-row > .reminder-meta{grid-column:2;grid-row:2;margin-left:0;justify-self:start;}
+    .reminder-note-col{grid-column:2;grid-row:3;}
+  }
   .reminder-row.done{opacity:.85;min-height:58px;}
   .reminder-row.done .reminder-company{color:var(--text-2);}
   .reminders-day-label{font-size:12px;font-weight:850;color:var(--text-3);margin:14px 4px 8px;}
@@ -1500,7 +1513,6 @@
   /* 已提交页拖拽：被拖的卡跟着手走，别的卡顺滑让位 */
   #submittedList .card{transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, background .18s ease;}
   #submittedList .card.sl-dragging{z-index:20;transition:box-shadow .2s ease;box-shadow:0 22px 50px rgba(0,0,0,.18);cursor:grabbing;}
-  #submittedList .card.sl-dragging.sl-settle{transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease;}
   .drag-handle{touch-action:none;}
   /* 看板排序切换：两栏上面靠右的一对小胶囊 */
   .board-sort{grid-column:1 / -1;justify-self:end;display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--field);margin-bottom:-6px;}
@@ -1853,8 +1865,7 @@
     transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
   #positionItems .position-group input,#positionItems .position-group textarea{user-select:text;cursor:text;}
   #positionItems .position-group.pg-dragging{position:relative;z-index:5;cursor:grabbing;transition:box-shadow .2s ease;
-    box-shadow:0 16px 36px rgba(0,0,0,.16);transform:scale(1.01);}
-  #positionItems .position-group.pg-dragging.pg-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
+    box-shadow:0 16px 36px rgba(0,0,0,.16);}
   .position-note-input{margin-top:6px;}
   .position-jd-toggle,.position-jd-body{display:none !important;}
   /* 岗位的"设置/专属设置"（单独状态、单独链接、单独待办）也不用了，藏起来；已经单独设过的岗位，保存时照样保留原来的设置 */
@@ -1888,7 +1899,8 @@
   .overview-grid .overview-item.ov-stage:not(.ov-dragging){transition:transform .22s cubic-bezier(.2,.8,.2,1), color .3s ease;}
   .overview-grid .overview-item.ov-dragging{z-index:5 !important;cursor:grabbing;transition:none;
     background:var(--surface,#fff) !important;box-shadow:0 12px 28px rgba(0,0,0,.16) !important;}
-  .overview-grid .overview-item.ov-dragging.ov-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
+  /* 弹簧拖动期间 transform 全交给 JS 弹簧，CSS 过渡只管阴影/底色 */
+  .sp-live{transition:box-shadow .2s ease, background-color .2s ease, color .3s ease !important;}
   /* ---- 动效 ---- */
   @keyframes numBump{0%{transform:none;}35%{transform:translateY(-2px) scale(1.08);}100%{transform:none;}}
   .num-bump{display:inline-block;animation:numBump .45s cubic-bezier(.34,1.56,.64,1);}
@@ -1929,7 +1941,9 @@
   .position-detail-name .loc-tag{margin-left:6px;}
   /* 地点标签跟着各自的岗位，放在那一行最右边；已提交页每行多一列放它，右边缘对齐 */
   .role{padding-right:26px;}
-  .role-loc{justify-self:end;align-self:start;padding-top:1px;}
+  /* 行内各列都对齐到岗位名第一行（行高 24px）的中线：轨道圆点 18px、地点胶囊 22px、× 按钮 */
+  .role-loc{justify-self:end;align-self:start;display:flex;padding-top:1px;}
+  .role > .track{margin-top:3px;}
   .loc-tag.st2{background:var(--st2-soft);color:var(--st2);} .loc-tag.st3{background:var(--st3-soft);color:var(--st3);}
   .loc-tag.st4{background:var(--st4-soft);color:var(--st4);} .loc-tag.st5{background:var(--st5-soft);color:var(--st5);}
   .loc-tag.st6{background:var(--st6-soft);color:var(--st6);} .loc-tag.st7{background:var(--st7-soft);color:var(--st7);}
@@ -1937,7 +1951,7 @@
   .role-name{position:relative;padding-left:28px;}
   .role-desc{padding-left:28px;}
   .job-note,.role-desc,.paste-import-note{overflow-wrap:anywhere;}
-  .role-name .track-add-inline{position:absolute;left:0;top:1px;margin:0;}
+  .role-name .track-add-inline{position:absolute;left:0;top:3px;margin:0;}
   .loc-tag svg{width:11px;height:11px;flex-shrink:0;}
   /* ---- 蓝色（apple）皮肤：强调色都换成同一组冷色调（蓝、天蓝、青、靛、紫），不再混进
      青柠绿、黄色这些青柠皮肤专用的颜色；只有"今天/过期"保留红色、"明天"保留橙色做提醒 ---- */
@@ -1959,6 +1973,26 @@
   :root[data-theme="apple"] .reminder-note-link{color:#1d6fd6;}
   .theme-btn{display:inline-flex;align-items:center;gap:6px;}
   .theme-btn .swatch{width:12px;height:12px;border-radius:50%;background:conic-gradient(#cfdc8e 0 33%,#aaa4d9 0 66%,#262628 0);}
+  /* 手机：顶部按钮一行排开不折字、日期跟按钮一起靠左；切页栏和搜索框撑满同一宽度，
+     "+ 新增网申"跟搜索框同一行 */
+  @media (max-width:640px){
+    header{gap:14px;margin-bottom:20px;}
+    header > div:last-child{width:100%;align-items:stretch !important;gap:8px !important;}
+    .today{text-align:left;}
+    .top-actions{gap:6px;}
+    .top-actions .sync-indicator{flex:1 1 auto;justify-content:center;white-space:nowrap;padding:0 8px;font-size:12px;gap:5px;}
+    .stats{gap:12px;margin-bottom:18px;}
+    .stat-card{padding:20px 22px;}
+    .nav-row{gap:10px;}
+    .view-tabs{display:flex;width:100%;}
+    .view-tab{flex:1;padding:0 6px;}
+    .nav-summary{font-size:13px;}
+    .toolbar{gap:10px;}
+    .search-wrap{min-width:0;flex:1 1 0;}
+    .toolbar .date-filter-group{order:3;width:100%;margin-left:0;display:grid !important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;}
+    .date-filter-group select{grid-column:1 / -1;width:100%;}
+    .date-filter-group .dp-trigger{width:100%;white-space:nowrap;}
+  }
 </style>
 </head>
 <body>
@@ -3507,6 +3541,45 @@ function sortByOverviewOrder(stages){
   const rank = k=>{ const i = order.indexOf(k); return i<0 ? Infinity : i; };
   return stages.map((s,i)=>({s,i})).sort((a,b)=>(rank(a.s.key)-rank(b.s.key)) || (a.i-b.i)).map(o=>o.s);
 }
+// 弹簧：值被"弹簧"拉向目标（刚度 k、阻尼 c），按真实时间积分、速度连续。拖动时用硬弹簧
+// 跟手（几乎不滞后，但不生硬）；松手换软一点的弹簧，带着甩出去的速度冲过一点再弹回落位。
+const SPRING_FOLLOW = {k:1400, c:64}, SPRING_DROP = {k:380, c:24}, SPRING_PEER = {k:520, c:32}, SPRING_POP = {k:700, c:30};
+function springValue(apply, x0=0, opts={}){
+  const s = {x:x0, v:0, target:x0, k:600, c:38, eps:.3, raf:0, rest:null, ...opts};
+  const settle = ()=>{ s.x = s.target; s.v = 0; s.raf = 0; apply(s.x); const r = s.rest; s.rest = null; r && r(); };
+  const tick = now=>{
+    let dt = Math.min(.05, (now - s.t)/1000); s.t = now;
+    while(dt>0){ const h = Math.min(dt, 1/240); s.v += (-s.k*(s.x - s.target) - s.c*s.v)*h; s.x += s.v*h; dt -= h; }
+    if(Math.abs(s.x - s.target) < s.eps && Math.abs(s.v) < s.eps*40) return settle();
+    apply(s.x); s.raf = requestAnimationFrame(tick);
+  };
+  s.to = (target, o)=>{
+    Object.assign(s, o||{}); s.target = target;
+    if(fxReduced()){ cancelAnimationFrame(s.raf); return settle(), s; }
+    if(!s.raf){ s.t = performance.now(); s.raf = requestAnimationFrame(tick); }
+    return s;
+  };
+  s.onRest = fn=>{ if(s.raf) s.rest = fn; else fn(); };
+  s.stop = ()=>{ cancelAnimationFrame(s.raf); s.raf = 0; s.rest = null; };
+  return s;
+}
+// 一次拖动的所有弹簧：被拖的那项（位置 + 拿起时轻轻放大）、其它项各自一根让位弹簧
+function springDrag(item, peers, {scale=1.02, startScale=1}={}){
+  const pose = {y:0, s:startScale};
+  const paint = ()=>{ item.style.transform = `translateY(${pose.y}px) scale(${pose.s})`; };
+  const y = springValue(v=>{ pose.y = v; paint(); }, 0, SPRING_FOLLOW);
+  const sc = springValue(v=>{ pose.s = v; paint(); }, startScale, {...SPRING_POP, eps:.0005});
+  const all = [item, ...peers.filter(p=>p!==item)];
+  const ps = new Map(all.slice(1).map(p=>[p, springValue(v=>{ p.style.transform = Math.abs(v)<.05 ? '' : `translateY(${v}px)`; }, 0, SPRING_PEER)]));
+  all.forEach(el=>el.classList.add('sp-live'));
+  sc.to(scale); paint();
+  return {
+    follow(dy){ y.to(dy, SPRING_FOLLOW); },
+    shift(el, dy){ const p = ps.get(el); if(p) p.to(dy); },
+    drop(dy, done){ sc.to(1); y.to(dy, {...SPRING_DROP, eps:.5}); y.onRest(()=>done && done()); },
+    stop(){ y.stop(); sc.stop(); ps.forEach(p=>p.stop()); all.forEach(el=>el.classList.remove('sp-live')); }
+  };
+}
 let overviewDragJustEnded = false;
 function bindOverviewDrag(el){
   const items = ()=>[...el.querySelectorAll('.overview-item.ov-stage')];
@@ -3516,7 +3589,7 @@ function bindOverviewDrag(el){
       const startY = e.clientY;
       const touch = e.pointerType==='touch';
       // 触屏：长按 0.35 秒才开始拖，手指先动了就当是在滑页面；电脑：按住移动 6px 就开始拖
-      let armed = !touch, dragging = false, list, rects, from, to, step;
+      let armed = !touch, dragging = false, list, rects, from, to, step, sp;
       const blockScroll = ev=>{ if(dragging) ev.preventDefault(); };
       const holdTimer = touch ? setTimeout(()=>{ armed = true; item.classList.add('ov-armed'); }, 350) : null;
       if(touch) window.addEventListener('touchmove', blockScroll, {passive:false});
@@ -3530,19 +3603,21 @@ function bindOverviewDrag(el){
           from = list.indexOf(item); to = from;
           step = list.length>1 ? rects[1].top - rects[0].top : rects[0].height + 8;
           item.classList.add('ov-dragging');
+          sp = springDrag(item, list, {scale:1.04, startScale: touch ? 1.03 : 1});
+          item.classList.remove('ov-armed');
           try{ item.setPointerCapture(e.pointerId); }catch(_){}
         }
         ev.preventDefault();
         const minDy = rects[0].top - rects[from].top, maxDy = rects[rects.length-1].top - rects[from].top;
-        const cy = Math.max(minDy, Math.min(maxDy, dy));
-        item.style.transform = `translateY(${cy}px) scale(1.03)`;
+        const cy = Math.max(minDy - 16, Math.min(maxDy + 16, dy));
+        sp.follow(cy);
         to = Math.max(0, Math.min(list.length-1, Math.round(from + cy/step)));
         list.forEach((x,i)=>{
           if(x===item) return;
           let shift = 0;
           if(from<to && i>from && i<=to) shift = -step;
           if(from>to && i<from && i>=to) shift = step;
-          x.style.transform = shift ? `translateY(${shift}px)` : '';
+          sp.shift(x, shift);
         });
       };
       function up(){
@@ -3555,15 +3630,14 @@ function bindOverviewDrag(el){
         if(!dragging) return;
         overviewDragJustEnded = true;
         setTimeout(()=>{ overviewDragJustEnded = false; }, 0);
-        // 落位：被拖的那项缓动到新位置，再按新顺序保存、重画
-        item.style.transform = `translateY(${(to-from)*step}px)`;
-        item.classList.add('ov-settle');
-        setTimeout(()=>{
+        // 落位：被拖的那项带着松手时的速度弹进新位置，停稳后按新顺序保存、重画
+        sp.drop((to-from)*step, ()=>{
+          sp.stop();
           const keys = list.map(x=>x.dataset.key);
           keys.splice(to, 0, keys.splice(from, 1)[0]);
           try{ localStorage.setItem(OVERVIEW_ORDER_KEY, JSON.stringify(keys)); }catch(_){}
           renderProgressOverview();
-        }, 200);
+        });
       }
       window.addEventListener('pointermove', move, {passive:false});
       window.addEventListener('pointerup', up);
@@ -3925,12 +3999,13 @@ function bindSubmittedCardDrag(handle, list){
     const shiftH = rects[from].height + Math.max(gap, 0);
     let to = from, lastY = startY, moved = false, rafId = 0;
     card.classList.add('sl-dragging');
+    const sp = springDrag(card, peers, {scale:1.015});
     try{ handle.setPointerCapture(e.pointerId); }catch(_){}
     const layout = ()=>{
       const dy = lastY - startY + (window.scrollY - startScroll);
       const minDy = rects[0].top - rects[from].top, maxDy = rects[rects.length-1].bottom - rects[from].bottom;
       const cy = Math.max(minDy - 20, Math.min(maxDy + 20, dy));
-      card.style.transform = `translateY(${cy}px) scale(1.01)`;
+      sp.follow(cy);
       const center = rects[from].top + rects[from].height/2 + cy;
       to = from;
       rects.forEach((r,i)=>{
@@ -3942,7 +4017,7 @@ function bindSubmittedCardDrag(handle, list){
         let sh = 0;
         if(from<to && i>from && i<=to) sh = -shiftH;
         if(from>to && i<from && i>=to) sh = shiftH;
-        c.style.transform = sh ? `translateY(${sh}px)` : '';
+        sp.shift(c, sh);
       });
     };
     const autoScroll = ()=>{
@@ -3962,10 +4037,9 @@ function bindSubmittedCardDrag(handle, list){
       window.removeEventListener('pointercancel', up);
       submittedDragJustEnded = true; setTimeout(()=>{ submittedDragJustEnded = false; }, 0);
       const settle = to===from ? 0 : (to>from ? rects[to].bottom - rects[from].bottom : rects[to].top - rects[from].top) - (window.scrollY - startScroll);
-      card.classList.add('sl-settle');
-      card.style.transform = `translateY(${settle}px)`;
-      setTimeout(()=>{
-        card.classList.remove('sl-dragging','sl-settle');
+      sp.drop(settle, ()=>{
+        sp.stop();
+        card.classList.remove('sl-dragging');
         if(!moved || to===from){ peers.forEach(c=>c.style.transform=''); return; }
         const ids = peers.map(c=>c.dataset.companyId);
         const draggedId = ids[from];
@@ -3980,7 +4054,7 @@ function bindSubmittedCardDrag(handle, list){
           applySubmittedReorder(draggedId, targetId, to<from);
           fxAfterRender();
         }
-      }, 220);
+      });
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -5099,7 +5173,7 @@ function bindPositionGroupDrag(block, idx, box){
   block.addEventListener('pointerdown', e=>{
     if(e.button!==0 || e.target.closest('input, textarea, button, a, select')) return;
     const startY = e.clientY;
-    let armed = false, dragging = false, groups, rects, to = idx, gap = 10;
+    let armed = false, dragging = false, groups, rects, to = idx, gap = 10, sp;
     const blockScroll = ev=>{ if(armed) ev.preventDefault(); };
     window.addEventListener('touchmove', blockScroll, {passive:false});
     const timer = setTimeout(()=>{
@@ -5108,6 +5182,7 @@ function bindPositionGroupDrag(block, idx, box){
       rects = groups.map(g=>g.getBoundingClientRect());
       if(rects.length>1) gap = rects[1].top - rects[0].bottom;
       block.classList.add('pg-dragging');
+      sp = springDrag(block, groups, {scale:1.02});
       try{ block.setPointerCapture(e.pointerId); }catch(_){}
     }, 300);
     const move = ev=>{
@@ -5116,8 +5191,8 @@ function bindPositionGroupDrag(block, idx, box){
       dragging = true;
       ev.preventDefault();
       const me = rects[idx], h = me.height + gap;
-      const cy = Math.max(rects[0].top - me.top, Math.min(rects[rects.length-1].bottom - me.bottom, dy));
-      block.style.transform = `translateY(${cy}px)`;
+      const cy = Math.max(rects[0].top - me.top - 16, Math.min(rects[rects.length-1].bottom - me.bottom + 16, dy));
+      sp.follow(cy);
       const center = me.top + me.height/2 + cy;
       to = idx;
       rects.forEach((r,i)=>{
@@ -5129,7 +5204,7 @@ function bindPositionGroupDrag(block, idx, box){
         let shift = 0;
         if(idx<to && i>idx && i<=to) shift = -h;
         if(idx>to && i<idx && i>=to) shift = h;
-        g.style.transform = shift ? `translateY(${shift}px)` : '';
+        sp.shift(g, shift);
       });
     };
     function end(){
@@ -5140,17 +5215,16 @@ function bindPositionGroupDrag(block, idx, box){
       window.removeEventListener('touchmove', blockScroll);
       if(!armed) return;
       block.classList.remove('pg-dragging');
-      if(!dragging || to===idx){ groups.forEach(g=>g.style.transform=''); return; }
-      // 落位：被拖的那块缓动到空位，然后按新顺序重画
-      const offset = to>idx ? rects[to].bottom - rects[idx].bottom : rects[to].top - rects[idx].top;
-      block.classList.add('pg-settle');
-      block.style.transform = `translateY(${offset}px)`;
-      setTimeout(()=>{
+      // 落位：被拖的那块弹进空位，停稳后按新顺序重画（没换位置就弹回原处）
+      const offset = !dragging || to===idx ? 0 : to>idx ? rects[to].bottom - rects[idx].bottom : rects[to].top - rects[idx].top;
+      sp.drop(offset, ()=>{
+        sp.stop();
+        if(!dragging || to===idx){ groups.forEach(g=>g.style.transform=''); return; }
         const moved = positionDraft.splice(idx, 1)[0];
         positionDraft.splice(to, 0, moved);
         positionDraftReordered = true;
         renderPositionEditor();
-      }, 200);
+      });
     }
     window.addEventListener('pointermove', move, {passive:false});
     window.addEventListener('pointerup', end);
@@ -6698,7 +6772,9 @@ function positionTabSlider(){
   const trackRect = track.getBoundingClientRect();
   const btnRect = activeBtn.getBoundingClientRect();
   slider.style.width = btnRect.width + 'px';
-  slider.style.transform = `translateX(${btnRect.left - trackRect.left - 3}px)`;
+  // 滑块的 left 是相对切换栏内边距框算的：减掉栏的边框（clientLeft）和滑块自己的 left，左右边缘才跟按钮严格重合
+  const base = trackRect.left + track.clientLeft + (parseFloat(getComputedStyle(slider).left) || 0);
+  slider.style.transform = `translateX(${btnRect.left - base}px)`;
 }
 window.addEventListener('resize', positionTabSlider);
 
@@ -7033,11 +7109,12 @@ function setupPositionDragSort(companyId, status, reviewStage){
       try{ handle.setPointerCapture(e.pointerId); }catch(_){}
       item.classList.add('dragging');
       items.forEach(el=>{ if(el!==item) el.classList.add('drag-shift'); });
+      const sp = springDrag(item, items, {scale:1.025});
 
       const layout = ()=>{
         const dy = lastY - startY + (scroller.scrollTop - scroll0);
         if(Math.abs(dy)>3) moved = true;
-        item.style.transform = `translateY(${dy}px) scale(1.02)`;
+        sp.follow(dy);
         // 被拖卡片中心现在在哪（按开始时的坐标系算）
         const center = rects[from].top + rects[from].height/2 + dy;
         to = from;
@@ -7047,7 +7124,7 @@ function setupPositionDragSort(companyId, status, reviewStage){
           let shift = 0;
           if(j<from && center<mid){ shift = slot; to--; }
           else if(j>from && center>mid){ shift = -slot; to++; }
-          el.style.transform = shift ? `translateY(${shift}px)` : '';
+          sp.shift(el, shift);
         });
       };
       // 拖到弹窗上下边缘 48px 以内时自动滚动，越靠边滚得越快
@@ -7074,8 +7151,8 @@ function setupPositionDragSort(companyId, status, reviewStage){
         if(to<from) for(let j=to;j<from;j++) offset -= rects[j].height + gap;
         offset -= (scroller.scrollTop - scroll0);
         item.classList.add('drag-settle');
-        item.style.transform = `translateY(${offset + (scroller.scrollTop - scroll0)}px)`;
         const finish = ()=>{
+          sp.stop();
           // 先关掉过渡再清 transform、调 DOM 顺序：视觉位置不变，不会再"弹"一下
           items.forEach(el=>{ el.style.transition = 'none'; el.style.transform = ''; el.classList.remove('drag-shift','dragging','drag-settle'); });
           const order = items.filter(el=>el!==item);
@@ -7099,7 +7176,7 @@ function setupPositionDragSort(companyId, status, reviewStage){
           renderAll();
         };
         if(moved){ positionDragJustEnded = true; setTimeout(()=>{ positionDragJustEnded = false; }, 250); }
-        setTimeout(finish, moved ? 200 : 0);
+        sp.drop(moved ? offset + (scroller.scrollTop - scroll0) : 0, finish);
       };
       handle.addEventListener('pointermove', onMove);
       handle.addEventListener('pointerup', onUp);
