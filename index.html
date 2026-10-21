@@ -1776,6 +1776,11 @@
     border-radius:18px;background:var(--lavender-soft,var(--blue-soft));color:var(--purple);box-shadow:none;font-weight:900;}
   .add-position-btn.btn:hover{background:var(--purple-soft);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
   .add-position-btn.btn:active{transform:scale(.97);transition-duration:.08s;}
+  /* 编辑弹窗里每个框悬停都轻轻上浮加阴影，跟岗位块、添加岗位一个感觉 */
+  #drawer #f-company,#drawer #statusToggle,#drawer #f-link,#drawer .company-note-block,#drawer .deadline-field .dp-trigger,#drawer #f-company-deadline{
+    transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease, background .15s ease;}
+  #drawer #f-company:hover,#drawer #statusToggle:hover,#drawer #f-link:hover,#drawer .company-note-block:hover,
+  #drawer .deadline-field .dp-trigger:hover,#drawer #f-company-deadline:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
   /* 编辑弹窗里的整家公司备注：青柠色底的一块，跟上面淡紫色的岗位块区分开 */
   .company-note-block{margin-top:12px;background:var(--lime-soft,var(--blue-soft));border-radius:18px;padding:10px 12px 12px;}
   .company-note-block label{margin-bottom:6px;}
@@ -1784,7 +1789,7 @@
   #positionItems .position-name-row{margin-bottom:0;}
   /* 岗位备注：名字框下面一行小字，左边缘跟输入框里的文字对齐；没写是"+ 备注"，写了就显示备注本身（楷体灰字），点一下展开编辑 */
   .position-note-link{display:block;width:100%;margin:5px 0 0;padding:0 14px;border:none;background:none;text-align:left;cursor:pointer;
-    font-size:12px;font-weight:400;color:var(--text-3);font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    font-size:11px;font-weight:400;color:var(--text-3);font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .position-note-link:hover{color:var(--purple);}
   .position-note-link.has{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:13.5px;font-weight:400;}
   #positionItems .position-group{padding:10px 12px 8px !important;}
