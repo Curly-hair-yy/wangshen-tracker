@@ -1515,6 +1515,21 @@
   /* 粘贴导入里对不上的行：下拉选公司 */
   .paste-import-pick-row{display:flex;align-items:center;gap:8px;}
   .paste-import-pick{margin-left:6px;height:30px;border:none;border-radius:9px;background:var(--field);padding:0 8px;font-size:13px;font-family:inherit;max-width:60%;}
+  /* 导出到 Excel */
+  #exportDrawer{width:640px;}
+  .export-mode{margin-bottom:12px;}
+  .export-range{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;color:var(--text-2);font-weight:700;flex-wrap:wrap;}
+  .export-range input{height:36px;border:none;border-radius:11px;background:var(--field);padding:0 10px;font-size:14px;font-family:inherit;width:96px;}
+  .export-range input[type=date]{width:150px;}
+  .export-mini{height:30px;border:none;border-radius:9px;background:var(--field);padding:0 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;color:var(--text-2);}
+  .export-stat{font-size:13px;color:var(--text-2);margin:4px 0 8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .export-stat b{color:var(--ink);}
+  .export-warn{color:var(--red-ink,var(--red));font-weight:800;}
+  .export-empty{color:var(--text-3);}
+  #exportPreview{width:100%;height:300px;box-sizing:border-box;border:none;border-radius:14px;background:var(--field);padding:10px 12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.55;tab-size:6;white-space:pre;overflow:auto;resize:vertical;color:var(--text);}
+  #exportCopy:disabled{opacity:.4;cursor:default;}
+  @media (max-width:640px){ #exportPreview{height:220px;} }
   /* 置顶 */
   .pin-btn{width:26px;height:26px;border:none;border-radius:9px;background:transparent;color:var(--text-3);cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s ease, background .15s ease, color .15s ease, transform .2s cubic-bezier(.34,1.56,.64,1);}
@@ -1959,6 +1974,7 @@
       <div class="top-actions">
         <button class="sync-indicator theme-btn" id="themeToggleBtn" type="button" title="切换配色"><span class="swatch"></span><span id="themeToggleText">换肤</span></button>
         <button class="sync-indicator" id="recycleBinBtn" type="button" title="回收站">🗑 回收站</button>
+        <button class="sync-indicator" id="exportExcelBtn" type="button" title="把已提交的岗位导出成可以直接粘贴进 Excel 的文字">导出 Excel</button>
         <button class="sync-indicator" id="syncIndicatorBtn" data-state="disconnected" type="button" title="点击打开同步设置">
           <span class="dot"></span>
           <span id="syncText">未连接同步</span>
@@ -2295,6 +2311,38 @@
   </div>
 </div>
 
+<div class="overlay" id="exportOverlay"></div>
+<div class="drawer" id="exportDrawer">
+  <div class="drawer-head">
+    <h3>导出到 Excel</h3>
+    <button class="drawer-close" id="exportClose" aria-label="关闭">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="status-toggle export-mode" id="exportMode">
+      <button type="button" data-mode="seq" class="active">按序号</button>
+      <button type="button" data-mode="date">按日期</button>
+      <button type="button" data-mode="new">上次之后新增</button>
+    </div>
+    <div class="export-range" data-for="seq">
+      <span>从</span><input type="number" id="exportFrom" min="1"><span>到</span><input type="number" id="exportTo" min="1">
+    </div>
+    <div class="export-range" data-for="date" style="display:none;">
+      <input type="date" id="exportDateFrom"><span>~</span><input type="date" id="exportDateTo">
+    </div>
+    <div class="export-range" data-for="new" style="display:none;">
+      <span>上次导出到序号</span><input type="number" id="exportLastSeq" min="0">
+      <button type="button" class="export-mini" id="exportLastClear">清除</button>
+    </div>
+    <div class="export-stat" id="exportStat"></div>
+    <textarea id="exportPreview" readonly spellcheck="false"></textarea>
+  </div>
+  <div class="drawer-foot">
+    <div class="right" style="margin-left:auto;">
+      <button class="btn btn-ghost" id="exportCancel" type="button">关闭</button>
+      <button class="btn btn-primary" id="exportCopy" type="button">一键复制</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="recycleBinOverlay"></div>
 <div class="drawer" id="recycleBinDrawer">
   <div class="drawer-head">
@@ -3076,8 +3124,9 @@ function dateKeyOfGroup(g){
   if(company && company.dateOverride) return company.dateOverride;
   return dayKeyOf(new Date(groupSubmittedTime(g)).toISOString());
 }
-function computeSubmittedGroups(){
-  const filtered = positions.filter(p=>!p.deleted && p.status==='submitted' && matchesFilters(p));
+function computeSubmittedGroups(opts){
+  const ignoreFilters = !!(opts && opts.ignoreFilters);
+  const filtered = positions.filter(p=>!p.deleted && p.status==='submitted' && (ignoreFilters || matchesFilters(p)));
   const companyMap = new Map();
   filtered.forEach(p=>{
     if(!companyMap.has(p.companyId)) companyMap.set(p.companyId, []);
@@ -7129,6 +7178,142 @@ function restoreDeletedPosition(id){
   renderAll();
 }
 document.getElementById('recycleBinBtn').addEventListener('click', openRecycleBin);
+
+/* ---- 导出到 Excel ----
+   只导出已提交、没删除的岗位（公司也没删除）。序号就是已提交卡片上的编号（computeSubmittedGroups
+   的 companySeqMap，按不受搜索/筛选影响的完整顺序算）；日期跟卡片上的日期一致（dateKeyOfGroup，
+   手动拖过的按拖过的日期），写成"10月7日"。四列：序号⇥日期⇥公司⇥岗位；同公司其余岗位前面正好 3 个 Tab。
+   不导出备注、链接、要求、图片；岗位名里混着的"密码/账号：xxx"会被去掉。 */
+const EXPORT_LAST_KEY = 'wangshen_last_export_seq';
+let exportMode = 'seq';
+let exportLastResult = null;
+function exportCleanPosition(text){
+  let removed = 0;
+  let t = String(text||'').replace(/[\t\r\n]+/g, ' ');
+  t = t.replace(/[（(]?\s*(密码|口令|账号|帐号|用户名|登录名)\s*[:：]\s*[^\s，,；;）)]+\s*[）)]?/g, ()=>{ removed++; return ''; });
+  t = t.replace(/\s+/g, ' ').trim().replace(/[-—\s]+$/,'');
+  return {text: t, removed};
+}
+function exportRows(){
+  const { orderedListGroups, companySeqMap } = computeSubmittedGroups({ignoreFilters:true});
+  return orderedListGroups
+    .filter(g=>{ const c = getCompany(g.companyId); return c && !c.deleted; })
+    .map(g=>({g, seq: companySeqMap.get(g.companyId), dateKey: dateKeyOfGroup(g)}))
+    .sort((a,b)=>a.seq-b.seq);
+}
+function buildExport(){
+  const all = exportRows();
+  const maxSeq = all.length ? all[all.length-1].seq : 0;
+  let pick = [];
+  if(exportMode==='seq'){
+    const a = parseInt(document.getElementById('exportFrom').value,10), b = parseInt(document.getElementById('exportTo').value,10);
+    if(a && b) pick = all.filter(r=>r.seq>=Math.min(a,b) && r.seq<=Math.max(a,b));
+  } else if(exportMode==='date'){
+    const a = document.getElementById('exportDateFrom').value, b = document.getElementById('exportDateTo').value;
+    if(a && b) pick = all.filter(r=>r.dateKey>=(a<b?a:b) && r.dateKey<=(a<b?b:a));
+  } else {
+    const last = parseInt(document.getElementById('exportLastSeq').value,10) || 0;
+    pick = all.filter(r=>r.seq>last);
+  }
+  let removed = 0, posCount = 0;
+  const lines = [];
+  pick.forEach(r=>{
+    const c = getCompany(r.g.companyId);
+    const d = new Date(r.dateKey+'T00:00:00');
+    const dateText = `${d.getMonth()+1}月${d.getDate()}日`;
+    const company = exportCleanPosition(c ? c.name : '').text;
+    sortPositions(r.g.list).forEach((p,i)=>{
+      const cleaned = exportCleanPosition(p.position || '（未命名岗位）');
+      removed += cleaned.removed; posCount++;
+      lines.push(i===0 ? `${r.seq}\t${dateText}\t${company}\t${cleaned.text}` : `\t\t\t${cleaned.text}`);
+    });
+  });
+  return {text: lines.length ? lines.join('\n') + '\n' : '', companies: pick.length, positions: posCount, removed,
+    seqFrom: pick.length ? pick[0].seq : 0, seqTo: pick.length ? pick[pick.length-1].seq : 0, maxSeq};
+}
+function refreshExport(){
+  const r = exportLastResult = buildExport();
+  const stat = document.getElementById('exportStat');
+  const copyBtn = document.getElementById('exportCopy');
+  document.getElementById('exportPreview').value = r.text;
+  if(!r.companies){
+    stat.innerHTML = '<span class="export-empty">没有符合条件的已提交岗位</span>';
+    copyBtn.disabled = true;
+  } else {
+    stat.innerHTML = `共 <b>${r.companies}</b> 家公司，<b>${r.positions}</b> 个岗位，序号 ${r.seqFrom}–${r.seqTo}`
+      + (r.removed ? `<span class="export-warn">已自动去除 ${r.removed} 处账号密码信息</span>` : '');
+    copyBtn.disabled = false;
+  }
+  copyBtn.textContent = '一键复制';
+}
+function openExport(){
+  const all = exportRows();
+  const maxSeq = all.length ? all[all.length-1].seq : 0;
+  document.getElementById('exportFrom').value = 1;
+  document.getElementById('exportTo').value = maxSeq;
+  const today = todayDateStr();
+  document.getElementById('exportDateFrom').value = all.length ? all[0].dateKey < today ? all.reduce((m,r)=>r.dateKey<m?r.dateKey:m, today) : today : today;
+  document.getElementById('exportDateTo').value = today;
+  let last = ''; try{ last = localStorage.getItem(EXPORT_LAST_KEY) || ''; }catch(e){}
+  document.getElementById('exportLastSeq').value = last || 0;
+  refreshExport();
+  document.getElementById('exportOverlay').classList.add('active');
+  document.getElementById('exportDrawer').classList.add('active');
+}
+function closeExport(){
+  document.getElementById('exportOverlay').classList.remove('active');
+  document.getElementById('exportDrawer').classList.remove('active');
+}
+document.getElementById('exportExcelBtn').addEventListener('click', openExport);
+document.getElementById('exportClose').addEventListener('click', closeExport);
+document.getElementById('exportCancel').addEventListener('click', closeExport);
+document.getElementById('exportOverlay').addEventListener('click', closeExport);
+document.querySelectorAll('#exportMode button').forEach(b=>b.addEventListener('click', ()=>{
+  exportMode = b.dataset.mode;
+  document.querySelectorAll('#exportMode button').forEach(x=>x.classList.toggle('active', x===b));
+  document.querySelectorAll('.export-range').forEach(el=>{ el.style.display = el.dataset.for===exportMode ? 'flex' : 'none'; });
+  refreshExport();
+}));
+['exportFrom','exportTo','exportDateFrom','exportDateTo','exportLastSeq'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', refreshExport);
+});
+document.getElementById('exportLastClear').addEventListener('click', ()=>{
+  try{ localStorage.removeItem(EXPORT_LAST_KEY); }catch(e){}
+  document.getElementById('exportLastSeq').value = 0;
+  refreshExport();
+});
+document.getElementById('exportCopy').addEventListener('click', async ()=>{
+  const r = exportLastResult;
+  if(!r || !r.companies) return;
+  const btn = document.getElementById('exportCopy');
+  const ok = await (async ()=>{
+    // 系统剪贴板接口有时既不成功也不报错（一直挂着），1.5 秒没结果就换备用办法
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        const done = await Promise.race([navigator.clipboard.writeText(r.text).then(()=>true), new Promise(res=>setTimeout(()=>res(false), 1500))]);
+        if(done) return true;
+      }
+    }catch(e){}
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = r.text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      const done = document.execCommand('copy'); ta.remove(); return done;
+    }catch(e){ return false; }
+  })();
+  if(ok){
+    btn.textContent = `已复制 ${r.companies} 家 / ${r.positions} 个岗位，可直接粘贴到 Excel`;
+    // 记住导出到的最大序号，下次选"上次之后新增"就从这里往后
+    try{
+      const prev = parseInt(localStorage.getItem(EXPORT_LAST_KEY)||'0',10) || 0;
+      localStorage.setItem(EXPORT_LAST_KEY, String(Math.max(prev, r.seqTo)));
+    }catch(e){}
+  } else {
+    const pv = document.getElementById('exportPreview');
+    pv.focus(); pv.select();
+    btn.textContent = '复制失败，已全选，请按 Cmd/Ctrl+C';
+  }
+});
 // 切换栏吸顶后，滚动时底部加一道淡阴影，跟下面的内容分开
 const navRowEl = document.querySelector('.nav-row');
 function updateNavStuck(){ navRowEl.classList.toggle('stuck', navRowEl.getBoundingClientRect().top <= 0 && window.scrollY > 0); }
