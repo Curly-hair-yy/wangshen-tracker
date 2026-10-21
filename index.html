@@ -571,7 +571,7 @@
   }
   .checklist-mini{color:var(--text-2);}
   /* 备注：楷体 + 紫色，紧贴自己那个岗位，跟下一条分隔线留出同样的距离 */
-  .job-note{color:var(--text-3);font-size:14px;line-height:1.5;margin:-2px 0 5px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
+  .job-note{color:var(--text-3);font-size:15px;line-height:1.5;margin:-2px 0 5px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   .right-tags{
     position:absolute;
     top:18px;right:20px;
@@ -937,7 +937,7 @@
     justify-content:space-between;
     align-items:center;
     gap:8px;
-    font-size:13px;
+    font-size:14px;
     padding:5px 22px 5px 0;
   }
   .position-line-meta{
@@ -1210,10 +1210,10 @@
   .role:last-child{border-bottom:0;}
   .role-compact{padding:8px 0;}
   .submitted-list.attention-mode .drag-handle{display:none;}
-  .role-name{font-size:15px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
+  .role-name{font-size:16px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
   .role-name > span{min-width:0;}
 
-  .role-desc{color:var(--text-3);font-size:14px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
+  .role-desc{color:var(--text-3);font-size:15px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
     position:absolute;top:10px;right:0;opacity:0;
     background:none;border:none;color:var(--text-3);cursor:pointer;
@@ -1765,8 +1765,10 @@
   /* 当成岗位列表的最后一行：上面一条小虚线跟岗位隔开 */
   .company-note{margin-top:6px;padding:8px 0 2px;border-top:1px dashed rgba(0,0,0,.14);overflow-wrap:anywhere;}
   /* 第一行"备注："紫色小标题，换行后是内容，内容跟岗位备注一样灰色楷体 */
-  .company-note-label{font-size:13px;font-weight:800;color:var(--purple);margin-bottom:2px;}
-  .company-note-text{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;line-height:1.5;color:var(--text-3);}
+  .company-note-label{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;font-weight:800;color:var(--purple);margin-bottom:2px;}
+  .company-note-text{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:16px;line-height:1.5;color:var(--text-3);}
+  /* 备注前面那个岗位不要自己的底线，只留备注上面的虚线，免得两根线叠在一起 */
+  .role:has(+ .company-note){border-bottom:0;}
     #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   /* "添加岗位"做成跟"保存"一样的深色按钮，显眼一点 */
   .add-position-btn{margin-top:10px;height:40px;padding:0 18px;display:inline-flex;align-items:center;gap:4px;}
@@ -1776,15 +1778,24 @@
   .company-note-block label{margin-bottom:6px;}
   .company-note-block textarea{background:#fff !important;}
   /* 岗位备注默认折叠；岗位要求/图片入口不用了，先藏起来（数据保留） */
-  .position-note-toggle{display:flex;align-items:center;gap:4px;max-width:100%;margin-top:-2px;padding:2px 2px 4px;}
-  #positionItems .position-name-row{margin-bottom:4px;}
+  #positionItems .position-name-row{margin-bottom:0;}
+  /* 岗位备注按钮放在名字那一行最右边：没备注是灰字，有备注变紫字，打开时淡紫底 */
+  .position-note-btn{flex:0 0 auto;height:40px;padding:0 12px;border:none;border-radius:var(--radius-field,14px);background:#fff;
+    color:var(--text-3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;transition:background .15s ease,color .15s ease;}
+  .position-note-btn.has{color:var(--purple);}
+  .position-note-btn.open{background:var(--purple-soft);color:var(--purple);}
+  .position-note-peek-line{margin:6px 2px 0;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:14px;color:var(--text-3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+  #positionItems .position-group{padding:10px 12px !important;}
+  /* 编辑弹窗里的"招聘进度"和"设置环节提醒"从没用过，藏起来（进度在卡片轨道上改） */
+  #progressField,#stageDeadlinesField{display:none !important;}
+  #positionItems .position-group:hover:not(.pg-dragging){transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
   #positionItems .position-group{cursor:grab;user-select:none;-webkit-touch-callout:none;
     transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
   #positionItems .position-group input,#positionItems .position-group textarea{user-select:text;cursor:text;}
   #positionItems .position-group.pg-dragging{position:relative;z-index:5;cursor:grabbing;transition:box-shadow .2s ease;
     box-shadow:0 16px 36px rgba(0,0,0,.16);transform:scale(1.01);}
   #positionItems .position-group.pg-dragging.pg-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
-  .position-note-peek{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-3);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   .position-note-input{margin-top:6px;}
   .position-jd-toggle,.position-jd-body{display:none !important;}
   /* 岗位的"设置/专属设置"（单独状态、单独链接、单独待办）也不用了，藏起来；已经单独设过的岗位，保存时照样保留原来的设置 */
@@ -2521,7 +2532,8 @@ let checklistDraft = [];
 // positionDraft: [{ name, requirement, images:[{path}|{uploading:true}], _jdOpen }]
 // 新增网申时每个岗位一条，各自的岗位要求/图片互不共用；只有编辑单个岗位时数组长度固定为 1
 let positionDraft = [{name:'', requirement:'', images:[], _jdOpen:false}];
-let positionDraftReordered = false; // 这次编辑里用上下按钮调过岗位顺序，保存时才写 sortIndex
+let positionDraftReordered = false;
+let positionDraftRemoved = []; // 这次编辑里点 × 去掉的已有岗位，点保存才真的删（软删除，进回收站） // 这次编辑里用上下按钮调过岗位顺序，保存时才写 sortIndex
 let reviewStageDraft = '';
 let progressDraft = {};
 let progressDatesDraft = {};
@@ -4689,6 +4701,7 @@ function openDrawer(id){
     };
   }
   positionDraftReordered = false;
+  positionDraftRemoved = [];
   if(r){
     // 编辑框里的岗位按卡片上的顺序列（拖拽/上下移动调过的 sortIndex），没调过的按创建时间
     positionDraft = sortPositions(allPositions).map(toDraftEntry);
@@ -4979,9 +4992,10 @@ function renderPositionEditor(){
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
-          ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
+          <button class="position-note-toggle position-note-btn${item.note?' has':''}${item._noteOpen?' open':''}" type="button" data-idx="${idx}" title="岗位备注">备注</button>
+          ${positionDraft.length>1 ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
-        <button class="add-item-btn position-note-toggle" type="button" data-idx="${idx}">备注${(!item._noteOpen && item.note) ? `<span class="position-note-peek">· ${escapeHtml(item.note)}</span>` : ` ${item._noteOpen?'−':'+'}`}</button>
+        ${(!item._noteOpen && item.note) ? `<div class="position-note-peek-line" data-idx="${idx}">${escapeHtml(item.note)}</div>` : ''}
         <textarea class="position-note-input" data-idx="${idx}" placeholder="备注" style="display:${item._noteOpen?'block':'none'}">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
@@ -4999,6 +5013,8 @@ function renderPositionEditor(){
   box.querySelectorAll('.position-group').forEach(block=>{
     const idx = Number(block.dataset.idx);
     bindPositionGroupDrag(block, idx, box);
+    const peek = block.querySelector('.position-note-peek-line');
+    if(peek) peek.addEventListener('click', ()=>block.querySelector('.position-note-toggle').click());
     block.querySelector('.position-note-toggle').addEventListener('click', ()=>{
       positionDraft[idx]._noteOpen = !positionDraft[idx]._noteOpen;
       renderPositionEditor();
@@ -5041,6 +5057,7 @@ function renderPositionEditor(){
     const delBtn = block.querySelector('.position-group-del');
     if(delBtn){
       delBtn.addEventListener('click', ()=>{
+        if(positionDraft[idx]._existingId) positionDraftRemoved.push(positionDraft[idx]._existingId);
         positionDraft.splice(idx,1);
         renderPositionEditor();
         updateSharedSettingsLabel();
@@ -5549,6 +5566,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
       touchedPositionIds.push(newPos.id);
     });
   }
+  positionDraftRemoved.forEach(id=>deletePosition(id));
   saveData();
   if(companyTouched) queueUpsert('companies', company.id);
   touchedPositionIds.forEach(id=>queueUpsert('positions', id));
