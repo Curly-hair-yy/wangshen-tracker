@@ -1465,7 +1465,7 @@
   .reminder-note{
     font-size:16px;line-height:1.55;color:var(--text-2);font-family:"Kaiti SC","STKaiti","KaiTi",serif;
     background:var(--field);border-radius:12px;padding:8px 12px;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all;
+    overflow-wrap:anywhere;
   }
   /* 加粗跟备注同一个字体（楷体），靠加粗 + 颜色强调：青柠皮肤深橄榄绿字 + 浅青柠底，蓝色皮肤蓝字（见下方 apple 覆盖） */
   .note-strong{font-family:inherit;font-weight:600;color:#5c731a;background:#e8efc4;border-radius:4px;padding:0 3px;}
@@ -1766,7 +1766,7 @@
   .view-leave{position:absolute !important;left:0;right:0;pointer-events:none;z-index:0;animation:viewOut .16s ease forwards;}
   /* 进度概览：选中底块滑动 */
   .overview-grid{position:relative;}
-  .ov-slider{position:absolute;left:0;right:0;top:0;z-index:1;border-radius:var(--radius-overview);
+  .ov-slider{position:absolute;left:0;top:0;width:100%;z-index:1;border-radius:var(--radius-overview);
     background:var(--charcoal, var(--blue));box-shadow:0 6px 14px rgba(0,0,0,.14);pointer-events:none;
     transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1);}
   /* 分层：每一项的灰底画在 ::before（最下层）→ 滑块（中间）→ 文字（最上层），
@@ -1781,8 +1781,8 @@
   .overview-grid.ov-moving .overview-item.active:before{background:var(--overview-item);}
   /* 交接不闪：选中项的深色底立刻出现（不渐变），滑块再轻轻淡出把位置让给它；滑块出现时不淡入 */
   .overview-grid .overview-item.active:before{transition:none;}
-  .ov-slider{opacity:0;transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1), opacity .2s ease;}
-  .overview-grid.ov-moving .ov-slider{opacity:1;transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1), opacity 0s;}
+  .ov-slider{opacity:0;transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1), width .5s cubic-bezier(.22,1,.36,1), opacity .2s ease;}
+  .overview-grid.ov-moving .ov-slider{opacity:1;transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1), width .5s cubic-bezier(.22,1,.36,1), opacity 0s;}
   .overview-grid .overview-item > *{position:relative;z-index:2;}
   .overview-grid .overview-item.active,
   :root[data-theme="lime"] .overview-grid .overview-item.active{background:transparent;box-shadow:none;color:#fff;}
@@ -2069,6 +2069,41 @@
      按字号比例往左拉回，跟下面的小字、卡片左边缘在视觉上对齐 */
   header h1{margin-left:-.07em;}
   .stat-card .num{margin-left:-.03em;}
+  /* 手机信息密度：顶部日期挪到标题右侧；统计卡下面那行重复的数字小结不显示；各卡片、行的内边距和
+     间距再收一档；进度概览排成两列 */
+  @media (max-width:640px){
+    header{position:relative;gap:12px;margin-bottom:16px;}
+    header .today{position:absolute;top:4px;right:0;}
+    .nav-summary{display:none;}
+    .nav-row{padding:8px 0;margin-bottom:4px;}
+    .stats{margin-bottom:12px;}
+    .toolbar{margin-bottom:16px;gap:8px;}
+    .overview{padding:12px;}
+    .overview h3{margin-bottom:8px;}
+    .overview-grid{grid-template-columns:1fr 1fr;gap:6px;}
+    .overview-item.ov-gap{margin-bottom:0;}
+    .overview-item{min-height:34px;padding:0 10px;}
+    .overview-manage{margin-top:6px;}
+    .progress-layout{gap:16px;}
+    .card{padding:12px 14px;}
+    #submittedList .card,.progress-company{margin-bottom:12px;}
+    .company-head{padding-bottom:8px;}
+    .role{padding:10px 0;row-gap:8px;}
+    .role .role-del-btn{top:10px;}
+    .role-compact{padding:6px 0;}
+    .role-compact .role-del-btn{top:6px;}
+    #submittedList > .date-line{margin:12px 0 8px;}
+    .column{padding:12px;}
+    .column-head{margin-bottom:8px;}
+    .day-group .card{margin-bottom:8px;}
+    .card .company-row{margin-bottom:8px;}
+    .reminders-group{margin-bottom:16px;}
+    .reminders-group-label{margin-bottom:8px;}
+    .reminders-list{gap:8px;}
+    .reminder-row{padding:12px 14px;row-gap:6px;column-gap:10px;}
+    .reminder-note{padding:6px 10px;}
+    .reminders-toolbar{margin-bottom:12px;}
+  }
 </style>
 </head>
 <body>
@@ -3579,23 +3614,25 @@ function placeOverviewSlider(el){
   if(!active){ overviewSliderLast = null; return; }
   // 列表这时候是隐藏的（在别的页面上重画），量不出位置：不做动画，选中项自己会画深色底
   if(!active.offsetHeight) return;
-  const to = {top: active.offsetTop, height: active.offsetHeight};
+  const to = {top: active.offsetTop, left: active.offsetLeft, height: active.offsetHeight, width: active.offsetWidth};
   const from = overviewSliderLast || to;
   overviewSliderLast = to;
-  if(from.top===to.top && from.height===to.height) return;
+  if(from.top===to.top && from.left===to.left && from.height===to.height && from.width===to.width) return;
   // 只在"换了选中项"时显示滑块：滑动期间选中项先不画深色底，滑块到位后再交还给它
   grid.classList.add('ov-moving');
   clearTimeout(grid._movingTimer);
   grid._movingTimer = setTimeout(()=>grid.classList.remove('ov-moving'), 520);
   slider.style.transition = 'none';
-  slider.style.transform = `translateY(${from.top}px)`;
+  slider.style.transform = `translate(${from.left||0}px, ${from.top}px)`;
   slider.style.height = from.height + 'px';
+  slider.style.width = (from.width||active.offsetWidth) + 'px';
   void slider.offsetWidth;
   slider.style.transition = '';
-  slider.style.transform = `translateY(${to.top}px)`;
+  slider.style.transform = `translate(${to.left}px, ${to.top}px)`;
   slider.style.height = to.height + 'px';
+  slider.style.width = to.width + 'px';
   active.classList.add('ov-arrive');
-  const left = [...grid.querySelectorAll('.overview-item')].find(x=>x!==active && x.offsetTop===from.top);
+  const left = [...grid.querySelectorAll('.overview-item')].find(x=>x!==active && x.offsetTop===from.top && x.offsetLeft===(from.left||0));
   if(left) left.classList.add('ov-leave');
 }
 document.querySelectorAll('#boardSort button').forEach(b=>b.addEventListener('click', ()=>{
@@ -3662,6 +3699,7 @@ function bindOverviewDrag(el){
   items().forEach(item=>{
     item.addEventListener('pointerdown', e=>{
       if(e.button!==0) return;
+      if(getComputedStyle(item.parentElement).gridTemplateColumns.split(' ').length>1) return;
       const startY = e.clientY;
       const touch = e.pointerType==='touch';
       // 触屏：长按 0.35 秒才开始拖，手指先动了就当是在滑页面；电脑：按住移动 6px 就开始拖
@@ -6861,11 +6899,12 @@ function snapOverviewSlider(){
   const active = el && el.querySelector('.overview-item.active');
   if(!slider || !active || !active.offsetHeight) return;
   slider.style.transition = 'none';
-  slider.style.transform = `translateY(${active.offsetTop}px)`;
+  slider.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
   slider.style.height = active.offsetHeight + 'px';
+  slider.style.width = active.offsetWidth + 'px';
   void slider.offsetWidth;
   slider.style.transition = '';
-  overviewSliderLast = {top: active.offsetTop, height: active.offsetHeight};
+  overviewSliderLast = {top: active.offsetTop, left: active.offsetLeft, height: active.offsetHeight, width: active.offsetWidth};
 }
 // 切页动效：新页面从切换方向那一侧轻轻滑入并淡入（往右边的标签切就从右边进，反之从左边）
 const VIEW_ORDER = ['board','submitted','reminders'];
