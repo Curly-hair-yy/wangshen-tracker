@@ -204,6 +204,9 @@
     font-weight:600;
   }
   .wrap{width:min(1800px, calc(100vw - 192px));margin:0 auto;padding:38px 0 80px;}
+  /* 窄屏/手机：左右只留 16px，不然 96px 的大边距会把内容挤成一条 */
+  @media (max-width:1100px){ .wrap{width:calc(100vw - 64px);} }
+  @media (max-width:640px){ .wrap{width:calc(100vw - 32px);padding:20px 0 60px;} }
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
   }
@@ -1505,6 +1508,13 @@
     transition:background .15s ease,color .15s ease,transform .2s cubic-bezier(.34,1.56,.64,1);}
   .board-sort button:not(.on):hover{color:var(--ink);transform:translateY(-1px);}
   .board-sort button.on{background:var(--glass-strong,#fff);color:var(--ink);box-shadow:var(--shadow);}
+  /* 过期的提醒：胶囊和轨道日期前加一个小红点，颜色仍然是环节色 */
+  .chip.is-overdue::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);margin-right:4px;vertical-align:1px;}
+  .track .step.overdue .step-date::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--red);margin-right:3px;vertical-align:1px;}
+  .ended-line{color:var(--gray-ink,var(--text-3)) !important;}
+  /* 粘贴导入里对不上的行：下拉选公司 */
+  .paste-import-pick-row{display:flex;align-items:center;gap:8px;}
+  .paste-import-pick{margin-left:6px;height:30px;border:none;border-radius:9px;background:var(--field);padding:0 8px;font-size:13px;font-family:inherit;max-width:60%;}
   /* 置顶 */
   .pin-btn{width:26px;height:26px;border:none;border-radius:9px;background:transparent;color:var(--text-3);cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s ease, background .15s ease, color .15s ease, transform .2s cubic-bezier(.34,1.56,.64,1);}
@@ -1776,6 +1786,8 @@
   }
   .back-top.show{opacity:1;pointer-events:auto;transform:none;}
   .back-top:hover{filter:brightness(1.15);}
+  /* 有弹窗开着时藏起来，免得压在弹窗底部按钮上（手机上尤其明显） */
+  body:has(.drawer.active) .back-top{opacity:0;pointer-events:none;}
   .back-top:active{transform:scale(.88);transition-duration:.1s;}
   /* 外圈进度：滑了多少就亮多少 */
   .back-top:before{content:"";position:absolute;inset:3px;border-radius:50%;z-index:-1;
@@ -2017,7 +2029,7 @@
 
   <div id="remindersView" style="display:none;">
     <div class="reminders-toolbar">
-      <button class="btn btn-ghost" id="exportIcsBtn" type="button">加到日历</button>
+      <button class="btn btn-ghost" id="exportIcsBtn" type="button">复制订阅网址</button>
       <button class="btn btn-ghost" id="pasteImportBtn" type="button">粘贴导入</button>
       <button class="btn btn-primary" id="addReminderBtn" type="button">+ 添加提醒</button>
     </div>
@@ -3623,7 +3635,7 @@ function computeCompanyChips(g, company){
     const label = trackStepLabel(c.key);
     const dateText = c.date ? shortDateTimeLabel(c.date) : '';
     // 跟轨道上这个环节的圆圈同一个颜色
-    return `<span class="chip ${stageColor(c.key)}">${label}${dateText?' '+dateText:''}</span>`;
+    return `<span class="chip ${stageColor(c.key)}${c.type==='overdue'?' is-overdue':''}" ${c.type==='overdue'?'title="已过期"':''}>${label}${dateText?' '+dateText:''}</span>`;
   }).join('');
 }
 
@@ -3712,7 +3724,11 @@ function renderSubmittedList(){
     const pa = getCompany(a.companyId).pinIndex, pb = getCompany(b.companyId).pinIndex;
     return (typeof pa==='number' ? pa : 1e9) - (typeof pb==='number' ? pb : 1e9);
   });
-  const restGroups = submittedAttentionFilter ? orderedListGroups : orderedListGroups.filter(g=>!isPinned(g));
+  const restAll = submittedAttentionFilter ? orderedListGroups : orderedListGroups.filter(g=>!isPinned(g));
+  // 已经结束（所有岗位都走到"结束"）的公司归到最后一段
+  const isEndedGroup = g=>allProgressEnded(g.list);
+  const restGroups = submittedAttentionFilter ? restAll : restAll.filter(g=>!isEndedGroup(g));
+  const endedGroups = submittedAttentionFilter ? [] : restAll.filter(isEndedGroup);
   if(pinnedGroups.length){
     html += `<div class="date-line pinned-line">${ICON_PUSHPIN}置顶</div><div class="pin-section" data-section="pinned">`;
     pinnedGroups.forEach(g=>{ html += renderCompanyCard(g, dayLabel(dateKeyOfGroup(g))); });
@@ -3726,6 +3742,10 @@ function renderSubmittedList(){
       html += renderCompanyCard(restGroups[i], label);
       i++;
     }
+  }
+  if(endedGroups.length){
+    html += `<div class="date-line ended-line">已结束 · ${endedGroups.length}</div>`;
+    endedGroups.forEach(g=>{ html += renderCompanyCard(g, dayLabel(dateKeyOfGroup(g))); });
   }
   list.innerHTML = html;
 
@@ -4500,24 +4520,19 @@ function buildRemindersIcs(items){
   lines.push('END:VCALENDAR');
   return lines.map(icsFold).join('\r\n') + '\r\n';
 }
-document.getElementById('exportIcsBtn').addEventListener('click', e=>{
+// 已经订阅了日历，不再导出一次性的 .ics（会跟订阅日历重复）；这里改成复制订阅网址
+document.getElementById('exportIcsBtn').addEventListener('click', async e=>{
   const btn = e.currentTarget;
-  const items = getActiveReminders().filter(i=>!i.done && i.date);
   clearTimeout(btn._resetTimer);
-  btn._resetTimer = setTimeout(()=>{ btn.textContent = '加到日历'; }, 2200);
-  if(!items.length){ btn.textContent = '没有待办提醒'; return; }
-  const blob = new Blob([buildRemindersIcs(items)], {type:'text/calendar;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  // iPhone/iPad：直接打开，Safari 会弹出"添加到日历"；电脑上下载文件，双击导入
-  if(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1)){
-    location.href = url;
-  } else {
-    const a = document.createElement('a');
-    a.href = url; a.download = '网申提醒.ics';
-    document.body.appendChild(a); a.click(); a.remove();
-  }
-  setTimeout(()=>URL.revokeObjectURL(url), 60000);
-  btn.textContent = `已导出 ${items.length} 条`;
+  btn._resetTimer = setTimeout(()=>{ btn.textContent = '复制订阅网址'; }, 2000);
+  if(!syncId || !sb){ btn.textContent = '先连上同步'; return; }
+  try{
+    const {data} = await sb.rpc('get_calendar_feed_token', {p_sync_id: syncId});
+    if(!data){ btn.textContent = '读取失败'; return; }
+    const host = String(syncConfig.url||'').replace(/^https?:\/\//,'').replace(/\/+$/,'');
+    copyText(`webcal://${host}/functions/v1/calendar-feed?token=${data}`);
+    btn.textContent = '已复制';
+  }catch(err){ btn.textContent = '读取失败'; }
 });
 document.getElementById('reminderDrawerClose').addEventListener('click', closeReminderDrawer);
 document.getElementById('reminderCancelBtn').addEventListener('click', closeReminderDrawer);
@@ -4651,7 +4666,8 @@ function parsePasteText(text){
     if(!stageKey) return {raw:line, ok:false};
     const timePart = m[4].length===4 ? '0'+m[4] : m[4];
     const dateTime = `${m[3]}T${timePart}`;
-    const candidates = companies.filter(c=>!c.deleted && (c.name===companyText || c.name.includes(companyText) || companyText.includes(c.name)));
+    // 只在"名下有已提交岗位"的公司里找（提醒事项页只显示这些），免得匹配到空的旧公司记录
+    const candidates = submittedCompanies().filter(c=>c.name===companyText || c.name.includes(companyText) || companyText.includes(c.name));
     const matchedCompany = candidates.length===1 ? candidates[0] : (candidates.find(c=>c.name===companyText) || null);
     const stage = PROGRESS_STAGES.find(s=>s.key===stageKey);
     // 时间后面剩下的文字就当备注：去掉开头的标点和"备注："，也认括号包着的写法
@@ -4662,7 +4678,7 @@ function parsePasteText(text){
       .trim();
     return {
       raw:line, ok:true, companyText, stageKey, note, stageLabel: stage ? stage.label : `${trackStepLabel(stageKey)}（新环节）`, dateTime,
-      matchedCompany, ambiguous: candidates.length>1 && !matchedCompany,
+      matchedCompany, ambiguous: candidates.length>1 && !matchedCompany, candidates,
     };
   });
 }
@@ -4674,7 +4690,17 @@ function renderPasteImportResults(items){
       return `<div class="paste-import-row unrecognized">${escapeHtml(item.raw)}<div class="paste-import-row-note">没识别出来，格式对不上，跳过这行</div></div>`;
     }
     if(!item.matchedCompany){
-      return `<div class="paste-import-row unmatched">${escapeHtml(item.companyText)} ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}<div class="paste-import-row-note">${item.ambiguous?'台账里有好几家公司名字都对得上，认不准':'台账里找不到这家公司'}，跳过这行</div></div>`;
+      // 对不上：给个下拉让用户自己选是哪家（像的排前面，后面是所有已提交的公司）
+      const like = item.candidates || [];
+      const others = submittedCompanies().filter(c=>!like.includes(c)).sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+      const opt = c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`;
+      return `<div class="paste-import-row unmatched">
+        <label class="paste-import-pick-row"><input type="checkbox" class="paste-import-check" data-idx="${idx}" disabled>
+          <span class="paste-import-row-main">${escapeHtml(item.companyText)} ${item.stageLabel} ${fmtDeadlineDateTime(item.dateTime)}</span></label>
+        <div class="paste-import-row-note">${like.length ? '你是指哪一家？' : '台账里没有这个名字，是哪一家？'}
+          <select class="paste-import-pick" data-idx="${idx}"><option value="">选择公司</option>
+            ${like.length ? `<optgroup label="名字相近">${like.map(opt).join('')}</optgroup><optgroup label="其它">${others.map(opt).join('')}</optgroup>` : others.map(opt).join('')}
+          </select></div></div>`;
     }
     return `
       <label class="paste-import-row">
@@ -4685,6 +4711,15 @@ function renderPasteImportResults(items){
   }).join('');
 }
 let pasteImportParsed = [];
+document.getElementById('pasteImportResults').addEventListener('change', e=>{
+  const sel = e.target.closest('.paste-import-pick');
+  if(!sel) return;
+  const item = pasteImportParsed[Number(sel.dataset.idx)];
+  const cb = sel.closest('.paste-import-row').querySelector('.paste-import-check');
+  item.matchedCompany = sel.value ? getCompany(sel.value) : null;
+  cb.disabled = !item.matchedCompany;
+  cb.checked = !!item.matchedCompany;
+});
 function setPasteImportStatus(text){
   const status = document.getElementById('pasteImportStatus');
   status.textContent = text;
