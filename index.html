@@ -937,7 +937,7 @@
     justify-content:space-between;
     align-items:center;
     gap:8px;
-    font-size:14px;
+    font-size:15px;
     padding:5px 22px 5px 0;
   }
   .position-line-meta{
@@ -1771,22 +1771,24 @@
   .role:has(+ .company-note){border-bottom:0;}
     #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   /* "添加岗位"做成跟"保存"一样的深色按钮，显眼一点 */
-  .add-position-btn{margin-top:10px;height:40px;padding:0 18px;display:inline-flex;align-items:center;gap:4px;}
-  .add-position-btn:active{transform:scale(.97);}
+  /* "添加岗位"：淡紫色、跟岗位块一样宽，看起来像列表的下一块 */
+  .add-position-btn.btn{width:100%;margin-top:0;height:44px;display:flex;align-items:center;justify-content:center;gap:4px;
+    border-radius:18px;background:var(--lavender-soft,var(--blue-soft));color:var(--purple);box-shadow:none;font-weight:900;}
+  .add-position-btn.btn:hover{background:var(--purple-soft);}
+  .add-position-btn.btn:active{transform:scale(.98);}
   /* 编辑弹窗里的整家公司备注：青柠色底的一块，跟上面淡紫色的岗位块区分开 */
   .company-note-block{margin-top:12px;background:var(--lime-soft,var(--blue-soft));border-radius:18px;padding:10px 12px 12px;}
   .company-note-block label{margin-bottom:6px;}
   .company-note-block textarea{background:#fff !important;}
   /* 岗位备注默认折叠；岗位要求/图片入口不用了，先藏起来（数据保留） */
   #positionItems .position-name-row{margin-bottom:0;}
-  /* 岗位备注按钮放在名字那一行最右边：没备注是灰字，有备注变紫字，打开时淡紫底 */
-  .position-note-btn{flex:0 0 auto;height:40px;padding:0 12px;border:none;border-radius:var(--radius-field,14px);background:#fff;
-    color:var(--text-3);font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;transition:background .15s ease,color .15s ease;}
-  .position-note-btn.has{color:var(--purple);}
-  .position-note-btn.open{background:var(--purple-soft);color:var(--purple);}
-  .position-note-peek-line{margin:6px 2px 0;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:14px;color:var(--text-3);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
-  #positionItems .position-group{padding:10px 12px !important;}
+  /* 岗位备注：名字框下面一行小字，左边缘跟输入框里的文字对齐；没写是"+ 备注"，写了就显示备注本身（楷体灰字），点一下展开编辑 */
+  .position-note-link{display:block;width:100%;margin:5px 0 0;padding:0 14px;border:none;background:none;text-align:left;cursor:pointer;
+    font-size:12px;font-weight:700;color:var(--text-3);font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .position-note-link:hover{color:var(--purple);}
+  .position-note-link.has{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:13.5px;font-weight:400;}
+  #positionItems .position-group{padding:10px 12px 8px !important;}
+  #positionItems .position-group input[type=text]{font-size:15px;}
   /* 编辑弹窗里的"招聘进度"和"设置环节提醒"从没用过，藏起来（进度在卡片轨道上改） */
   #progressField,#stageDeadlinesField{display:none !important;}
   #positionItems .position-group:hover:not(.pg-dragging){transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
@@ -2044,7 +2046,7 @@
     </div>
 
     <div id="positionItems"></div>
-    <button class="btn btn-primary add-position-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
+    <button class="btn add-position-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
     <div class="field company-note-block">
       <label>备注</label>
       <textarea id="f-company-note" class="company-note-input" rows="2"></textarea>
@@ -4992,10 +4994,9 @@ function renderPositionEditor(){
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
-          <button class="position-note-toggle position-note-btn${item.note?' has':''}${item._noteOpen?' open':''}" type="button" data-idx="${idx}" title="岗位备注">备注</button>
           ${positionDraft.length>1 ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
-        ${(!item._noteOpen && item.note) ? `<div class="position-note-peek-line" data-idx="${idx}">${escapeHtml(item.note)}</div>` : ''}
+        <button class="position-note-toggle position-note-link${item.note?' has':''}" type="button" data-idx="${idx}">${item._noteOpen ? '收起备注' : (item.note ? escapeHtml(item.note) : '+ 备注')}</button>
         <textarea class="position-note-input" data-idx="${idx}" placeholder="备注" style="display:${item._noteOpen?'block':'none'}">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
@@ -5013,8 +5014,6 @@ function renderPositionEditor(){
   box.querySelectorAll('.position-group').forEach(block=>{
     const idx = Number(block.dataset.idx);
     bindPositionGroupDrag(block, idx, box);
-    const peek = block.querySelector('.position-note-peek-line');
-    if(peek) peek.addEventListener('click', ()=>block.querySelector('.position-note-toggle').click());
     block.querySelector('.position-note-toggle').addEventListener('click', ()=>{
       positionDraft[idx]._noteOpen = !positionDraft[idx]._noteOpen;
       renderPositionEditor();
