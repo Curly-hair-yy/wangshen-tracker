@@ -746,11 +746,18 @@
   .position-group textarea{height:auto;padding:10px 14px;resize:vertical;min-height:56px;}
   .position-group .exclusive-checklist input[type=text]{background:transparent;padding:6px 0;width:auto;flex:1;}
   .position-jd-body{margin-top:6px;}
+  /* 删除新加的岗位：跟卡片一样，右上角探出一半的小圆 ×，不占输入框那一行的位置 */
+  .position-group{position:relative;}
   .position-group-del{
-    background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;
-    padding:2px 6px;flex-shrink:0;
+    position:absolute;top:-7px;right:-7px;z-index:2;
+    width:20px;height:20px;padding:0;border-radius:50%;border:none;
+    display:none;align-items:center;justify-content:center;
+    background:var(--surface);box-shadow:0 0 0 1px var(--line);
+    color:var(--text-2);font-size:14px;line-height:1;cursor:pointer;
   }
-  .position-group-del:hover{color:var(--red);}
+  .position-group-del:hover{background:var(--red);color:#fff;box-shadow:none;}
+  .position-group:hover .position-group-del{display:flex;}
+  @media (hover:none){ .position-group-del{display:flex;} }
   .exclusive-toggle{
     margin-top:10px;font-size:12px;color:var(--text-2);background:none;border:none;
     cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:6px;
@@ -4972,8 +4979,7 @@ function renderPositionEditor(){
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
-          ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>'
-            : (positionDraft.length>1 && positionDraft.some(x=>!x._existingId)) ? '<span class="position-group-del" aria-hidden="true" style="visibility:hidden">&times;</span>' : ''}
+          ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
         <button class="add-item-btn position-note-toggle" type="button" data-idx="${idx}">备注${(!item._noteOpen && item.note) ? `<span class="position-note-peek">· ${escapeHtml(item.note)}</span>` : ` ${item._noteOpen?'−':'+'}`}</button>
         <textarea class="position-note-input" data-idx="${idx}" placeholder="备注" style="display:${item._noteOpen?'block':'none'}">${escapeHtml(item.note||'')}</textarea>
