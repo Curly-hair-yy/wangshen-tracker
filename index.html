@@ -1208,9 +1208,9 @@
 
   .role{
     position:relative;
-    /* 名字栏宽度按"这张卡里最长的岗位名"来（脚本量出来写进卡片的 --name-w，夹在 120–440px），
+    /* 名字栏宽度按"这张卡里最长的岗位名"来（脚本量出来写进卡片的 --name-w，夹在 120–300px），
        同一张卡里各行轨道起点严格对齐；名字短的卡，轨道就紧跟在名字后面。超长名字在栏里换行。 */
-    display:grid;grid-template-columns:min(var(--name-w, clamp(200px, 24%, 440px)), 40%) 1fr auto;gap:20px;align-items:start;
+    display:grid;grid-template-columns:min(var(--name-w, clamp(200px, 24%, 300px)), 40%) 1fr auto;gap:20px;align-items:start;
     padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
@@ -1218,8 +1218,8 @@
   .role-compact .role-del-btn{top:8px;}
   .submitted-list.attention-mode .drag-handle{display:none;}
   .role-name{font-size:16px;font-weight:400;color:var(--text-2);display:flex;align-items:flex-start;gap:5px;line-height:1.5;}
-  /* 长岗位名换行：中文不在词中间断，只在 - — （ 这类地方换；实在没有断点才硬断；先排满第一行，避免最后一行只剩一两个字 */
-  .role-name > span{min-width:0;word-break:keep-all;overflow-wrap:anywhere;text-wrap:pretty;}
+  /* 长岗位名换行：几行长度尽量一样，不出现第一行很长、第二行只剩几个字 */
+  .role-name > span{min-width:0;overflow-wrap:anywhere;text-wrap:balance;}
 
   .role-desc{color:var(--text-3);font-size:15px;font-weight:400;margin-top:3px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;line-height:1.4;}
   .role-del-btn{
@@ -7462,25 +7462,31 @@ backTopBtn.addEventListener('click', ()=>{
 /* ---- 动效：滚动浮现、数字滚动、弹窗从点击处展开、删除收起、轨道节点让位 ---- */
 const fxReduced = ()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function fxAfterRender(){ alignRoleColumns(); fxReveal(); fxColumnFade(); }
-// 已提交卡片：名字栏宽度 = 这张卡里最长岗位名的实际宽度（含前面"+"的位置和链接按钮），夹在 120–440px。
+// 已提交卡片：名字栏宽度 = 这张卡里最长岗位名的实际宽度（含前面"+"的位置和链接按钮），夹在 120–300px。
 // 先把栏放到最宽量一遍，再写回；页面隐藏着量不出来的卡跳过，切到那页时会再算。
 function alignRoleColumns(){
   document.querySelectorAll('#submittedList .progress-company').forEach(card=>{
     const names = card.querySelectorAll('.role .role-name');
     if(!names.length || !card.offsetWidth) return;
-    card.style.setProperty('--name-w', '440px');
+    card.style.setProperty('--name-w', '300px');
     let w = 0;
     names.forEach(nm=>{
       const cs = getComputedStyle(nm);
       let inner = 0, n = 0;
       [...nm.children].forEach(ch=>{
         if(getComputedStyle(ch).position==='absolute') return;
-        inner += ch.getBoundingClientRect().width; n++;
+        // 换行后按"最宽那一行"算（几行长度是平衡过的，比栏宽窄），轨道才能紧跟在名字后面
+        let cw = ch.getBoundingClientRect().width;
+        if(ch.firstChild && ch.firstChild.nodeType===3 && ch.childNodes.length===1){
+          const r = document.createRange(); r.selectNodeContents(ch);
+          cw = Math.max(0, ...[...r.getClientRects()].map(x=>x.width));
+        }
+        inner += cw; n++;
       });
       inner += Math.max(0, n-1) * (parseFloat(cs.columnGap)||0) + (parseFloat(cs.paddingLeft)||0);
       w = Math.max(w, Math.ceil(inner));
     });
-    card.style.setProperty('--name-w', Math.min(440, Math.max(120, w)) + 'px');
+    card.style.setProperty('--name-w', Math.min(300, Math.max(120, w)) + 'px');
   });
 }
 
