@@ -6039,7 +6039,7 @@ function openStageNodePop(stepEl, pos, initialKey){
     const own = positionHasOwnStage(p, key) && !stageHiddenOnPosition(p, key);
     if(!own && !hasCompanyStage(p)) return '';
     return `<div class="dp-tools">
-      ${own ? `<button type="button" class="dp-tool" data-action="relabel">改名 / 换环节</button>` : ''}
+      <button type="button" class="dp-tool" data-action="relabel">改环节</button>
       <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${armedRemove?'确认删除':'删除'}</button>
     </div>`;
   };
@@ -6065,7 +6065,7 @@ function openStageNodePop(stepEl, pos, initialKey){
             </div>
             ${suggestions.length ? `<div class="dp-hint">或者直接选</div><div class="dp-stage-list">${suggestions.map((s,i)=>`<button type="button" class="dp-chip chip ${stageColor(s.key)}" data-action="relabel-pick:${i}">${trackStepLabel(s.key)}</button>`).join('')}</div>` : ''}
             <div class="dp-tools" style="margin-top:12px;"><button type="button" class="dp-tool" data-action="relabel-cancel">← 返回</button></div>
-            <div class="dp-hint">${scope==='all' ? '会把这家公司所有岗位里的这个环节一起换掉' : '只改这一个岗位'}；要把所有公司里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
+            <div class="dp-hint">${(scope==='all' || hasCompanyStage(p)) ? '会把这家公司所有岗位里的这个环节一起换掉' : '只改这一个岗位'}；要把所有公司里的这个环节一起改名，用左边"管理环节 · 改名"。</div>`,
         };
       }
       // 不再有"标记完成"按钮：选的时间已经过去了 = 这个环节已经发生（记成完成，日期就是
@@ -6091,7 +6091,7 @@ function openStageNodePop(stepEl, pos, initialKey){
     },
     onAction(action){
       if(action==='scope:one' || action==='scope:all'){ scope = action.slice(6); armedRemove = false; return; }
-      const list = targets();
+      let list = targets();
       if(!list.length) return;
       list.forEach(p=>{ if(!p.progress) p.progress = {}; if(!p.progressDates) p.progressDates = {}; });
       if(action!=='remove') armedRemove = false;
@@ -6123,7 +6123,21 @@ function openStageNodePop(stepEl, pos, initialKey){
           newKey = s ? s.key : '';
         }
         if(!newKey || newKey===key){ mode = 'normal'; return; }
+        // 公司级（全部岗位通用）的环节：公司那条记录本来就是整家公司共用的，改名就是整家公司一起改——
+        // 把公司那条搬到新环节名下，这家公司所有已提交岗位上跟这个环节有关的记录也一起搬
+        const p0 = positions.find(x=>x.id===pos.id);
+        const company0 = p0 && getCompany(p0.companyId);
+        let movePositions = list;
+        if(company0 && companyStageDeadlineEntry(company0, key)){
+          if(!company0.stageDeadlines[newKey]) company0.stageDeadlines[newKey] = company0.stageDeadlines[key];
+          delete company0.stageDeadlines[key];
+          company0.updatedAt = new Date().toISOString();
+          queueUpsert('companies', company0.id);
+          movePositions = siblingsOf(p0);
+          movePositions.forEach(x=>{ if(!x.progress) x.progress = {}; if(!x.progressDates) x.progressDates = {}; });
+        }
         // 把旧环节的勾/完成日期/提醒搬到新环节下；新环节上已经有的保留不覆盖
+        list = movePositions;
         list.forEach(p=>{
           [p.progress, p.progressDates, p.stageDeadlines].forEach(obj=>{
             if(!obj || !(key in obj)) return;
