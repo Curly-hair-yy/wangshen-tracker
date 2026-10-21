@@ -1241,9 +1241,8 @@
   .track .step.ended .step-dot{background:var(--ended);box-shadow:0 0 0 2px var(--ended);}
   .track .step-label{margin-top:7px;font-size:11px;font-weight:900;text-align:center;white-space:nowrap;
     padding:1px 7px;border-radius:999px;background:var(--sc-soft,var(--gray-soft));color:var(--sc,var(--gray-ink));}
-  .track .step-date{margin-top:3px;font-size:10px;font-weight:850;color:var(--text-2);white-space:nowrap;}
-  .track .step.scheduled .step-date{color:var(--orange-ink);}
-  .track .step.overdue .step-date{color:var(--red-ink);}
+  /* 日期跟圆圈、环节名同一个颜色（环节自己的颜色），一眼对上是哪个环节的时间 */
+  .track .step-date{margin-top:3px;font-size:10px;font-weight:850;color:var(--sc,var(--text-2));white-space:nowrap;}
   .track .step.ended .step-label{background:var(--gray-soft);color:var(--gray-ink);}
   .track .step.ended .step-date{color:var(--gray-ink);}
   .track-add{position:relative;z-index:1;display:grid;justify-items:center;width:64px;border:none;background:none;cursor:pointer;padding:0;font-family:inherit;}
@@ -3423,8 +3422,8 @@ function computeCompanyChips(g, company){
   return computeCompanyCandidates(g, company).slice(0,3).map(c=>{
     const label = trackStepLabel(c.key);
     const dateText = c.date ? shortDateTimeLabel(c.date) : '';
-    const cls = c.type==='overdue' ? 'red' : 'orange';
-    return `<span class="chip ${cls}">${label}${dateText?' '+dateText:''}</span>`;
+    // 跟轨道上这个环节的圆圈同一个颜色
+    return `<span class="chip ${stageColor(c.key)}">${label}${dateText?' '+dateText:''}</span>`;
   }).join('');
 }
 
