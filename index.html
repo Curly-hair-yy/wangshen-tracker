@@ -3580,6 +3580,15 @@ function renderSubmittedList(){
       openDrawer(row.dataset.id);
     });
   });
+  // 点卡片上岗位以外的地方（公司名那一行、空白处）也打开编辑，编辑的是这张卡里排第一的岗位
+  // （编辑弹窗里本来就会列出这家公司的所有岗位）
+  list.querySelectorAll('.progress-company').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.role, button, a, input, .drag-handle, .track, .chip')) return;
+      const first = card.querySelector('.role[data-id]');
+      if(first) openDrawer(first.dataset.id);
+    });
+  });
 }
 
 // 拖拽状态 + dragover/drop 只绑定这一次，绑在 #submittedList 容器本身（容器不会被
