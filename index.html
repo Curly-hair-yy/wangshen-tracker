@@ -1761,6 +1761,9 @@
   .company-note-label{font-size:13px;font-weight:800;color:var(--purple);margin-bottom:2px;}
   .company-note-text{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;line-height:1.5;color:var(--text-3);}
     #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
+  /* "添加岗位"做成跟"保存"一样的深色按钮，显眼一点 */
+  .add-position-btn{margin-top:10px;height:40px;padding:0 18px;display:inline-flex;align-items:center;gap:4px;}
+  .add-position-btn:active{transform:scale(.97);}
   /* 编辑弹窗里的整家公司备注：青柠色底的一块，跟上面淡紫色的岗位块区分开 */
   .company-note-block{margin-top:12px;background:var(--lime-soft,var(--blue-soft));border-radius:18px;padding:10px 12px 12px;}
   .company-note-block label{margin-bottom:6px;}
@@ -2023,7 +2026,7 @@
     </div>
 
     <div id="positionItems"></div>
-    <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
+    <button class="btn btn-primary add-position-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
     <div class="field company-note-block">
       <label>备注</label>
       <textarea id="f-company-note" class="company-note-input" rows="2"></textarea>
