@@ -1772,9 +1772,9 @@
     #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   /* "添加岗位"做成跟"保存"一样的深色按钮，显眼一点 */
   /* "添加岗位"：淡紫色、跟岗位块一样宽，看起来像列表的下一块 */
-  .add-position-btn.btn{width:100%;margin-top:8px;height:44px;transition:background .15s ease, transform .15s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;justify-content:center;gap:4px;
+  .add-position-btn.btn{width:100%;margin-top:8px;height:44px;transition:background .15s ease, box-shadow .2s ease, transform .22s cubic-bezier(.2,.8,.2,1);display:flex;align-items:center;justify-content:center;gap:4px;
     border-radius:18px;background:var(--lavender-soft,var(--blue-soft));color:var(--purple);box-shadow:none;font-weight:900;}
-  .add-position-btn.btn:hover{background:var(--purple-soft);}
+  .add-position-btn.btn:hover{background:var(--purple-soft);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
   .add-position-btn.btn:active{transform:scale(.97);transition-duration:.08s;}
   /* 编辑弹窗里的整家公司备注：青柠色底的一块，跟上面淡紫色的岗位块区分开 */
   .company-note-block{margin-top:12px;background:var(--lime-soft,var(--blue-soft));border-radius:18px;padding:10px 12px 12px;}
@@ -1789,6 +1789,9 @@
   .position-note-link.has{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:13.5px;font-weight:400;}
   #positionItems .position-group{padding:10px 12px 8px !important;}
   #positionItems .position-group input[type=text]{font-size:15px;}
+  /* 岗位块里的输入框聚焦时不要黑框，用淡紫色的柔和光圈 */
+  #positionItems .position-group input:focus,#positionItems .position-group textarea:focus,
+  #positionItems .position-group input:focus-visible,#positionItems .position-group textarea:focus-visible{outline:none;box-shadow:0 0 0 3px var(--purple-soft);}
   /* 编辑弹窗里的"招聘进度"和"设置环节提醒"从没用过，藏起来（进度在卡片轨道上改） */
   #progressField,#stageDeadlinesField{display:none !important;}
   #positionItems .position-group:hover:not(.pg-dragging){transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
