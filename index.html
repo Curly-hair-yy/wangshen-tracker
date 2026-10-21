@@ -1494,8 +1494,26 @@
     opacity:0;transition:opacity .15s ease;user-select:none;
   }
   .card:hover .drag-handle{opacity:1;}
-  #submittedList .card.dragging{opacity:.4;}
-  #submittedList .card.drag-over-top{box-shadow:inset 0 3px 0 0 var(--primary);}
+  /* 已提交页拖拽：被拖的卡跟着手走，别的卡顺滑让位 */
+  #submittedList .card{transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, background .18s ease;}
+  #submittedList .card.sl-dragging{z-index:20;transition:box-shadow .2s ease;box-shadow:0 22px 50px rgba(0,0,0,.18);cursor:grabbing;}
+  #submittedList .card.sl-dragging.sl-settle{transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease;}
+  .drag-handle{touch-action:none;}
+  /* 看板排序切换：两栏上面靠右的一对小胶囊 */
+  .board-sort{grid-column:1 / -1;justify-self:end;display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--field);margin-bottom:-6px;}
+  .board-sort button{border:none;background:transparent;border-radius:9px;padding:5px 12px;font-size:12px;font-weight:800;color:var(--text-2);cursor:pointer;font-family:inherit;
+    transition:background .15s ease,color .15s ease,transform .2s cubic-bezier(.34,1.56,.64,1);}
+  .board-sort button:not(.on):hover{color:var(--ink);transform:translateY(-1px);}
+  .board-sort button.on{background:var(--glass-strong,#fff);color:var(--ink);box-shadow:var(--shadow);}
+  /* 置顶 */
+  .pin-btn{width:26px;height:26px;border:none;border-radius:9px;background:transparent;color:var(--text-3);cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s ease, background .15s ease, color .15s ease, transform .2s cubic-bezier(.34,1.56,.64,1);}
+  .card:hover .pin-btn{opacity:1;}
+  .pin-btn:hover{background:var(--field);color:var(--ink);}
+  .pin-btn.on{opacity:1;color:var(--purple);transform:rotate(-30deg);}
+  .pin-btn:active{transform:scale(.85);}
+  @media (hover:none){ .pin-btn{opacity:1;} }
+  .pinned-line{display:flex;align-items:center;gap:4px;color:var(--purple) !important;}
   #submittedList .card.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--primary);}
   /* 序号弱化：还留在标题左边，但字号更小、颜色更淡，不跟公司名抢视线。 */
   .company-row .seq{font-size:10px;color:var(--text-3);flex-shrink:0;font-variant-numeric:tabular-nums;}
@@ -1976,6 +1994,10 @@
   </div>
 
   <div class="board" id="board">
+    <div class="board-sort" id="boardSort">
+      <button type="button" data-mode="date">按添加日期</button>
+      <button type="button" data-mode="deadline">按截止时间</button>
+    </div>
     <div class="column" data-status="todo">
       <div class="column-head"><h2><span class="col-dot todo"></span>待填写</h2><span class="count" id="count-todo">0</span></div>
       <div class="column-body" id="col-todo"></div>
@@ -2628,6 +2650,7 @@ function loadUiPrefs(){
 function saveUiPrefs(){ safeSetItem(UI_PREFS_KEY, JSON.stringify(uiPrefs)); }
 let uiPrefs = loadUiPrefs();
 
+const ICON_PUSHPIN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V5h6v5.76l2.4 2.8A1 1 0 0 1 16.64 15H7.36a1 1 0 0 1-.76-1.44z"/><path d="M8 5h8"/></svg>';
 const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
@@ -2861,6 +2884,12 @@ function cardDeadlineBadge(list){
 
 // 把一组岗位按创建日期分组，同一天内再按公司合并成一张卡，返回 HTML 字符串。
 // reviewStage 只在渲染"填报中"栏的某个审核子分组时传入，用来给卡片打标记。
+// 看板排序方式：按添加日期（默认）/ 按截止时间，记在这台设备上
+let boardSortMode = (()=>{ try{ return localStorage.getItem('wangshen_board_sort')==='deadline' ? 'deadline' : 'date'; }catch(e){ return 'date'; } })();
+function weekdayOf(d){ return ['周日','周一','周二','周三','周四','周五','周六'][new Date(d+'T00:00:00').getDay()]; }
+function syncBoardSortButtons(){
+  document.querySelectorAll('#boardSort button').forEach(b=>b.classList.toggle('on', b.dataset.mode===boardSortMode));
+}
 function renderGroupedCards(list, status, reviewStage){
   // 先按公司分组（不看日期）——同一家公司哪怕是不同天分两次加的岗位，也要
   // 合并显示成一张卡，不要因为加的日子不一样就拆成两张卡。用户反馈："昨天
@@ -2876,12 +2905,17 @@ function renderGroupedCards(list, status, reviewStage){
     const earliest = list.reduce((a,b)=> new Date(b.createdAt).getTime() < new Date(a.createdAt).getTime() ? b : a);
     return {companyId, list, dayKey: dayKeyOf(earliest.createdAt)};
   });
+  // "按截止时间"：卡片按最近的截止日期归组，日期近的在前，没截止时间的放最后
+  const byDeadline = boardSortMode==='deadline';
+  if(byDeadline) allGroups.forEach(g=>{ g.dayKey = g.list.map(x=>x.deadline).filter(Boolean).sort()[0] || 'none'; });
   const dayMap = new Map();
   allGroups.forEach(g=>{
     if(!dayMap.has(g.dayKey)) dayMap.set(g.dayKey, []);
     dayMap.get(g.dayKey).push(g);
   });
-  const dayKeys = [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
+  const dayKeys = byDeadline
+    ? [...dayMap.keys()].sort((a,b)=> a==='none' ? 1 : b==='none' ? -1 : a.localeCompare(b))
+    : [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
 
   return dayKeys.map(dayKey=>{
     const groups = dayMap.get(dayKey);
@@ -2942,7 +2976,7 @@ function renderGroupedCards(list, status, reviewStage){
 
     return `
       <div class="day-group">
-        <div class="day-group-label">${relativeDayLabel(dayKey)}</div>
+        <div class="day-group-label">${byDeadline ? (dayKey==='none' ? '没有截止时间' : `${shortDateLabel(dayKey)} ${weekdayOf(dayKey)} 截止`) : relativeDayLabel(dayKey)}</div>
         ${cardsHtml}
       </div>
     `;
@@ -3393,6 +3427,16 @@ function placeOverviewSlider(el){
   const left = [...grid.querySelectorAll('.overview-item')].find(x=>x!==active && x.offsetTop===from.top);
   if(left) left.classList.add('ov-leave');
 }
+document.querySelectorAll('#boardSort button').forEach(b=>b.addEventListener('click', ()=>{
+  if(boardSortMode===b.dataset.mode) return;
+  boardSortMode = b.dataset.mode;
+  try{ localStorage.setItem('wangshen_board_sort', boardSortMode); }catch(e){}
+  syncBoardSortButtons();
+  const before = snapshotCards();
+  renderBoard(); fxAfterRender();
+  playFlip(before);
+}));
+syncBoardSortButtons();
 // 进度概览里各环节的顺序可以拖动调整（上面待处理/收藏/全部/已进行四项固定不动）。
 // 顺序只是显示偏好，记在这台设备的浏览器里，不进数据库。
 const OVERVIEW_ORDER_KEY = 'wangshen_overview_order';
@@ -3525,6 +3569,11 @@ function renderProgressOverview(){
       // 动画放完就去掉，免得之后别的操作重画列表时卡片又全部重新浮一遍
       clearTimeout(listEl._refreshTimer);
       listEl._refreshTimer = setTimeout(()=>listEl.classList.remove('list-refresh'), 700);
+      // 往下滑了再切换筛选：回到列表最上面，从第一张开始看
+      // （切换栏是吸顶的，不能用它的位置算；用列表本身的位置减去切换栏的高度）
+      const nav = document.querySelector('.nav-row');
+      const top = listEl.getBoundingClientRect().top + window.scrollY - (nav ? nav.offsetHeight : 0) - 12;
+      if(window.scrollY > top) window.scrollTo({top, behavior:'smooth'});
     });
   });
 }
@@ -3622,7 +3671,7 @@ function renderSubmittedList(){
     const sharedLoc = sharedLocation(g.list);
     return `
       <article class="card progress-company${ended?' ended':''}" data-company-id="${g.companyId}">
-        <span class="drag-handle" draggable="true" title="拖动调整顺序">⠿</span>
+        <span class="drag-handle" title="按住拖动调整顺序">⠿</span>
         <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="submitted" data-review-stage="" title="删除这张卡里的所有岗位">&times;</button>
         <div class="company-head">
           <div>
@@ -3634,6 +3683,7 @@ function renderSubmittedList(){
             ${chipsHtml ? `<div class="chips">${chipsHtml}</div>` : ''}
           </div>
           <div class="company-head-right">
+            <button class="pin-btn${company&&company.pinned?' on':''}" type="button" data-company-id="${g.companyId}" title="${company&&company.pinned?'取消置顶':'置顶'}" aria-label="置顶">${ICON_PUSHPIN}</button>
             ${ended ? `<span class="chip gray">已结束</span>` : ''}
             ${singleLocationTag(sharedLoc)}
             <span class="company-date">${dateLabel}</span>
@@ -3656,12 +3706,24 @@ function renderSubmittedList(){
     html = orderedListGroups.map(g=>renderCompanyCard(g, dayLabel(dateKeyOfGroup(g)))).join('');
     i = orderedListGroups.length;
   }
-  while(i < orderedListGroups.length){
-    const key = dateKeyOfGroup(orderedListGroups[i]);
+  // 置顶的公司排在最上面一段（按置顶区里拖出来的顺序），其余照旧按日期分段
+  const isPinned = g=>{ const c = getCompany(g.companyId); return !!(c && c.pinned); };
+  const pinnedGroups = submittedAttentionFilter ? [] : orderedListGroups.filter(isPinned).sort((a,b)=>{
+    const pa = getCompany(a.companyId).pinIndex, pb = getCompany(b.companyId).pinIndex;
+    return (typeof pa==='number' ? pa : 1e9) - (typeof pb==='number' ? pb : 1e9);
+  });
+  const restGroups = submittedAttentionFilter ? orderedListGroups : orderedListGroups.filter(g=>!isPinned(g));
+  if(pinnedGroups.length){
+    html += `<div class="date-line pinned-line">${ICON_PUSHPIN}置顶</div><div class="pin-section" data-section="pinned">`;
+    pinnedGroups.forEach(g=>{ html += renderCompanyCard(g, dayLabel(dateKeyOfGroup(g))); });
+    html += `</div>`;
+  }
+  while(i < restGroups.length){
+    const key = dateKeyOfGroup(restGroups[i]);
     const label = dayLabel(key);
     html += `<div class="date-line">${label}</div>`;
-    while(i < orderedListGroups.length && dateKeyOfGroup(orderedListGroups[i]) === key){
-      html += renderCompanyCard(orderedListGroups[i], label);
+    while(i < restGroups.length && dateKeyOfGroup(restGroups[i]) === key){
+      html += renderCompanyCard(restGroups[i], label);
       i++;
     }
   }
@@ -3671,19 +3733,9 @@ function renderSubmittedList(){
   // render 都要重新挂（因为卡片是新生成的 DOM）；dragover/drop 挂在 #submittedList
   // 容器本身、只在脚本加载时绑定一次（见 setupSubmittedListDragDrop），避免每次
   // render 都往同一个常驻容器上新增一份监听器、越攒越多导致一次拖拽被处理好几遍。
-  list.querySelectorAll('.drag-handle').forEach(handle=>{
-    handle.addEventListener('dragstart', (e)=>{
-      const card = handle.closest('.card');
-      submittedDragState.companyId = card.dataset.companyId;
-      card.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', submittedDragState.companyId);
-    });
-    handle.addEventListener('dragend', ()=>{
-      list.querySelectorAll('.card.dragging').forEach(el=>el.classList.remove('dragging'));
-      list.querySelectorAll('.card.drag-over-top,.card.drag-over-bottom').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom'));
-      submittedDragState.companyId = null;
-    });
+  list.querySelectorAll('.drag-handle').forEach(handle=>bindSubmittedCardDrag(handle, list));
+  list.querySelectorAll('.pin-btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.stopPropagation(); togglePinned(btn.dataset.companyId); });
   });
 
   list.querySelectorAll('.card-del-btn').forEach(btn=>{
@@ -3735,7 +3787,7 @@ function renderSubmittedList(){
   // （编辑弹窗里本来就会列出这家公司的所有岗位）
   list.querySelectorAll('.progress-company').forEach(card=>{
     card.addEventListener('click', (e)=>{
-      if(e.target.closest('.role, button, a, input, .drag-handle, .track, .chip')) return;
+      if(submittedDragJustEnded || e.target.closest('.role, button, a, input, .drag-handle, .track, .chip')) return;
       const first = card.querySelector('.role[data-id]');
       if(first) openDrawer(first.dataset.id);
     });
@@ -3746,7 +3798,6 @@ function renderSubmittedList(){
 // innerHTML 替换掉，如果每次 renderSubmittedList 都重新 addEventListener，监听器会
 // 越叠越多，同一次拖拽会被处理很多遍）。真正的分组/顺序在每次 drop 时用
 // computeSubmittedGroups() 现算最新的，不依赖某一次 render 留下的旧数据。
-const submittedDragState = { companyId: null };
 function reorderIds(ids, draggedId, targetId, before){
   const fromIdx = ids.indexOf(draggedId);
   if(fromIdx===-1) return;
@@ -3784,37 +3835,106 @@ function applySubmittedReorder(draggedId, targetId, before){
   persistReorderedCompanies(ids);
   renderSubmittedList();
 }
-function setupSubmittedListDragDrop(){
-  const list = document.getElementById('submittedList');
-  list.addEventListener('dragover', (e)=>{
-    if(!submittedDragState.companyId) return;
+// 已提交页拖拽：按住左边 ⠿，卡片跟着手走（略放大、带阴影），同一段里的其它卡片顺滑让位，
+// 松手后缓缓落进空位再保存。置顶段只在置顶段里换顺序（改 pinIndex），其余卡片走原来的
+// 全局顺序（applySubmittedReorder，顺带纠正日期）。靠近窗口上下边缘会自动滚动。
+let submittedDragJustEnded = false;
+function bindSubmittedCardDrag(handle, list){
+  handle.addEventListener('pointerdown', e=>{
+    if(e.button!==0) return;
     e.preventDefault();
-    const overCard = e.target.closest('.card');
-    list.querySelectorAll('.card.drag-over-top,.card.drag-over-bottom').forEach(el=>{
-      if(el!==overCard) el.classList.remove('drag-over-top','drag-over-bottom');
-    });
-    if(!overCard) return;
-    const rect = overCard.getBoundingClientRect();
-    const before = (e.clientY - rect.top) < rect.height/2;
-    overCard.classList.toggle('drag-over-top', before);
-    overCard.classList.toggle('drag-over-bottom', !before);
-  });
-  list.addEventListener('drop', (e)=>{
-    if(!submittedDragState.companyId) return;
-    e.preventDefault();
-    const overCard = e.target.closest('.card');
-    list.querySelectorAll('.card.drag-over-top,.card.drag-over-bottom').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom'));
-    const draggedId = submittedDragState.companyId;
-    submittedDragState.companyId = null;
-    if(!overCard) return;
-    const targetCompanyId = overCard.dataset.companyId;
-    if(targetCompanyId===draggedId) return;
-    const rect = overCard.getBoundingClientRect();
-    const before = (e.clientY - rect.top) < rect.height/2;
-    applySubmittedReorder(draggedId, targetCompanyId, before);
+    const card = handle.closest('.card');
+    const pinnedSection = card.closest('.pin-section');
+    const peers = pinnedSection
+      ? [...pinnedSection.querySelectorAll(':scope > .card')]
+      : [...list.querySelectorAll(':scope > .card')];
+    const from = peers.indexOf(card);
+    if(from<0 || peers.length<2) return;
+    const startY = e.clientY, startScroll = window.scrollY;
+    const rects = peers.map(c=>c.getBoundingClientRect());
+    const gap = from<peers.length-1 ? rects[from+1].top - rects[from].bottom : (from>0 ? rects[from].top - rects[from-1].bottom : 14);
+    const shiftH = rects[from].height + Math.max(gap, 0);
+    let to = from, lastY = startY, moved = false, rafId = 0;
+    card.classList.add('sl-dragging');
+    try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+    const layout = ()=>{
+      const dy = lastY - startY + (window.scrollY - startScroll);
+      const minDy = rects[0].top - rects[from].top, maxDy = rects[rects.length-1].bottom - rects[from].bottom;
+      const cy = Math.max(minDy - 20, Math.min(maxDy + 20, dy));
+      card.style.transform = `translateY(${cy}px) scale(1.01)`;
+      const center = rects[from].top + rects[from].height/2 + cy;
+      to = from;
+      rects.forEach((r,i)=>{
+        if(i<from && center < r.top + r.height/2) to = Math.min(to, i);
+        if(i>from && center > r.top + r.height/2) to = Math.max(to, i);
+      });
+      peers.forEach((c,i)=>{
+        if(i===from) return;
+        let sh = 0;
+        if(from<to && i>from && i<=to) sh = -shiftH;
+        if(from>to && i<from && i>=to) sh = shiftH;
+        c.style.transform = sh ? `translateY(${sh}px)` : '';
+      });
+    };
+    const autoScroll = ()=>{
+      const edge = 70, h = window.innerHeight;
+      let v = 0;
+      if(lastY < edge) v = -Math.ceil((edge-lastY)/6);
+      else if(lastY > h-edge) v = Math.ceil((lastY-(h-edge))/6);
+      if(v){ window.scrollBy(0, v); layout(); }
+      rafId = requestAnimationFrame(autoScroll);
+    };
+    rafId = requestAnimationFrame(autoScroll);
+    const move = ev=>{ lastY = ev.clientY; if(Math.abs(lastY-startY)>3) moved = true; layout(); };
+    const up = ()=>{
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      submittedDragJustEnded = true; setTimeout(()=>{ submittedDragJustEnded = false; }, 0);
+      const settle = to===from ? 0 : (to>from ? rects[to].bottom - rects[from].bottom : rects[to].top - rects[from].top) - (window.scrollY - startScroll);
+      card.classList.add('sl-settle');
+      card.style.transform = `translateY(${settle}px)`;
+      setTimeout(()=>{
+        card.classList.remove('sl-dragging','sl-settle');
+        if(!moved || to===from){ peers.forEach(c=>c.style.transform=''); return; }
+        const ids = peers.map(c=>c.dataset.companyId);
+        const draggedId = ids[from];
+        if(pinnedSection){
+          ids.splice(to, 0, ids.splice(from, 1)[0]);
+          const now = new Date().toISOString();
+          ids.forEach((id,i)=>{ const c = getCompany(id); if(c){ c.pinIndex = i; c.updatedAt = now; } });
+          saveData(); ids.forEach(id=>queueUpsert('companies', id)); flushQueue();
+          renderSubmittedList(); fxAfterRender();
+        } else {
+          const targetId = ids[to];
+          applySubmittedReorder(draggedId, targetId, to<from);
+          fxAfterRender();
+        }
+      }, 220);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   });
 }
-setupSubmittedListDragDrop();
+// 置顶 / 取消置顶：新置顶的排在置顶段最上面；卡片从原位置飞过去
+function togglePinned(companyId){
+  const c = getCompany(companyId);
+  if(!c) return;
+  const now = new Date().toISOString();
+  if(c.pinned){
+    c.pinned = false; c.pinIndex = null;
+  } else {
+    const minIdx = Math.min(0, ...companies.filter(x=>x.pinned && typeof x.pinIndex==='number').map(x=>x.pinIndex));
+    c.pinned = true; c.pinIndex = minIdx - 1;
+  }
+  c.updatedAt = now;
+  saveData(); queueUpsert('companies', c.id); flushQueue();
+  const before = snapshotCards();
+  renderSubmittedList(); fxAfterRender();
+  playFlip(before);
+}
 
 // 网申链接经常是用户直接粘贴的，可能没带 http(s):// 前缀，点开会被浏览器当成相对路径
 // 处理（跳到 github.io 底下的某个不存在的子路径），这里统一补全协议头。
@@ -7323,6 +7443,7 @@ function companyToRemote(c){
     deleted:!!c.deleted, deleted_at:c.deletedAt||null, favorite:!!c.favorite,
     sort_index:(c.sortIndex===undefined?null:c.sortIndex), date_override:c.dateOverride||null,
     stage_deadlines:c.stageDeadlines||{}, note:c.note||'',
+    pinned:!!c.pinned, pin_index:(typeof c.pinIndex==='number' ? c.pinIndex : null),
   };
 }
 function companyFromRemote(row){
@@ -7331,6 +7452,7 @@ function companyFromRemote(row){
     deleted:!!row.deleted, deletedAt:row.deleted_at||null, favorite:!!row.favorite,
     sortIndex:(row.sort_index===undefined?null:row.sort_index), dateOverride:row.date_override||null,
     stageDeadlines:row.stage_deadlines||{}, note:row.note||'',
+    pinned:!!row.pinned, pinIndex:(typeof row.pin_index==='number' ? row.pin_index : null),
   };
 }
 function positionToRemote(p){
