@@ -1697,14 +1697,19 @@
   .overview-grid .overview-item.active:before,
   .overview-grid .overview-item.active:hover:before{background:var(--charcoal, var(--blue));}
   .overview-grid.ov-moving .overview-item.active:before{background:var(--overview-item);}
-  .ov-slider{opacity:0;}
-  .overview-grid.ov-moving .ov-slider{opacity:1;}
+  /* 交接不闪：选中项的深色底立刻出现（不渐变），滑块再轻轻淡出把位置让给它；滑块出现时不淡入 */
+  .overview-grid .overview-item.active:before{transition:none;}
+  .ov-slider{opacity:0;transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1), opacity .2s ease;}
+  .overview-grid.ov-moving .ov-slider{opacity:1;transition:transform .5s cubic-bezier(.34,1.25,.5,1), height .5s cubic-bezier(.22,1,.36,1), opacity 0s;}
   .overview-grid .overview-item > *{position:relative;z-index:2;}
   .overview-grid .overview-item.active,
   :root[data-theme="lime"] .overview-grid .overview-item.active{background:transparent;box-shadow:none;color:#fff;}
   .overview-grid .overview-item{transition:color .3s ease, background .3s ease;}
   .overview-grid .overview-item.ov-arrive{animation:ovArrive .5s ease;}
   @keyframes ovArrive{from{color:var(--text-2);}to{color:#fff;}}
+  /* 刚被取消选中的那一项：字从白色慢慢变回深色，跟着滑块离开，不会一下子跳 */
+  .overview-grid .overview-item.ov-leave{animation:ovLeave .35s ease;}
+  @keyframes ovLeave{from{color:#fff;}to{color:var(--text-2);}}
   /* 筛选后列表里的卡片依次轻轻浮上来 */
   @keyframes cardIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
   .list-refresh .progress-company{animation:cardIn .34s cubic-bezier(.2,.8,.2,1) both;}
@@ -3323,6 +3328,8 @@ function placeOverviewSlider(el){
   slider.style.transform = `translateY(${to.top}px)`;
   slider.style.height = to.height + 'px';
   active.classList.add('ov-arrive');
+  const left = [...grid.querySelectorAll('.overview-item')].find(x=>x!==active && x.offsetTop===from.top);
+  if(left) left.classList.add('ov-leave');
 }
 // 进度概览里各环节的顺序可以拖动调整（上面待处理/收藏/全部/已进行四项固定不动）。
 // 顺序只是显示偏好，记在这台设备的浏览器里，不进数据库。
