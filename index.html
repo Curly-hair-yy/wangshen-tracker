@@ -721,8 +721,8 @@
   .position-group{
     background:linear-gradient(180deg,rgba(239,246,253,.84),rgba(228,238,248,.72));
     border:1px solid var(--glass-border);
-    border-radius:20px;
-    padding:14px;margin-bottom:10px;
+    border-radius:18px;
+    padding:10px 12px 6px;margin-bottom:8px;
   }
   .position-group:last-child{margin-bottom:0;}
   .position-group .item-row{margin-bottom:4px;}
@@ -751,12 +751,6 @@
     padding:2px 6px;flex-shrink:0;
   }
   .position-group-del:hover{color:var(--red);}
-  .position-move{display:flex;gap:2px;flex-shrink:0;}
-  .position-move-btn{width:26px;height:26px;border:none;border-radius:8px;background:transparent;color:var(--text-3);
-    font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:background .15s ease,color .15s ease,transform .1s ease;}
-  .position-move-btn:hover:not(:disabled){background:var(--field);color:var(--ink);}
-  .position-move-btn:active:not(:disabled){transform:scale(.88);}
-  .position-move-btn:disabled{opacity:.25;cursor:default;}
   .exclusive-toggle{
     margin-top:10px;font-size:12px;color:var(--text-2);background:none;border:none;
     cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:6px;
@@ -1760,12 +1754,20 @@
     -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));
     mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));}
   /* 公司备注：楷体紫色，看板卡片里跟公司名同一列 */
-  .company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:14px;line-height:1.5;color:var(--purple);overflow-wrap:anywhere;}
-  .card .company-row .company-note{grid-column:2 / -1;margin-top:-2px;}
-  .company-head .company-note{margin-top:4px;}
+  /* 公司备注：放在所有岗位下面，青柠深色字（跟灰色的岗位备注区分开），左边缘跟星星对齐 */
+  .company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;font-weight:600;line-height:1.5;overflow-wrap:anywhere;
+    color:#5f7a12;margin-top:10px;padding:0;}
+  :root:not([data-theme="lime"]) .company-note{color:var(--blue);}
   #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   /* 岗位备注默认折叠；岗位要求/图片入口不用了，先藏起来（数据保留） */
-  .position-note-toggle{display:flex;align-items:center;gap:4px;max-width:100%;}
+  .position-note-toggle{display:flex;align-items:center;gap:4px;max-width:100%;margin-top:-2px;padding:2px 2px 4px;}
+  #positionItems .position-name-row{margin-bottom:4px;}
+  #positionItems .position-group{cursor:grab;user-select:none;-webkit-touch-callout:none;
+    transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
+  #positionItems .position-group input,#positionItems .position-group textarea{user-select:text;cursor:text;}
+  #positionItems .position-group.pg-dragging{position:relative;z-index:5;cursor:grabbing;transition:box-shadow .2s ease;
+    box-shadow:0 16px 36px rgba(0,0,0,.16);transform:scale(1.01);}
+  #positionItems .position-group.pg-dragging.pg-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
   .position-note-peek{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-3);font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   .position-note-input{margin-top:6px;}
   .position-jd-toggle,.position-jd-body{display:none !important;}
@@ -2011,14 +2013,15 @@
         <label>网申链接</label>
         <input type="url" id="f-link" placeholder="https://…">
       </div>
-      <div class="field">
-        <label>公司备注</label>
-        <textarea id="f-company-note" class="company-note-input" rows="2"></textarea>
-      </div>
+
     </div>
 
     <div id="positionItems"></div>
     <button class="add-item-btn" id="addPositionBtn" type="button">+ 添加岗位</button>
+    <div class="field" style="margin-top:14px;">
+      <label>备注</label>
+      <textarea id="f-company-note" class="company-note-input" rows="2"></textarea>
+    </div>
 
     <div class="field deadline-field" style="margin-top:18px;">
       <label>截止时间</label>
@@ -2886,9 +2889,9 @@ function renderGroupedCards(list, status, reviewStage){
               ${cardDeadlineBadge(g.list)}
               ${defaultLink ? `<a class="position-link company-link" href="${escapeHtml(defaultLink)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : ''}
             </div>
-            ${company && company.note ? `<div class="company-note">${linkifyNote(company.note)}</div>` : ''}
           </div>
           <div class="position-list">${positionLines}</div>
+          ${company && company.note ? `<div class="company-note">${linkifyNote(company.note)}</div>` : ''}
           ${totalCount>0 ? `<div class="meta-row" style="justify-content:flex-end;"><span class="chip gray">待办 ${doneCount}/${totalCount}</span></div>` : ''}
           ${crossCount>0 ? otherPositionsHtml(g.companyId, status, reviewStage) : ''}
         </div>
@@ -3586,7 +3589,6 @@ function renderSubmittedList(){
               <span class="seq">${seqNum}</span>
               <span>${escapeHtml(company?company.name:'（未知公司）')}</span>
             </div>
-            ${company && company.note ? `<div class="company-note">${linkifyNote(company.note)}</div>` : ''}
             ${chipsHtml ? `<div class="chips">${chipsHtml}</div>` : ''}
           </div>
           <div class="company-head-right">
@@ -3597,6 +3599,7 @@ function renderSubmittedList(){
           </div>
         </div>
         ${sortPositions(g.list).map(p=>renderRole(p, defaultLink, company, sharedLoc)).join('')}
+        ${company && company.note ? `<div class="company-note">${linkifyNote(company.note)}</div>` : ''}
         ${crossCount>0 ? otherPositionsHtml(g.companyId, 'submitted', undefined) : ''}
       </article>
     `;
@@ -4842,6 +4845,71 @@ function deleteStorageImage(path){
 }
 
 // 岗位列表编辑器：新增网申时每个岗位一块，各自可以展开填写自己的岗位要求 + 多张图片
+// 编辑弹窗里的岗位：长按（电脑上按住 0.3 秒）整块拖动换顺序，松手后保存时写 sortIndex。
+// 在输入框、按钮上按下不触发，免得打字、点按钮时误拖。
+function bindPositionGroupDrag(block, idx, box){
+  if(positionDraft.length<2) return;
+  block.addEventListener('pointerdown', e=>{
+    if(e.button!==0 || e.target.closest('input, textarea, button, a, select')) return;
+    const startY = e.clientY;
+    let armed = false, dragging = false, groups, rects, to = idx, gap = 10;
+    const blockScroll = ev=>{ if(armed) ev.preventDefault(); };
+    window.addEventListener('touchmove', blockScroll, {passive:false});
+    const timer = setTimeout(()=>{
+      armed = true;
+      groups = [...box.querySelectorAll('.position-group')];
+      rects = groups.map(g=>g.getBoundingClientRect());
+      if(rects.length>1) gap = rects[1].top - rects[0].bottom;
+      block.classList.add('pg-dragging');
+      try{ block.setPointerCapture(e.pointerId); }catch(_){}
+    }, 300);
+    const move = ev=>{
+      const dy = ev.clientY - startY;
+      if(!armed){ if(Math.abs(dy) > 6){ end(); } return; }
+      dragging = true;
+      ev.preventDefault();
+      const me = rects[idx], h = me.height + gap;
+      const cy = Math.max(rects[0].top - me.top, Math.min(rects[rects.length-1].bottom - me.bottom, dy));
+      block.style.transform = `translateY(${cy}px)`;
+      const center = me.top + me.height/2 + cy;
+      to = idx;
+      rects.forEach((r,i)=>{
+        if(i<idx && center < r.top + r.height/2) to = Math.min(to, i);
+        if(i>idx && center > r.top + r.height/2) to = Math.max(to, i);
+      });
+      groups.forEach((g,i)=>{
+        if(i===idx) return;
+        let shift = 0;
+        if(idx<to && i>idx && i<=to) shift = -h;
+        if(idx>to && i<idx && i>=to) shift = h;
+        g.style.transform = shift ? `translateY(${shift}px)` : '';
+      });
+    };
+    function end(){
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      window.removeEventListener('touchmove', blockScroll);
+      if(!armed) return;
+      block.classList.remove('pg-dragging');
+      if(!dragging || to===idx){ groups.forEach(g=>g.style.transform=''); return; }
+      // 落位：被拖的那块缓动到空位，然后按新顺序重画
+      const offset = to>idx ? rects[to].bottom - rects[idx].bottom : rects[to].top - rects[idx].top;
+      block.classList.add('pg-settle');
+      block.style.transform = `translateY(${offset}px)`;
+      setTimeout(()=>{
+        const moved = positionDraft.splice(idx, 1)[0];
+        positionDraft.splice(to, 0, moved);
+        positionDraftReordered = true;
+        renderPositionEditor();
+      }, 200);
+    }
+    window.addEventListener('pointermove', move, {passive:false});
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  });
+}
 function renderPositionEditor(){
   const box = document.getElementById('positionItems');
   const showExclusive = positionDraft.length>1;
@@ -4895,15 +4963,11 @@ function renderPositionEditor(){
         <div class="position-name-row">
           <input type="text" class="position-name-input" value="${escapeHtml(item.name)}" placeholder="例如：总行部门校招生">
           <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
-          ${positionDraft.length>1 ? `<span class="position-move">
-            <button class="position-move-btn" type="button" data-dir="-1" title="上移" aria-label="上移"${idx===0?' disabled':''}>↑</button>
-            <button class="position-move-btn" type="button" data-dir="1" title="下移" aria-label="下移"${idx===positionDraft.length-1?' disabled':''}>↓</button>
-          </span>` : ''}
           ${(positionDraft.length>1 && !item._existingId) ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>'
             : (positionDraft.length>1 && positionDraft.some(x=>!x._existingId)) ? '<span class="position-group-del" aria-hidden="true" style="visibility:hidden">&times;</span>' : ''}
         </div>
-        <button class="add-item-btn position-note-toggle" type="button" data-idx="${idx}">岗位备注${(!item._noteOpen && item.note) ? `<span class="position-note-peek">· ${escapeHtml(item.note)}</span>` : ''} ${item._noteOpen?'▴':'▾'}</button>
-        <textarea class="position-note-input" data-idx="${idx}" placeholder="岗位备注" style="display:${item._noteOpen?'block':'none'}">${escapeHtml(item.note||'')}</textarea>
+        <button class="add-item-btn position-note-toggle" type="button" data-idx="${idx}">备注${(!item._noteOpen && item.note) ? `<span class="position-note-peek">· ${escapeHtml(item.note)}</span>` : ` ${item._noteOpen?'−':'+'}`}</button>
+        <textarea class="position-note-input" data-idx="${idx}" placeholder="备注" style="display:${item._noteOpen?'block':'none'}">${escapeHtml(item.note||'')}</textarea>
         <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
         <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
           <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
@@ -4919,27 +4983,7 @@ function renderPositionEditor(){
 
   box.querySelectorAll('.position-group').forEach(block=>{
     const idx = Number(block.dataset.idx);
-    block.querySelectorAll('.position-move-btn').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const to = idx + Number(btn.dataset.dir);
-        if(to<0 || to>=positionDraft.length) return;
-        // 交换前记下每个岗位块的位置，重画后从旧位置滑到新位置
-        const before = new Map([...box.querySelectorAll('.position-group')].map(el=>[positionDraft[Number(el.dataset.idx)], el.getBoundingClientRect().top]));
-        [positionDraft[idx], positionDraft[to]] = [positionDraft[to], positionDraft[idx]];
-        positionDraftReordered = true;
-        renderPositionEditor();
-        box.querySelectorAll('.position-group').forEach(el=>{
-          const old = before.get(positionDraft[Number(el.dataset.idx)]);
-          const dy = old==null ? 0 : old - el.getBoundingClientRect().top;
-          if(Math.abs(dy)>1 && !fxReduced()) el.animate([{transform:`translateY(${dy}px)`},{transform:'none'}], {duration:360, easing:'cubic-bezier(.22,1,.36,1)'});
-        });
-        const moved = box.querySelector(`.position-group[data-idx="${to}"] .position-move-btn[data-dir="${btn.dataset.dir}"]`);
-        if(moved && !moved.disabled) moved.focus();
-      });
-    });
-    block.querySelector('.position-name-input').addEventListener('input', e=>{
-      positionDraft[idx].name = e.target.value;
-    });
+    bindPositionGroupDrag(block, idx, box);
     block.querySelector('.position-note-toggle').addEventListener('click', ()=>{
       positionDraft[idx]._noteOpen = !positionDraft[idx]._noteOpen;
       renderPositionEditor();
