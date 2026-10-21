@@ -1777,6 +1777,13 @@
   .ask-ok.danger{background:var(--red);}
   .ask-ok:hover{filter:brightness(1.08);}
   .ask-btn:focus-visible{outline:2px solid var(--lavender,var(--blue));outline-offset:2px;}
+  /* 进度概览拖动排序 */
+  .overview-grid .overview-item.ov-stage{cursor:grab;-webkit-touch-callout:none;user-select:none;}
+  .overview-grid .overview-item.ov-armed{transform:scale(1.03);}
+  .overview-grid .overview-item.ov-stage:not(.ov-dragging){transition:transform .22s cubic-bezier(.2,.8,.2,1), color .3s ease;}
+  .overview-grid .overview-item.ov-dragging{z-index:5 !important;cursor:grabbing;transition:none;
+    background:var(--surface,#fff) !important;box-shadow:0 12px 28px rgba(0,0,0,.16) !important;}
+  .overview-grid .overview-item.ov-dragging.ov-settle{transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;}
   /* ---- 动效 ---- */
   @keyframes numBump{0%{transform:none;}35%{transform:translateY(-2px) scale(1.08);}100%{transform:none;}}
   .num-bump{display:inline-block;animation:numBump .45s cubic-bezier(.34,1.56,.64,1);}
@@ -3317,6 +3324,79 @@ function placeOverviewSlider(el){
   slider.style.height = to.height + 'px';
   active.classList.add('ov-arrive');
 }
+// 进度概览里各环节的顺序可以拖动调整（上面待处理/收藏/全部/已进行四项固定不动）。
+// 顺序只是显示偏好，记在这台设备的浏览器里，不进数据库。
+const OVERVIEW_ORDER_KEY = 'wangshen_overview_order';
+function getOverviewOrder(){ try{ return JSON.parse(localStorage.getItem(OVERVIEW_ORDER_KEY)||'[]'); }catch(e){ return []; } }
+function sortByOverviewOrder(stages){
+  const order = getOverviewOrder();
+  const rank = k=>{ const i = order.indexOf(k); return i<0 ? Infinity : i; };
+  return stages.map((s,i)=>({s,i})).sort((a,b)=>(rank(a.s.key)-rank(b.s.key)) || (a.i-b.i)).map(o=>o.s);
+}
+let overviewDragJustEnded = false;
+function bindOverviewDrag(el){
+  const items = ()=>[...el.querySelectorAll('.overview-item.ov-stage')];
+  items().forEach(item=>{
+    item.addEventListener('pointerdown', e=>{
+      if(e.button!==0) return;
+      const startY = e.clientY;
+      const touch = e.pointerType==='touch';
+      // 触屏：长按 0.35 秒才开始拖，手指先动了就当是在滑页面；电脑：按住移动 6px 就开始拖
+      let armed = !touch, dragging = false, list, rects, from, to, step;
+      const blockScroll = ev=>{ if(dragging) ev.preventDefault(); };
+      const holdTimer = touch ? setTimeout(()=>{ armed = true; item.classList.add('ov-armed'); }, 350) : null;
+      if(touch) window.addEventListener('touchmove', blockScroll, {passive:false});
+      const move = ev=>{
+        const dy = ev.clientY - startY;
+        if(!dragging){
+          if(!armed){ if(Math.abs(dy) > 8){ clearTimeout(holdTimer); up(); } return; }
+          if(Math.abs(dy) < (touch ? 1 : 6)) return;
+          dragging = true;
+          list = items(); rects = list.map(x=>x.getBoundingClientRect());
+          from = list.indexOf(item); to = from;
+          step = list.length>1 ? rects[1].top - rects[0].top : rects[0].height + 8;
+          item.classList.add('ov-dragging');
+          try{ item.setPointerCapture(e.pointerId); }catch(_){}
+        }
+        ev.preventDefault();
+        const minDy = rects[0].top - rects[from].top, maxDy = rects[rects.length-1].top - rects[from].top;
+        const cy = Math.max(minDy, Math.min(maxDy, dy));
+        item.style.transform = `translateY(${cy}px) scale(1.03)`;
+        to = Math.max(0, Math.min(list.length-1, Math.round(from + cy/step)));
+        list.forEach((x,i)=>{
+          if(x===item) return;
+          let shift = 0;
+          if(from<to && i>from && i<=to) shift = -step;
+          if(from>to && i<from && i>=to) shift = step;
+          x.style.transform = shift ? `translateY(${shift}px)` : '';
+        });
+      };
+      function up(){
+        clearTimeout(holdTimer);
+        item.classList.remove('ov-armed');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        window.removeEventListener('touchmove', blockScroll);
+        if(!dragging) return;
+        overviewDragJustEnded = true;
+        setTimeout(()=>{ overviewDragJustEnded = false; }, 0);
+        // 落位：被拖的那项缓动到新位置，再按新顺序保存、重画
+        item.style.transform = `translateY(${(to-from)*step}px)`;
+        item.classList.add('ov-settle');
+        setTimeout(()=>{
+          const keys = list.map(x=>x.dataset.key);
+          keys.splice(to, 0, keys.splice(from, 1)[0]);
+          try{ localStorage.setItem(OVERVIEW_ORDER_KEY, JSON.stringify(keys)); }catch(_){}
+          renderProgressOverview();
+        }, 200);
+      }
+      window.addEventListener('pointermove', move, {passive:false});
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+  });
+}
 function renderProgressOverview(){
   // 每一项都显示"公司数 / 岗位数"：公司数跟顶部统计、看板的口径一致（数公司），
   // 岗位数是同样条件下满足的岗位本身。
@@ -3331,7 +3411,7 @@ function renderProgressOverview(){
     {key:'favorite', tone:'ov-lime ov-gap', label:'收藏公司', ...countOf(submitted.filter(p=>{ const c=getCompany(p.companyId); return c && c.favorite; }))},
     {key:'all', label:'全部', ...countOf(submitted)},
     {key:'started', label:'已进行', title:'已经走过环节或设了提醒、还没结束的公司', ...countOf(submitted.filter(p=>positionInProgress(p, getCompany(p.companyId))))},
-    ...PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key)).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), ...countOf(submitted.filter(p=>stageKeys.get(p.id).has(s.key)))}))
+    ...sortByOverviewOrder(PROGRESS_STAGES.filter(s=>STAGE_USED.has(s.key))).map(s=>({key:s.key, label:s.label, color:stageColor(s.key), stage:true, ...countOf(submitted.filter(p=>stageKeys.get(p.id).has(s.key)))}))
   ];
   const noFilter = !submittedAttentionFilter && !submittedStartedFilter && !submittedFavoriteFilter && !submittedStageFilter;
   const el = document.getElementById('progressOverview');
@@ -3340,7 +3420,7 @@ function renderProgressOverview(){
     <div class="overview-grid">
       ${items.map(it=>{
         const active = it.key==='all' ? noFilter : it.key==='attention' ? submittedAttentionFilter : it.key==='started' ? submittedStartedFilter : (it.key==='favorite' ? submittedFavoriteFilter : submittedStageFilter===it.key);
-        return `<button type="button" class="overview-item${it.tone?' '+it.tone:''}${active?' active':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
+        return `<button type="button" class="overview-item${it.tone?' '+it.tone:''}${active?' active':''}${it.stage?' ov-stage':''}" data-key="${it.key}"${it.title?` title="${it.title}"`:''}><span>${it.label}</span><strong>${it.companies}<small> / ${it.positions}</small></strong></button>`;
       }).join('')}
     </div>
     <button type="button" class="overview-manage" id="manageStagesBtn">管理环节 · 改名</button>
@@ -3350,8 +3430,10 @@ function renderProgressOverview(){
   // 的统计口径完全一致（见上面 favCount/stageCounts 怎么数的）。
   placeOverviewSlider(el);
   fxNumbers();
+  bindOverviewDrag(el);
   el.querySelectorAll('.overview-item').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(overviewDragJustEnded) return;
       // 一次只选一项：点一项就只按这一项筛（其它的取消），再点一下已选中的就回到"全部"。
       const key = btn.dataset.key;
       const wasActive = btn.classList.contains('active');
@@ -5950,7 +6032,7 @@ function openStageNodePop(stepEl, pos, initialKey){
     const own = positionHasOwnStage(p, key) && !stageHiddenOnPosition(p, key);
     if(!own && !hasCompanyStage(p)) return '';
     return `<div class="dp-tools">
-      ${own ? `<button type="button" class="dp-tool" data-action="relabel">换环节</button>` : ''}
+      ${own ? `<button type="button" class="dp-tool" data-action="relabel">改名 / 换环节</button>` : ''}
       <button type="button" class="dp-tool danger${armedRemove?' armed':''}" data-action="remove">${armedRemove?'确认删除':'删除'}</button>
     </div>`;
   };
