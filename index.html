@@ -1900,6 +1900,7 @@
 
   <div id="remindersView" style="display:none;">
     <div class="reminders-toolbar">
+      <button class="btn btn-ghost" id="exportIcsBtn" type="button">加到日历</button>
       <button class="btn btn-ghost" id="pasteImportBtn" type="button">粘贴导入</button>
       <button class="btn btn-primary" id="addReminderBtn" type="button">+ 添加提醒</button>
     </div>
@@ -4118,6 +4119,85 @@ function closeReminderDrawer(){
   reminderEditTarget = null;
 }
 document.getElementById('addReminderBtn').addEventListener('click', openReminderDrawerForAdd);
+
+/* ---- 加到日历：把还没完成的提醒导出成 .ics 日历文件 ----
+   每条提醒的 UID 固定（范围|id|环节），再导一次日历会认成同一条去更新。
+   有具体时间的：那个时间开始、30 分钟，提前 1 天和 1 小时提醒；只有日期的：全天，
+   前一天 9 点和当天 9 点提醒。时间不带时区，按手机/电脑当地时间算。 */
+function icsEscape(t){
+  return String(t||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+}
+// 每行不超过 75 字节，超了折到下一行（续行开头一个空格）
+function icsFold(line){
+  const enc = new TextEncoder();
+  if(enc.encode(line).length<=75) return line;
+  const out = [];
+  let cur = '', bytes = 0;
+  for(const ch of line){
+    const b = enc.encode(ch).length;
+    if(bytes + b > (out.length ? 74 : 75)){ out.push(cur); cur = ''; bytes = 0; }
+    cur += ch; bytes += b;
+  }
+  out.push(cur);
+  return out.join('\r\n ');
+}
+function buildRemindersIcs(items){
+  const pad = n=>String(n).padStart(2,'0');
+  const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+Z$/,'Z');
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//wangshen-tracker//CN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:网申提醒'];
+  items.forEach(item=>{
+    const isCompany = item.scope==='company';
+    const company = isCompany ? item.company : getCompany(item.position.companyId);
+    const id = isCompany ? item.company.id : item.position.id;
+    const [d, t] = String(item.date).split('T');
+    const ymd = d.replace(/-/g,'');
+    const title = `${company?company.name:'（未知公司）'} · ${item.stage.label}`;
+    const desc = [
+      isCompany ? '全部岗位通用' : (item.position.position||''),
+      item.note ? String(item.note).replace(/\*\*(.+?)\*\*/g,'$1') : '',
+      item.booked ? '已预约' : '',
+    ].filter(Boolean).join('\n');
+    const link = reminderLinkFor(item);
+    lines.push('BEGIN:VEVENT', `UID:${item.scope}-${id}-${item.stage.key}@wangshen-tracker`, `DTSTAMP:${stamp}`, `SEQUENCE:${Math.floor(Date.now()/1000)}`);
+    if(t){
+      const [hh, mm] = t.split(':').map(Number);
+      const end = new Date(+d.slice(0,4), +d.slice(5,7)-1, +d.slice(8,10), hh, mm+30);
+      lines.push(`DTSTART:${ymd}T${pad(hh)}${pad(mm)}00`,
+        `DTEND:${end.getFullYear()}${pad(end.getMonth()+1)}${pad(end.getDate())}T${pad(end.getHours())}${pad(end.getMinutes())}00`);
+    } else {
+      const next = new Date(+d.slice(0,4), +d.slice(5,7)-1, +d.slice(8,10)+1);
+      lines.push(`DTSTART;VALUE=DATE:${ymd}`, `DTEND;VALUE=DATE:${next.getFullYear()}${pad(next.getMonth()+1)}${pad(next.getDate())}`);
+    }
+    lines.push(`SUMMARY:${icsEscape(title)}`);
+    if(desc) lines.push(`DESCRIPTION:${icsEscape(desc)}`);
+    if(link) lines.push(`URL:${icsEscape(link)}`);
+    (t ? ['-P1D','-PT1H'] : ['-PT15H','PT9H']).forEach(tr=>{
+      lines.push('BEGIN:VALARM','ACTION:DISPLAY',`DESCRIPTION:${icsEscape(title)}`,`TRIGGER:${tr}`,'END:VALARM');
+    });
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.map(icsFold).join('\r\n') + '\r\n';
+}
+document.getElementById('exportIcsBtn').addEventListener('click', e=>{
+  const btn = e.currentTarget;
+  const items = getActiveReminders().filter(i=>!i.done && i.date);
+  clearTimeout(btn._resetTimer);
+  btn._resetTimer = setTimeout(()=>{ btn.textContent = '加到日历'; }, 2200);
+  if(!items.length){ btn.textContent = '没有待办提醒'; return; }
+  const blob = new Blob([buildRemindersIcs(items)], {type:'text/calendar;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  // iPhone/iPad：直接打开，Safari 会弹出"添加到日历"；电脑上下载文件，双击导入
+  if(/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1)){
+    location.href = url;
+  } else {
+    const a = document.createElement('a');
+    a.href = url; a.download = '网申提醒.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  btn.textContent = `已导出 ${items.length} 条`;
+});
 document.getElementById('reminderDrawerClose').addEventListener('click', closeReminderDrawer);
 document.getElementById('reminderCancelBtn').addEventListener('click', closeReminderDrawer);
 reminderOverlay.addEventListener('click', closeReminderDrawer);
