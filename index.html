@@ -1755,10 +1755,12 @@
     mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));}
   /* 公司备注：楷体紫色，看板卡片里跟公司名同一列 */
   /* 公司备注：放在所有岗位下面，青柠深色字（跟灰色的岗位备注区分开），左边缘跟星星对齐 */
-  .company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;font-weight:600;line-height:1.5;overflow-wrap:anywhere;
-    color:#5f7a12;margin-top:10px;padding:0;}
-  :root:not([data-theme="lime"]) .company-note{color:var(--blue);}
-  #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
+  /* 当成岗位列表的最后一行：上面一条小虚线跟岗位隔开 */
+  .company-note{margin-top:6px;padding:8px 0 2px;border-top:1px dashed rgba(0,0,0,.14);overflow-wrap:anywhere;}
+  /* 第一行"备注："紫色小标题，换行后是内容，内容跟岗位备注一样灰色楷体 */
+  .company-note-label{font-size:13px;font-weight:800;color:var(--purple);margin-bottom:2px;}
+  .company-note-text{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:15px;line-height:1.5;color:var(--text-3);}
+    #f-company-note{font-family:"Kaiti SC","STKaiti","KaiTi",serif;}
   /* 岗位备注默认折叠；岗位要求/图片入口不用了，先藏起来（数据保留） */
   .position-note-toggle{display:flex;align-items:center;gap:4px;max-width:100%;margin-top:-2px;padding:2px 2px 4px;}
   #positionItems .position-name-row{margin-bottom:4px;}
@@ -2891,7 +2893,7 @@ function renderGroupedCards(list, status, reviewStage){
             </div>
           </div>
           <div class="position-list">${positionLines}</div>
-          ${company && company.note ? `<div class="company-note">${linkifyNote(company.note)}</div>` : ''}
+          ${company && company.note ? `<div class="company-note"><div class="company-note-label">备注：</div><div class="company-note-text">${linkifyNote(company.note)}</div></div>` : ''}
           ${totalCount>0 ? `<div class="meta-row" style="justify-content:flex-end;"><span class="chip gray">待办 ${doneCount}/${totalCount}</span></div>` : ''}
           ${crossCount>0 ? otherPositionsHtml(g.companyId, status, reviewStage) : ''}
         </div>
@@ -3599,7 +3601,7 @@ function renderSubmittedList(){
           </div>
         </div>
         ${sortPositions(g.list).map(p=>renderRole(p, defaultLink, company, sharedLoc)).join('')}
-        ${company && company.note ? `<div class="company-note">${linkifyNote(company.note)}</div>` : ''}
+        ${company && company.note ? `<div class="company-note"><div class="company-note-label">备注：</div><div class="company-note-text">${linkifyNote(company.note)}</div></div>` : ''}
         ${crossCount>0 ? otherPositionsHtml(g.companyId, 'submitted', undefined) : ''}
       </article>
     `;
