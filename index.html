@@ -1201,9 +1201,9 @@
 
   .role{
     position:relative;
-    /* 名字栏固定一个舒服的宽度（卡片宽的 24%，夹在 200–300px 之间），长名字在栏里换行，
-       整页所有卡片的轨道起点都在同一条竖线上。 */
-    display:grid;grid-template-columns:clamp(200px, 24%, 300px) 1fr auto;gap:20px;align-items:start;
+    /* 名字栏宽度按"这张卡里最长的岗位名"来（脚本量出来写进卡片的 --name-w，夹在 120–300px），
+       同一张卡里各行轨道起点严格对齐；名字短的卡，轨道就紧跟在名字后面。超长名字在栏里换行。 */
+    display:grid;grid-template-columns:min(var(--name-w, clamp(200px, 24%, 300px)), 40%) 1fr auto;gap:20px;align-items:start;
     padding:12px 0;border-bottom:1px solid var(--line);
   }
   .role:last-child{border-bottom:0;}
@@ -6760,7 +6760,28 @@ backTopBtn.addEventListener('click', ()=>{
 });
 /* ---- 动效：滚动浮现、数字滚动、弹窗从点击处展开、删除收起、轨道节点让位 ---- */
 const fxReduced = ()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-function fxAfterRender(){ fxReveal(); fxColumnFade(); }
+function fxAfterRender(){ alignRoleColumns(); fxReveal(); fxColumnFade(); }
+// 已提交卡片：名字栏宽度 = 这张卡里最长岗位名的实际宽度（含前面"+"的位置和链接按钮），夹在 120–300px。
+// 先把栏放到最宽量一遍，再写回；页面隐藏着量不出来的卡跳过，切到那页时会再算。
+function alignRoleColumns(){
+  document.querySelectorAll('#submittedList .progress-company').forEach(card=>{
+    const names = card.querySelectorAll('.role .role-name');
+    if(!names.length || !card.offsetWidth) return;
+    card.style.setProperty('--name-w', '300px');
+    let w = 0;
+    names.forEach(nm=>{
+      const cs = getComputedStyle(nm);
+      let inner = 0, n = 0;
+      [...nm.children].forEach(ch=>{
+        if(getComputedStyle(ch).position==='absolute') return;
+        inner += ch.getBoundingClientRect().width; n++;
+      });
+      inner += Math.max(0, n-1) * (parseFloat(cs.columnGap)||0) + (parseFloat(cs.paddingLeft)||0);
+      w = Math.max(w, Math.ceil(inner));
+    });
+    card.style.setProperty('--name-w', Math.min(300, Math.max(120, w)) + 'px');
+  });
+}
 
 // 滚动浮现：卡片第一次滑进屏幕时淡入上浮，同一批错开一点；看过的不再重复。
 // 重画时已经在屏幕上的卡交给补位/淡入那套动效，这里不藏。
