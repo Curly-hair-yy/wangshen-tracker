@@ -679,8 +679,12 @@
     cursor:pointer;
     color:var(--text-2);
     display:flex;align-items:center;justify-content:center;gap:6px;
-    transition:background .15s ease, color .15s ease;
+    transition:background .15s ease, color .15s ease, transform .3s cubic-bezier(.34,1.56,.64,1);
   }
+  /* 悬停没选中的状态：字轻轻往上弹一下、变深，前面的小圆点放大 */
+  .status-toggle button:not(.active):hover{transform:translateY(-2px);color:var(--ink);}
+  .status-toggle button:not(.active):hover::before{transform:scale(1.45);}
+  .status-toggle button:active{transform:scale(.96);transition-duration:.08s;}
   .status-toggle button.active{
     background:var(--glass-strong);
     color:var(--ink);
@@ -688,7 +692,7 @@
     box-shadow:var(--shadow);
   }
   .status-toggle button::before{
-    content:"";width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--gray);
+    content:"";width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--gray);transition:transform .3s cubic-bezier(.34,1.56,.64,1);
   }
   .status-toggle button[data-v="todo"]::before{background:var(--blue);}
   .status-toggle button[data-v="inprogress"]::before{background:var(--orange);}
