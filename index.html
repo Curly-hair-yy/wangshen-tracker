@@ -5431,6 +5431,7 @@ function renderPositionEditor(){
     });
     // 打岗位名时，地点框里用灰字提示自动认出来的地点（不填就按这个存）
     block.querySelector('.position-name-input').addEventListener('input', e=>{
+      positionDraft[idx].name = e.target.value;
       block.querySelector('.position-location-input').placeholder = locationPlaceholder(e.target.value);
     });
     block.querySelector('.position-location-input').addEventListener('input', e=>{
