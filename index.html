@@ -7876,6 +7876,7 @@ let syncId = localStorage.getItem(SYNC_ID_KEY) || '';
 let syncConfig = loadSyncConfig();
 let sb = null;
 let realtimeChannel = null;
+let changeSignalChannel = null;
 let syncQueue = loadSyncQueue();
 let syncState = { phase: 'disconnected', lastSyncedAt: null, lastError: '' };
 let retryTimer = null;
@@ -8010,6 +8011,7 @@ async function flushQueue(){
   syncQueue = syncQueue.filter(t=>!succeeded.has(t));
   saveSyncQueue();
   flushing = false;
+  if(succeeded.size) sendChangeSignal();
   if(syncQueue.length===0){
     setSyncState('synced');
   } else if(remaining.length>0){
@@ -8096,6 +8098,23 @@ function subscribeRealtime(){
     .on('postgres_changes', { event:'*', schema:'public', table:'positions', filter:`sync_id=eq.${syncId}` }, handleRemoteChange('positions'))
     .subscribe();
 }
+// "有更新"信号：只是一声通知、不带任何数据（数据库规则收紧后实时推送拿不到行内容），
+// 频道名带同步码，只有同一个同步码的设备在听。收到后稍等一下再拉，连续几声只拉一次。
+let changeSignalTimer = null;
+function subscribeChangeSignal(){
+  if(!sb) return;
+  if(changeSignalChannel){ sb.removeChannel(changeSignalChannel); changeSignalChannel = null; }
+  changeSignalChannel = sb.channel('ws-'+syncId, {config:{broadcast:{self:false}}})
+    .on('broadcast', {event:'changed'}, ()=>{
+      clearTimeout(changeSignalTimer);
+      changeSignalTimer = setTimeout(()=>pullAndMerge(), 500);
+    })
+    .subscribe();
+}
+function sendChangeSignal(){
+  if(!changeSignalChannel) return;
+  try{ changeSignalChannel.send({type:'broadcast', event:'changed', payload:{}}); }catch(e){}
+}
 function handleRemoteChange(table){
   return (payload)=>{
     const list = table==='companies' ? companies : positions;
@@ -8168,7 +8187,8 @@ setInterval(()=>{ if(syncState.phase==='synced') renderSyncIndicator(); }, 30000
 /* ---- 初始化 / 切换 Supabase 客户端 ---- */
 function initSupabaseClient(){
   if(!syncConfig.url || !syncConfig.key){ sb = null; return; }
-  sb = window.supabase.createClient(syncConfig.url, syncConfig.key);
+  // 每个请求都在请求头里带上同步码：数据库规则只让读写"请求头里同步码对应的那些行"
+  sb = window.supabase.createClient(syncConfig.url, syncConfig.key, {global:{headers:{'x-sync-id': syncId||''}}});
 }
 async function startSync(){
   renderSyncIndicator();
@@ -8180,6 +8200,7 @@ async function startSync(){
   initSupabaseClient();
   await pullAndMerge();
   subscribeRealtime();
+  subscribeChangeSignal();
   flushQueue();
 }
 function maybeShowFirstRunBanner(){
