@@ -2118,8 +2118,8 @@
     .help-fill-btn{position:relative;}
     .help-fill-btn::after{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%);}
   }
-  /* 看板岗位名点一下就复制：悬停变深、光标提示可复制，复制后名字上方冒出"已复制"小胶囊 */
-  #board .position-line .position{cursor:copy;position:relative;border-radius:4px;transition:color .15s ease, background .15s ease;}
+  /* 看板岗位名点一下就复制：悬停底色变深，复制后名字上方冒出"已复制"小胶囊 */
+  #board .position-line .position{cursor:pointer;position:relative;border-radius:4px;transition:color .15s ease, background .15s ease;}
   #board .position-line .position:hover{color:var(--ink);background:var(--field);}
   #board .position-line .position.copied::after{content:"已复制";position:absolute;left:0;bottom:calc(100% + 4px);z-index:3;
     font-size:11px;font-weight:500;line-height:1;padding:4px 8px;border-radius:999px;white-space:nowrap;
