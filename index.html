@@ -2118,6 +2118,13 @@
     .help-fill-btn{position:relative;}
     .help-fill-btn::after{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%);}
   }
+  /* 看板岗位名点一下就复制：悬停变深、光标提示可复制，复制后名字上方冒出"已复制"小胶囊 */
+  #board .position-line .position{cursor:copy;position:relative;border-radius:4px;transition:color .15s ease, background .15s ease;}
+  #board .position-line .position:hover{color:var(--ink);background:var(--field);}
+  #board .position-line .position.copied::after{content:"已复制";position:absolute;left:0;bottom:calc(100% + 4px);z-index:3;
+    font-size:11px;font-weight:500;line-height:1;padding:4px 8px;border-radius:999px;white-space:nowrap;
+    background:var(--charcoal,var(--blue));color:#fff;animation:copiedPop 1.2s ease forwards;pointer-events:none;}
+  @keyframes copiedPop{0%{opacity:0;transform:translateY(4px) scale(.9);}15%{opacity:1;transform:none;}80%{opacity:1;}100%{opacity:0;}}
 </style>
 </head>
 <body>
@@ -3243,6 +3250,17 @@ function renderBoard(){
   });
   document.querySelectorAll('.card').forEach(el=>{
     el.addEventListener('click', ()=> openCompanyDetail(el.dataset.companyId, el.dataset.status, el.dataset.reviewStage||undefined));
+  });
+  // 看板卡片：点岗位名直接复制（方便去网申系统里搜岗位），点卡片其它地方照常打开详情
+  document.querySelectorAll('#board .position-line .position').forEach(el=>{
+    el.title = '点击复制岗位名';
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      copyText(el.textContent.trim());
+      el.classList.remove('copied'); void el.offsetWidth; el.classList.add('copied');
+      clearTimeout(el._copiedTimer);
+      el._copiedTimer = setTimeout(()=>el.classList.remove('copied'), 1200);
+    });
   });
   document.querySelectorAll('.card-del-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
