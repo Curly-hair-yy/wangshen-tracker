@@ -7259,6 +7259,7 @@ function openCompanyDetail(companyId, status, reviewStage){
     openDrawer(null);
     document.getElementById('f-company').value = company ? company.name : '';
     renderOtherPositionsBox();
+    validateCompanyField();
   };
 
   companyDetailOverlay.classList.add('active');
