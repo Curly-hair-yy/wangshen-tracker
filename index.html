@@ -2104,6 +2104,20 @@
     .reminder-note{padding:6px 10px;}
     .reminders-toolbar{margin-bottom:12px;}
   }
+  /* 待填写栏的"请帮填"小笔：没标是浅色描边笔，标了变珊瑚色实心底；标了的卡片描一圈珊瑚色，排在最上面一组 */
+  .help-fill-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:28px;padding:0;border:none;background:none;
+    color:var(--text-4);cursor:pointer;flex-shrink:0;transition:color .15s ease, transform .15s ease;}
+  .help-fill-btn:hover{color:#d9734e;}
+  .help-fill-btn:active{transform:scale(.85);}
+  .help-fill-btn.active{color:#d9734e;}
+  .help-fill-btn.active svg{fill:#fbe3d9;}
+  .card.help-fill{box-shadow:0 0 0 1.5px #f0b49c, var(--shadow-card);}
+  .day-group-label.help-fill-label{display:flex;align-items:center;gap:4px;color:#c4643f;}
+  .day-group-label.help-fill-label svg{width:12px;height:12px;}
+  @media (pointer:coarse){
+    .help-fill-btn{position:relative;}
+    .help-fill-btn::after{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%);}
+  }
 </style>
 </head>
 <body>
@@ -2856,6 +2870,7 @@ function saveUiPrefs(){ safeSetItem(UI_PREFS_KEY, JSON.stringify(uiPrefs)); }
 let uiPrefs = loadUiPrefs();
 
 const ICON_PUSHPIN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V5h6v5.76l2.4 2.8A1 1 0 0 1 16.64 15H7.36a1 1 0 0 1-.76-1.44z"/><path d="M8 5h8"/></svg>';
+const ICON_PEN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.83 2.83 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
 const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
@@ -3113,14 +3128,17 @@ function renderGroupedCards(list, status, reviewStage){
   // "按截止时间"：卡片按最近的截止日期归组，日期近的在前，没截止时间的放最后
   const byDeadline = boardSortMode==='deadline';
   if(byDeadline) allGroups.forEach(g=>{ g.dayKey = g.list.map(x=>x.deadline).filter(Boolean).sort()[0] || 'none'; });
+  // 待填写栏：标了"请帮填"（小笔）的公司单独放在最上面一组
+  if(status==='todo') allGroups.forEach(g=>{ const c = getCompany(g.companyId); if(c && c.helpFill) g.dayKey = 'help'; });
   const dayMap = new Map();
   allGroups.forEach(g=>{
     if(!dayMap.has(g.dayKey)) dayMap.set(g.dayKey, []);
     dayMap.get(g.dayKey).push(g);
   });
-  const dayKeys = byDeadline
+  const dayKeys = (byDeadline
     ? [...dayMap.keys()].sort((a,b)=> a==='none' ? 1 : b==='none' ? -1 : a.localeCompare(b))
-    : [...dayMap.keys()].sort((a,b)=>b.localeCompare(a));
+    : [...dayMap.keys()].sort((a,b)=>b.localeCompare(a)))
+    .sort((a,b)=>(b==='help') - (a==='help'));
 
   return dayKeys.map(dayKey=>{
     const groups = dayMap.get(dayKey);
@@ -3160,10 +3178,12 @@ function renderGroupedCards(list, status, reviewStage){
         `;
       }).join('');
       return `
-        <div class="card" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
+        <div class="card${status==='todo' && company && company.helpFill ? ' help-fill' : ''}" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}">
           <button class="card-del-btn" type="button" data-company-id="${g.companyId}" data-status="${status}" data-review-stage="${reviewStage||''}" title="删除这张卡里的所有岗位">&times;</button>
           <div class="company-row">
-            <button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>
+            ${status==='todo'
+              ? `<button class="help-fill-btn${company&&company.helpFill?' active':''}" type="button" data-company-id="${g.companyId}" title="${company&&company.helpFill?'取消请帮填':'标记请帮填'}" aria-label="${company&&company.helpFill?'取消请帮填':'标记请帮填'}">${ICON_PEN}</button>`
+              : `<button class="favorite-star${company&&company.favorite?' active':''}" type="button" data-company-id="${g.companyId}" title="收藏这家公司" aria-label="收藏这家公司">${company&&company.favorite?'★':'☆'}</button>`}
             <span class="company">${escapeHtml(company?company.name:'（未知公司）')}</span>
             <div class="right-tags">
               ${singleLocationTag(sharedLoc)}
@@ -3181,7 +3201,7 @@ function renderGroupedCards(list, status, reviewStage){
 
     return `
       <div class="day-group">
-        <div class="day-group-label">${byDeadline ? (dayKey==='none' ? '没有截止时间' : `${shortDateLabel(dayKey)} ${weekdayOf(dayKey)} 截止`) : relativeDayLabel(dayKey)}</div>
+        <div class="day-group-label${dayKey==='help' ? ' help-fill-label' : ''}">${dayKey==='help' ? ICON_PEN + '请帮填' : byDeadline ? (dayKey==='none' ? '没有截止时间' : `${shortDateLabel(dayKey)} ${weekdayOf(dayKey)} 截止`) : relativeDayLabel(dayKey)}</div>
         ${cardsHtml}
       </div>
     `;
@@ -3234,6 +3254,12 @@ function renderBoard(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       toggleFavorite(btn.dataset.companyId);
+    });
+  });
+  document.querySelectorAll('#board .help-fill-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleHelpFill(btn.dataset.companyId);
     });
   });
   document.querySelectorAll('.position-line-del').forEach(btn=>{
@@ -5986,6 +6012,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   saveData();
   if(companyTouched) queueUpsert('companies', company.id);
   touchedPositionIds.forEach(id=>queueUpsert('positions', id));
+  clearHelpFillIfLeftTodo(company.id);
   flushQueue();
   closeDrawer();
   const cardsBefore = snapshotCards();
@@ -6073,6 +6100,28 @@ function deletePosition(id){
 // 动画放完再整体重绘一次（收藏筛选、进度概览里的收藏数要跟着变）。之前只重绘了看板，
 // 在已提交页面点星星要等下次刷新才看得到变化。
 let favoriteRenderTimer = null;
+// "请帮填"（待填写栏的小笔）：标了的公司排到待填写最上面；这家公司没有待填写的岗位了就自动清掉
+function toggleHelpFill(companyId){
+  const company = getCompany(companyId);
+  if(!company) return;
+  company.helpFill = !company.helpFill;
+  company.updatedAt = new Date().toISOString();
+  saveData();
+  queueUpsert('companies', companyId);
+  flushQueue();
+  const before = snapshotCards();
+  renderBoard(); fxAfterRender();
+  playFlip(before);
+}
+function clearHelpFillIfLeftTodo(companyId){
+  const company = getCompany(companyId);
+  if(!company || !company.helpFill) return;
+  if(positions.some(p=>!p.deleted && p.companyId===companyId && p.status==='todo')) return;
+  company.helpFill = false;
+  company.updatedAt = new Date().toISOString();
+  saveData();
+  queueUpsert('companies', companyId);
+}
 function toggleFavorite(companyId){
   const company = getCompany(companyId);
   if(!company) return;
@@ -6171,6 +6220,7 @@ function bulkMoveCardGroup(companyId, fromStatus, fromReviewStage, toStatus, toR
   });
   saveData();
   list.forEach(p=>queueUpsert('positions', p.id));
+  clearHelpFillIfLeftTodo(companyId);
   flushQueue();
   const fromSel = fromStatus==='submitted'
     ? `#submittedList .card[data-company-id="${companyId}"]`
@@ -7866,6 +7916,7 @@ function companyToRemote(c){
     sort_index:(c.sortIndex===undefined?null:c.sortIndex), date_override:c.dateOverride||null,
     stage_deadlines:c.stageDeadlines||{}, note:c.note||'',
     pinned:!!c.pinned, pin_index:(typeof c.pinIndex==='number' ? c.pinIndex : null),
+    help_fill:!!c.helpFill,
   };
 }
 function companyFromRemote(row){
@@ -7875,6 +7926,7 @@ function companyFromRemote(row){
     sortIndex:(row.sort_index===undefined?null:row.sort_index), dateOverride:row.date_override||null,
     stageDeadlines:row.stage_deadlines||{}, note:row.note||'',
     pinned:!!row.pinned, pinIndex:(typeof row.pin_index==='number' ? row.pin_index : null),
+    helpFill:!!row.help_fill,
   };
 }
 function positionToRemote(p){
