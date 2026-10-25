@@ -1495,7 +1495,7 @@
   /* 没完成的提醒：预约 | 倒计时 | 日期 | 周几 | 时间 | 删除，各占固定宽度的一列，
      每张卡片的这几样上下严格对齐 */
   /* 右侧：预约胶囊 | 周几+时间标签 | 日期（按紧急程度变色）| 删除，每样固定宽度，上下对齐 */
-  .reminder-meta-grid{display:grid;grid-template-columns:72px 88px 64px 52px;column-gap:8px;justify-items:start;align-items:center;}
+  .reminder-meta-grid{display:grid;grid-template-columns:72px 88px 64px;column-gap:8px;justify-items:start;align-items:center;}
   /* 没完成的提醒：删除按钮不占右边的一列，悬停时出现在卡片右上角，日期就能贴近卡片右边 */
   .reminder-row{position:relative;}
   .reminder-meta-grid .reminder-delete-btn{position:absolute;top:6px;right:6px;width:22px;height:22px;font-size:12px;}
@@ -2125,18 +2125,17 @@
     font-size:11px;font-weight:500;line-height:1;padding:4px 8px;border-radius:999px;white-space:nowrap;
     background:var(--charcoal,var(--blue));color:#fff;animation:copiedPop 1.2s ease forwards;pointer-events:none;}
   @keyframes copiedPop{0%{opacity:0;transform:translateY(4px) scale(.9);}15%{opacity:1;transform:none;}80%{opacity:1;}100%{opacity:0;}}
-  /* "不参加"：跟"未预约"同一套虚线小胶囊，悬停变红；已完成里写"不参加"用灰色 */
-  .reminder-decline{display:inline-flex;align-items:center;justify-content:center;width:52px;height:28px;padding:0;border-radius:999px;
-    border:1.5px dashed var(--text-4);background:none;color:var(--text-3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;
-    transition:border-color .15s ease, color .15s ease, background .15s ease;}
-  .reminder-decline:hover{border-color:var(--red);color:var(--red-ink);background:var(--red-soft);}
+  /* 点圆圈弹出的小菜单：完成 / 不参加 */
+  .check-menu{position:absolute;z-index:200;display:flex;flex-direction:column;min-width:108px;padding:4px;border-radius:12px;
+    background:var(--glass-strong,#fff);box-shadow:0 10px 28px rgba(0,0,0,.14), 0 0 0 1px var(--line);animation:checkMenuIn .16s cubic-bezier(.2,.8,.2,1);}
+  @keyframes checkMenuIn{from{opacity:0;transform:translateY(-4px) scale(.96);}to{opacity:1;transform:none;}}
+  .check-menu button{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:none;border-radius:8px;background:none;
+    font:inherit;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;text-align:left;}
+  .check-menu button svg{width:13px;height:13px;}
+  .check-menu button[data-act="done"]:hover{background:var(--green-soft);color:var(--green);}
+  .check-menu button[data-act="decline"]{color:var(--text-2);padding-left:31px;}
+  .check-menu button[data-act="decline"]:hover{background:var(--red-soft);color:var(--red-ink);}
   .reminder-done-label.declined{color:var(--text-3);}
-  @media (max-width:640px){
-    .reminder-row .reminder-decline{position:absolute;top:12px;right:12px;height:26px;}
-    .reminder-row:has(.reminder-decline) .reminder-main{padding-right:56px;}
-  }
-  @media (pointer:coarse){ .reminder-decline{position:relative;} .reminder-decline::after{content:"";position:absolute;top:50%;left:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%);} }
-  @media (pointer:coarse) and (max-width:640px){ .reminder-row .reminder-decline{position:absolute;} }
 </style>
 </head>
 <body>
@@ -2737,6 +2736,46 @@ function setCompanyStageDeadline(company, key, date, note){
   company.stageDeadlines[key] = {date, note: note||'', done: existing?existing.done:false, doneDate: existing?existing.doneDate:''};
   if(existing && existing.booked) company.stageDeadlines[key].booked = true;
 }
+// 圆圈旁的小菜单：完成 = 原来的打勾；不参加 = 归到已完成并把对应已提交岗位标记为结束
+function closeCheckMenu(){
+  const m = document.getElementById('checkMenu');
+  if(m) m.remove();
+  document.removeEventListener('pointerdown', checkMenuOutside, true);
+  document.removeEventListener('keydown', checkMenuKey, true);
+}
+function checkMenuOutside(e){ if(!e.target.closest('#checkMenu')) closeCheckMenu(); }
+function checkMenuKey(e){ if(e.key==='Escape') closeCheckMenu(); }
+function openCheckMenu(btn){
+  closeCheckMenu();
+  const r = btn.getBoundingClientRect();
+  const m = document.createElement('div');
+  m.id = 'checkMenu';
+  m.className = 'check-menu';
+  m.innerHTML = `<button type="button" data-act="done">${ICON_CHECK}完成</button><button type="button" data-act="decline">不参加</button>`;
+  m.style.left = (r.left + window.scrollX) + 'px';
+  m.style.top = (r.bottom + window.scrollY + 6) + 'px';
+  document.body.appendChild(m);
+  m.addEventListener('click', e=>{
+    const b = e.target.closest('button');
+    if(!b) return;
+    e.stopPropagation();
+    closeCheckMenu();
+    const row = btn.closest('.reminder-row');
+    if(b.dataset.act==='done'){
+      btn._confirmed = true;
+      btn.click();
+    } else {
+      if(row) row.classList.add('row-out');
+      setTimeout(()=>setReminderDeclined(btn.dataset.scope, btn.dataset.id, btn.dataset.key, true), row ? 320 : 0);
+    }
+  });
+  setTimeout(()=>{
+    document.addEventListener('pointerdown', checkMenuOutside, true);
+    document.addEventListener('keydown', checkMenuKey, true);
+  }, 0);
+}
+// "不参加"：这条提醒归到已完成（记在提醒自己身上 declined），对应的已提交岗位标记为结束；
+// 公司级提醒连带这家公司名下所有已提交岗位。记下这次是哪些岗位被顺带改成结束的，撤销时只改回这些。
 function setReminderDeclined(scope, id, key, declined){
   const owner = scope==='company' ? getCompany(id) : positions.find(x=>x.id===id);
   if(!owner || !owner.stageDeadlines || !owner.stageDeadlines[key]) return;
@@ -4485,7 +4524,6 @@ function renderReminderRow(item){
         <button class="reminder-book${item.booked?' on':''}" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="${item.booked?'已经预约过了，点一下取消':'预约好了就点一下打勾，防止忘记'}">${item.booked?ICON_CHECK+'已预约':'未预约'}</button>
         <span class="rtag rtag-time">${reminderWeekday(item.date)} ${reminderTime(item.date)}</span>
         <span class="rdate ${reminderUrgency(item.date)}" title="${dateText}">${reminderShortDate(item.date)}</span>
-        <button class="reminder-decline" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="不参加：这条提醒归到已完成，对应岗位标记为结束">不参加</button>
         <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="删除这条提醒，不代表这个环节完成" aria-label="删除这条提醒">${ICON_TRASH}</button>
       </div>
     </div>
@@ -4551,8 +4589,13 @@ function renderRemindersList(){
   list.querySelectorAll('.reminder-check').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      // 先播一下动效（勾选圈弹一下，这一行往右滑出淡掉），再真正改数据、重画列表
+      // 还没完成的：先在圆圈旁边弹出小菜单，选"完成"或"不参加"
       const row = btn.closest('.reminder-row');
+      if(!btn.classList.contains('checked') && !btn._confirmed){
+        openCheckMenu(btn);
+        return;
+      }
+      // 先播一下动效（勾选圈弹一下，这一行往右滑出淡掉），再真正改数据、重画列表
       if(row && !row.classList.contains('row-out')){
         btn.classList.add('check-pop');
         if(!btn.classList.contains('checked')) btn.innerHTML = ICON_CHECK;
@@ -4602,20 +4645,6 @@ function renderRemindersList(){
       queueUpsert('positions', pos.id);
       flushQueue();
       renderAll();
-    });
-  });
-  // "不参加"：这条提醒归到已完成（记在提醒自己身上 declined），对应的已提交岗位标记为结束；
-  // 公司级提醒连带这家公司名下所有已提交岗位。记下这次是哪些岗位被顺带改成结束的，撤销时只改回这些。
-  list.querySelectorAll('.reminder-decline').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const row = btn.closest('.reminder-row');
-      if(row && !row.classList.contains('row-out')){
-        row.classList.add('row-out');
-        setTimeout(()=>btn.click(), 320);
-        return;
-      }
-      setReminderDeclined(btn.dataset.scope, btn.dataset.id, btn.dataset.key, true);
     });
   });
   // "已预约"打勾：存在这条提醒自己身上（stageDeadlines 里那条记录的 booked），再点一下取消
