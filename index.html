@@ -2135,7 +2135,20 @@
   .check-menu button[data-act="done"]:hover{background:var(--green-soft);color:var(--green);}
   .check-menu button[data-act="decline"]{color:var(--text-2);padding-left:31px;}
   .check-menu button[data-act="decline"]:hover{background:var(--red-soft);color:var(--red-ink);}
-  .reminder-done-label.declined{color:var(--text-3);}
+  /* 提醒事项三种状态：未完成 = 白卡片带阴影；已完成 / 不参加 = 平铺浅灰底、没阴影、文字变浅、备注收成一行（悬停展开）；
+     已完成是青柠实心圆 + 深橄榄勾、右侧青柠小胶囊，不参加是灰色实心圆 + 白色 ×、右侧灰色小胶囊 */
+  .reminder-row.done{opacity:1;background:var(--field);box-shadow:none;min-height:0;padding-top:12px;padding-bottom:12px;}
+  .reminder-row.done:hover{transform:none;}
+  .reminder-row.done .reminder-company{color:var(--text-2);}
+  .reminder-row.done .reminder-position{color:var(--text-3);}
+  .reminder-row.done .reminder-note{background:transparent;padding-left:0;padding-right:0;color:var(--text-3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .reminder-row.done:hover .reminder-note{white-space:normal;}
+  .reminder-row.done .reminder-check.checked{background:var(--lime,#cfdc8e);border-color:var(--lime,#cfdc8e);color:#3f4f12;}
+  .reminder-row.done.declined .reminder-check.checked{background:var(--ended,#b5b5b8);border-color:var(--ended,#b5b5b8);color:#fff;}
+  .reminder-done-label{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500;
+    background:#e8efc4;color:#4d6014;white-space:nowrap;}
+  .reminder-done-label.declined{background:var(--gray-soft);color:var(--gray-ink);}
 </style>
 </head>
 <body>
@@ -2969,6 +2982,7 @@ const ICON_PEN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" st
 const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const ICON_CHEVRON_DOWN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+const ICON_X_SMALL = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
 const ICON_TRASH = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 const ICON_CLOCK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>';
@@ -4487,8 +4501,8 @@ function renderReminderRow(item){
   const linkHtml = linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开网申链接" aria-label="打开网申链接">${ICON_LINK}</a>` : '';
   if(item.done){
     return `
-      <div class="reminder-row done" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" tabindex="0" title="点这里可以改日期、加备注">
-        <button class="reminder-check checked" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}"${item.declined?' data-declined="1"':''} title="${item.declined?'撤销不参加':'撤销完成'}" aria-label="${item.declined?'撤销不参加':'撤销完成'}">${ICON_CHECK}</button>
+      <div class="reminder-row done${item.declined?' declined':''}" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" tabindex="0" title="点这里可以改日期、加备注">
+        <button class="reminder-check checked" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}"${item.declined?' data-declined="1"':''} title="${item.declined?'撤销不参加':'撤销完成'}" aria-label="${item.declined?'撤销不参加':'撤销完成'}">${item.declined?ICON_X_SMALL:ICON_CHECK}</button>
         <div class="reminder-main">
           <div class="reminder-top-row">
             <span class="reminder-company">${escapeHtml(company?company.name:'（未知公司）')}</span>
@@ -4499,7 +4513,7 @@ function renderReminderRow(item){
         </div>
         ${noteHtml}
         <div class="reminder-meta">
-          <span class="reminder-done-label${item.declined?' declined':''}">${item.declined?'不参加':'已完成'}${item.doneDate ? ' · '+fmtDate(item.doneDate) : ''}</span>
+          <span class="reminder-done-label${item.declined?' declined':''}">${item.declined?'不参加':'已完成'}${item.doneDate ? ' '+shortDateLabel(item.doneDate) : ''}</span>
           <button class="reminder-delete-btn" type="button" data-scope="${item.scope}" data-id="${id}" data-key="${item.stage.key}" title="清掉这条提醒记录" aria-label="清掉这条提醒记录">${ICON_TRASH}</button>
         </div>
       </div>
