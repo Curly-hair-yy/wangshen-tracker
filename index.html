@@ -2149,6 +2149,9 @@
   .reminder-done-label{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500;
     background:#e8efc4;color:#4d6014;white-space:nowrap;}
   .reminder-done-label.declined{background:var(--gray-soft);color:var(--gray-ink);}
+  /* 拖岗位块时整页不选字，块里的输入框也不响应 */
+  body:has(#positionItems .pg-dragging){user-select:none;-webkit-user-select:none;}
+  #positionItems .position-group.pg-dragging input{pointer-events:none;}
 </style>
 </head>
 <body>
@@ -5435,12 +5438,16 @@ function deleteStorageImage(path){
 }
 
 // 岗位列表编辑器：新增网申时每个岗位一块，各自可以展开填写自己的岗位要求 + 多张图片
-// 编辑弹窗里的岗位：长按（电脑上按住 0.3 秒）整块拖动换顺序，松手后保存时写 sortIndex。
-// 在输入框、按钮上按下不触发，免得打字、点按钮时误拖。
+// 编辑弹窗里的岗位：长按 0.3 秒整块拖动换顺序，松手后保存时写 sortIndex。
+// 电脑上在输入框、"+ 备注"上长按也能拖（快速点一下照常打字/展开备注）；手机上输入框长按是系统的选字，
+// 所以手机只在输入框以外的地方长按才拖。上一次拖完还在落位时不接新的拖动，免得顺序算乱。
+let pgSettling = false;
 function bindPositionGroupDrag(block, idx, box){
   if(positionDraft.length<2) return;
   block.addEventListener('pointerdown', e=>{
-    if(e.button!==0 || e.target.closest('input, textarea, button, a, select')) return;
+    if(e.button!==0 || pgSettling) return;
+    if(e.target.closest('textarea, a, select, .position-group-del')) return;
+    if(e.pointerType==='touch' && e.target.closest('input, button')) return;
     const startY = e.clientY;
     let armed = false, dragging = false, groups, rects, to = idx, gap = 10, sp;
     const blockScroll = ev=>{ if(armed) ev.preventDefault(); };
@@ -5452,6 +5459,9 @@ function bindPositionGroupDrag(block, idx, box){
       if(rects.length>1) gap = rects[1].top - rects[0].bottom;
       block.classList.add('pg-dragging');
       sp = springDrag(block, groups, {scale:1.02});
+      // 从输入框里开始长按的：先让输入框失焦、清掉刚选中的文字，拖动时不会顺带选字
+      if(document.activeElement && block.contains(document.activeElement)) document.activeElement.blur();
+      try{ window.getSelection().removeAllRanges(); }catch(_){}
       try{ block.setPointerCapture(e.pointerId); }catch(_){}
     }, 300);
     const move = ev=>{
@@ -5484,9 +5494,17 @@ function bindPositionGroupDrag(block, idx, box){
       window.removeEventListener('touchmove', blockScroll);
       if(!armed) return;
       block.classList.remove('pg-dragging');
+      // 拖过的话，松手后紧跟着的那次点击（落在"+ 备注"之类上）不算数
+      if(dragging){
+        const swallow = ev=>{ ev.stopPropagation(); ev.preventDefault(); };
+        window.addEventListener('click', swallow, {capture:true, once:true});
+        setTimeout(()=>window.removeEventListener('click', swallow, {capture:true}), 0);
+      }
       // 落位：被拖的那块弹进空位，停稳后按新顺序重画（没换位置就弹回原处）
       const offset = !dragging || to===idx ? 0 : to>idx ? rects[to].bottom - rects[idx].bottom : rects[to].top - rects[idx].top;
+      pgSettling = true;
       sp.drop(offset, ()=>{
+        pgSettling = false;
         sp.stop();
         if(!dragging || to===idx){ groups.forEach(g=>g.style.transform=''); return; }
         const moved = positionDraft.splice(idx, 1)[0];
