@@ -2163,7 +2163,12 @@
     font-size:11px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
   .jd-chip svg{width:11px;height:11px;}
   .position-extra{margin-top:6px;border-radius:14px;transition:box-shadow .15s ease;}
-  .position-extra.drop-on{box-shadow:0 0 0 2px var(--purple,var(--blue));}
+  /* 把图片拖到岗位块上：整块描一圈紫边，中间提示松手添加 */
+  #positionItems .position-group.drop-on{position:relative;box-shadow:0 0 0 2px var(--purple,var(--blue)), 0 8px 24px rgba(0,0,0,.08);}
+  #positionItems .position-group.drop-on::after{content:"松手添加图片";position:absolute;inset:0;z-index:4;border-radius:inherit;
+    display:flex;align-items:center;justify-content:center;background:rgba(246,243,255,.95);
+    border:1.5px dashed var(--purple,var(--blue));background-clip:padding-box;box-sizing:border-box;
+    color:var(--purple,var(--blue));font-size:15px;font-weight:600;pointer-events:none;animation:popIn .15s ease;}
   .position-extra .position-note-input{margin-top:0;}
   .position-extra .position-jd-text{margin-top:8px;min-height:44px;font-size:13px;}
   .jd-thumbs{display:flex;flex-wrap:wrap;gap:8px;}
@@ -5594,6 +5599,59 @@ async function uploadJdImages(idx, files){
     if(drawer.classList.contains('active')) document.getElementById('saveBtn').click();
   }
 }
+// 把图片拖进编辑弹窗：拖到哪个岗位块上就加给哪个岗位（收起着的也行，松手自动展开）；
+// 只有一个岗位时拖到弹窗任何地方都算它的。电脑里的图片文件、网页上直接拖过来的图片都接。
+(function(){
+  const box = document.getElementById('positionItems');
+  let depth = 0;
+  const carriesImage = dt=>dt && [...dt.types].some(t=>t==='Files' || t==='text/uri-list');
+  const targetIdx = e=>{
+    const g = e.target.closest && e.target.closest('#positionItems .position-group');
+    if(g) return Number(g.dataset.idx);
+    return positionDraft.length===1 ? 0 : -1;
+  };
+  const mark = idx=>box.querySelectorAll('.position-group').forEach(g=>g.classList.toggle('drop-on', Number(g.dataset.idx)===idx));
+  drawer.addEventListener('dragenter', e=>{ if(carriesImage(e.dataTransfer)) depth++; });
+  drawer.addEventListener('dragover', e=>{
+    if(!carriesImage(e.dataTransfer)) return;
+    e.preventDefault();
+    const idx = targetIdx(e);
+    e.dataTransfer.dropEffect = idx<0 ? 'none' : 'copy';
+    mark(idx);
+  });
+  drawer.addEventListener('dragleave', e=>{
+    if(!carriesImage(e.dataTransfer)) return;
+    if(--depth<=0){ depth = 0; mark(-1); }
+  });
+  drawer.addEventListener('drop', async e=>{
+    if(!carriesImage(e.dataTransfer)) return;
+    e.preventDefault();
+    depth = 0; mark(-1);
+    const idx = targetIdx(e);
+    if(idx<0 || !positionDraft[idx]) return;
+    let files = [...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+    if(!files.length){
+      // 从网页上拖过来的图片：拿到图片地址再下载下来（有的网站不让下载，就提示换个办法）
+      const html = e.dataTransfer.getData('text/html') || '';
+      const url = ((html.match(/<img[^>]+src="([^"]+)"/i)||[])[1]) ||
+        (e.dataTransfer.getData('text/uri-list')||'').split(/\r?\n/).map(x=>x.trim()).find(x=>/^https?:/.test(x));
+      if(url){
+        try{
+          const b = await (await fetch(url.replace(/&amp;/g,'&'))).blob();
+          if(b.type.startsWith('image/')) files = [new File([b], 'web', {type:b.type})];
+        }catch(err){}
+      }
+      if(!files.length){
+        positionDraft[idx]._noteOpen = true;
+        positionDraft[idx]._imageError = '这张图拖不进来，可以先存到电脑上再拖，或者复制图片后 ⌘V 粘贴';
+        renderPositionEditor();
+        return;
+      }
+    }
+    positionDraft[idx]._noteOpen = true;
+    uploadJdImages(idx, files);
+  });
+})();
 function deleteStorageImage(path){
   if(!sb || !path) return;
   sb.storage.from(REQUIREMENT_BUCKET).remove([path]).catch(()=>{});
@@ -5825,16 +5883,6 @@ function renderPositionEditor(){
         e.preventDefault();
         uploadJdImages(idx, files);
       });
-    });
-    const extra = block.querySelector('.position-extra');
-    extra.addEventListener('dragover', e=>{ if([...e.dataTransfer.items].some(i=>i.kind==='file')){ e.preventDefault(); extra.classList.add('drop-on'); } });
-    extra.addEventListener('dragleave', ()=>extra.classList.remove('drop-on'));
-    extra.addEventListener('drop', e=>{
-      const files = [...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
-      extra.classList.remove('drop-on');
-      if(!files.length) return;
-      e.preventDefault();
-      uploadJdImages(idx, files);
     });
     thumbs.querySelectorAll('.jd-tile-del').forEach(btn=>{
       btn.addEventListener('click', e=>{
