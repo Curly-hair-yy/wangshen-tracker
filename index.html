@@ -2828,6 +2828,22 @@ function stageDeadlineEntry(stageDeadlines, key){
   if(typeof v === 'string') return {date: v, note: ''};
   return {date: v.date || '', note: v.note || '', booked: !!v.booked, declined: !!v.declined, declinedDate: v.declinedDate||''};
 }
+// 有截止时间的环节：过了截止日才点完成（当天忘了点、第二天才补），完成日期记成截止那天；
+// 截止之前就提前完成的，照常记今天。
+function deadlineClampedDoneDate(deadline){
+  const today = todayDateStr();
+  const d = String(deadline||'').slice(0,10);
+  return (/^\d{4}-\d{2}-\d{2}$/.test(d) && d < today) ? d : today;
+}
+// 岗位刚被标成完成（完成日期是今天）时，按这个环节的截止时间（岗位自己的，没有就看公司级的）校正
+function fixStageDoneDate(p, key){
+  if(!p || !p.progress || !p.progress[key] || !p.progressDates) return;
+  if(p.progressDates[key] !== todayDateStr()) return;
+  const own = stageDeadlineEntry(p.stageDeadlines||{}, key);
+  const comp = companyStageDeadlineEntry(getCompany(p.companyId), key);
+  const dl = (own && own.date) || (comp && comp.date);
+  if(dl) p.progressDates[key] = deadlineClampedDoneDate(dl);
+}
 function setStageDeadline(pos, key, date, note){
   if(!pos.stageDeadlines) pos.stageDeadlines = {};
   if(!date){ delete pos.stageDeadlines[key]; return; }
@@ -2933,7 +2949,7 @@ function setCompanyStageDone(company, key, done){
   if(!company.stageDeadlines) return;
   const existing = companyStageDeadlineEntry(company, key);
   if(!existing) return;
-  company.stageDeadlines[key] = {date: existing.date, note: existing.note, done, doneDate: done ? todayDateStr() : ''};
+  company.stageDeadlines[key] = {date: existing.date, note: existing.note, done, doneDate: done ? deadlineClampedDoneDate(existing.date) : ''};
   if(existing.booked) company.stageDeadlines[key].booked = true;
 }
 // stageDeadlines 是"这个环节的提醒截止时间"，跟 dates（真正完成的时间）是两码事——
@@ -4747,6 +4763,7 @@ function renderRemindersList(){
             if(!p.progress) p.progress = {};
             if(!p.progressDates) p.progressDates = {};
             setProgressChecked(p.progress, p.progressDates, key, true);
+            fixStageDoneDate(p, key);
             p.updatedAt = new Date().toISOString();
             queueUpsert('positions', p.id);
           });
@@ -4761,6 +4778,7 @@ function renderRemindersList(){
       if(!pos.progress) pos.progress = {};
       if(!pos.progressDates) pos.progressDates = {};
       setProgressChecked(pos.progress, pos.progressDates, btn.dataset.key, nowDone);
+      fixStageDoneDate(pos, btn.dataset.key);
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
@@ -6109,6 +6127,13 @@ function renderProgressCheckboxes(){
   box.querySelectorAll('input[type=checkbox]').forEach(cb=>{
     cb.addEventListener('change', ()=>{
       setProgressChecked(progressDraft, progressDatesDraft, cb.dataset.key, cb.checked);
+      const k = cb.dataset.key;
+      if(cb.checked && progressDatesDraft[k]===todayDateStr()){
+        const own = stageDeadlineEntry(stageDeadlinesDraft, k);
+        const comp = companyStageDeadlineEntry(getCompany(currentEditCompanyId), k);
+        const dl = (own && own.date) || (comp && comp.date);
+        if(dl) progressDatesDraft[k] = deadlineClampedDoneDate(dl);
+      }
       renderProgressCheckboxes();
     });
   });
@@ -7119,7 +7144,7 @@ function openStageNodePop(stepEl, pos, initialKey){
         commitAll(list);
         return;
       }
-      list.forEach(p=>setProgressChecked(p.progress, p.progressDates, key, action==='done'));
+      list.forEach(p=>{ setProgressChecked(p.progress, p.progressDates, key, action==='done'); fixStageDoneDate(p, key); });
       commitAll(list);
     },
     onPick(v){
@@ -7550,6 +7575,7 @@ function openCompanyDetail(companyId, status, reviewStage){
       if(!pos.progress) pos.progress = {};
       if(!pos.progressDates) pos.progressDates = {};
       setProgressChecked(pos.progress, pos.progressDates, key, cb.checked);
+      fixStageDoneDate(pos, key);
       pos.updatedAt = new Date().toISOString();
       saveData();
       queueUpsert('positions', pos.id);
