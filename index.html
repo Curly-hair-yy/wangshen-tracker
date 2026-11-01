@@ -1892,7 +1892,6 @@
   #positionItems .position-group.pg-dragging{position:relative;z-index:5;cursor:grabbing;transition:box-shadow .2s ease;
     box-shadow:0 16px 36px rgba(0,0,0,.16);}
   .position-note-input{margin-top:6px;}
-  .position-jd-toggle,.position-jd-body{display:none !important;}
   /* 岗位的"设置/专属设置"（单独状态、单独链接、单独待办）也不用了，藏起来；已经单独设过的岗位，保存时照样保留原来的设置 */
   #positionItems .exclusive-toggle,#positionItems .exclusive-body{display:none !important;}
   /* ---- 页面内确认框 ---- */
@@ -2155,6 +2154,98 @@
   /* 拖岗位块时整页不选字，块里的输入框也不响应 */
   body:has(#positionItems .pg-dragging){user-select:none;-webkit-user-select:none;}
   #positionItems .position-group.pg-dragging input{pointer-events:none;}
+
+  /* ---- 备注 / JD 图片 ---- */
+  .position-note-link{display:flex !important;align-items:center;gap:6px;}
+  .position-note-link .pn-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .jd-chip{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;height:18px;padding:0 6px;border-radius:999px;
+    background:var(--purple-soft,var(--blue-soft));color:var(--purple,var(--blue));font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+    font-size:11px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;}
+  .jd-chip svg{width:11px;height:11px;}
+  .position-extra{margin-top:6px;border-radius:14px;transition:box-shadow .15s ease;}
+  .position-extra.drop-on{box-shadow:0 0 0 2px var(--purple,var(--blue));}
+  .position-extra .position-note-input{margin-top:0;}
+  .position-extra .position-jd-text{margin-top:8px;min-height:44px;font-size:13px;}
+  .jd-thumbs{display:flex;flex-wrap:wrap;gap:8px;}
+  .jd-edit{margin-top:8px;padding-bottom:4px;}
+  .jd-tile{position:relative;width:64px;height:64px;flex:0 0 64px;padding:0;border:none;border-radius:12px;background:var(--field);
+    cursor:zoom-in;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+    transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease;}
+  .jd-tile img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit;pointer-events:none;}
+  .jd-tile::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);pointer-events:none;}
+  .jd-tile:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12);}
+  .jd-tile:active{transform:scale(.96);}
+  .jd-tile.uploading img{opacity:.45;filter:saturate(.6);}
+  .jd-tile-spin{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.7);border-top-color:var(--purple,var(--blue));animation:jdSpin .8s linear infinite;}
+  @keyframes jdSpin{to{transform:rotate(360deg);}}
+  .jd-tile-del{position:absolute;top:-6px;right:-6px;z-index:1;width:20px;height:20px;border-radius:50%;border:none;
+    background:var(--ink,#222);color:#fff;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    opacity:0;transform:scale(.7);transition:opacity .15s ease, transform .15s ease;}
+  .jd-tile:hover .jd-tile-del{opacity:1;transform:none;}
+  @media (hover:none){ .jd-tile-del{opacity:1;transform:none;} }
+  .jd-tile.jd-add{cursor:pointer;background:transparent;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--text-3);font-size:22px;font-weight:300;
+    display:flex;align-items:center;justify-content:center;}
+  .jd-tile.jd-add::after{display:none;}
+  .jd-tile.jd-add:hover{color:var(--purple,var(--blue));box-shadow:inset 0 0 0 1.5px currentColor;transform:none;}
+  .jd-tile.jd-armed{transform:scale(1.06);box-shadow:0 8px 20px rgba(0,0,0,.16);}
+  .jd-tile.jd-dragging{z-index:5;cursor:grabbing;box-shadow:0 12px 28px rgba(0,0,0,.2);}
+  body:has(.jd-dragging){user-select:none;cursor:grabbing;}
+  #saveBtn.is-waiting{opacity:.6;pointer-events:none;}
+  #saveBtn.is-waiting::after{content:"…";}
+  /* 详情窗口：右上角小笔 + JD */
+  .detail-edit-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--gray-soft);color:var(--gray-ink);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s ease, color .15s ease, transform .1s ease;}
+  .detail-edit-btn:hover{background:var(--purple-soft,var(--blue-soft));color:var(--purple,var(--blue));}
+  .detail-edit-btn:active{transform:scale(.92);}
+  .detail-edit-btn svg{width:14px;height:14px;}
+  #companyDetailDrawer .drawer-head > div{gap:8px !important;}
+  .detail-jd{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);cursor:default;}
+  .detail-jd-text{font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap;overflow-wrap:anywhere;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .detail-jd.open .detail-jd-text{display:block;-webkit-line-clamp:unset;}
+  .detail-jd-more{border:none;background:none;padding:2px 0 0;font-size:12px;color:var(--purple,var(--blue));cursor:pointer;font-family:inherit;}
+  .detail-jd-text + .detail-jd-more[hidden] + .jd-thumbs, .detail-jd-more + .jd-thumbs{margin-top:8px;}
+  .detail-jd-text + .jd-thumbs{margin-top:8px;}
+  /* 缩略图排成等宽网格，左右两边都跟上面的文字/输入框对齐 */
+  .detail-jd .jd-thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+  .jd-edit{display:grid !important;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;}
+  .detail-jd .jd-tile,.jd-edit .jd-tile{width:auto;height:auto;flex:none;aspect-ratio:1;}
+  /* 看大图 */
+  .lightbox{position:fixed;inset:0;z-index:90;display:none;--lb-ui:0;touch-action:none;}
+  .lightbox.open{display:block;}
+  html.lb-lock, html.lb-lock body{overflow:hidden;}
+  .lb-bg{position:absolute;inset:0;background:rgba(12,14,18,.96);opacity:0;}
+  .lb-track{position:absolute;inset:0;will-change:transform;}
+  .lb-slide{position:absolute;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .lb-slide img{max-width:calc(100% - 96px);max-height:calc(100% - 136px);object-fit:contain;user-select:none;-webkit-user-select:none;
+    -webkit-touch-callout:none;will-change:transform;transform-origin:center;border-radius:6px;cursor:zoom-in;}
+  .lb-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px 24px;opacity:var(--lb-ui);pointer-events:none;}
+  .lb-top > *{pointer-events:auto;}
+  .lb-count{color:rgba(255,255,255,.75);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .lb-actions{display:flex;align-items:center;gap:8px;}
+  .lb-btn{height:32px;min-width:32px;padding:0 12px;border-radius:999px;border:none;background:rgba(255,255,255,.14);color:#fff;
+    font-size:13px;font-weight:600;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
+    cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .15s ease, transform .1s ease;}
+  .lb-btn:hover{background:rgba(255,255,255,.24);}
+  .lb-btn:active{transform:scale(.94);}
+  .lb-close{padding:0;width:32px;font-size:18px;}
+  .lb-nav{position:absolute;top:50%;margin-top:-22px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.12);
+    color:#fff;font-size:26px;line-height:1;padding-bottom:3px;cursor:pointer;opacity:var(--lb-ui);transition:background .15s ease, transform .1s ease;}
+  .lb-nav:hover{background:rgba(255,255,255,.24);}
+  .lb-nav:active{transform:scale(.92);}
+  .lb-prev{left:20px;} .lb-next{right:20px;}
+  .lb-nav[hidden]{display:none;}
+  @media (max-width:640px){
+    .lb-slide img{max-width:100%;max-height:calc(100% - 40px);border-radius:0;}
+    .lb-nav{display:none;}
+    .lb-top{padding-left:16px;}
+  }
+  /* 卡片上：存过 JD 的岗位名后面一个小图标 */
+  .jd-mark{display:inline-flex;vertical-align:-1px;margin-left:4px;color:var(--text-4,var(--text-3));opacity:.8;}
+  .jd-mark svg{width:12px;height:12px;}
+  .position-line .jd-mark{margin-left:-4px;margin-right:auto;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -2417,6 +2508,7 @@
     <h3 id="companyDetailTitle">公司详情</h3>
     <div style="display:flex;align-items:center;gap:8px;">
       <a class="position-link" id="companyDetailLink" href="#" target="_blank" rel="noopener" style="display:none;">链接 ↗</a>
+      <button class="detail-edit-btn" id="companyDetailEditBtn" type="button" title="编辑" aria-label="编辑"></button>
       <button class="favorite-star" id="companyDetailFavoriteBtn" type="button" title="收藏这家公司">☆</button>
       <button class="drawer-close" id="companyDetailClose">&times;</button>
     </div>
@@ -2984,6 +3076,10 @@ function saveUiPrefs(){ safeSetItem(UI_PREFS_KEY, JSON.stringify(uiPrefs)); }
 let uiPrefs = loadUiPrefs();
 
 const ICON_PUSHPIN = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V5h6v5.76l2.4 2.8A1 1 0 0 1 16.64 15H7.36a1 1 0 0 1-.76-1.44z"/><path d="M8 5h8"/></svg>';
+const ICON_IMAGE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg>';
+function jdMark(p){
+  return ((p.requirement||'').trim() || (p.requirementImages||[]).length) ? `<i class="jd-mark" title="存了 JD">${ICON_IMAGE}</i>` : '';
+}
 const ICON_PEN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.83 2.83 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
 const ICON_LINK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
 const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
@@ -3281,7 +3377,7 @@ function renderGroupedCards(list, status, reviewStage){
         return `
           <div class="position-line-block">
             <div class="position-line">
-              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>
+              <span class="position">${escapeHtml(p.position||'（未命名岗位）')}</span>${jdMark(p)}
               <span class="position-line-meta">
                 ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
                 ${sharedLoc ? '' : locationTag(p)}
@@ -4051,7 +4147,7 @@ function renderSubmittedList(){
         <div>
           <div class="role-name">
             ${compact ? `<button type="button" class="track-add track-add-inline" data-id="${p.id}" title="添加环节" aria-label="添加环节"><span class="track-add-dot">+</span></button>` : ''}
-            <span>${escapeHtml(p.position||'（未命名岗位）')}</span>
+            <span>${escapeHtml(p.position||'（未命名岗位）')}${jdMark(p)}</span>
             ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener" title="打开这个岗位单独的网申链接" aria-label="打开这个岗位单独的网申链接">${ICON_LINK}</a>` : ''}
           </div>
           ${p.note ? `<div class="role-desc">${linkifyNote(p.note)}</div>` : ''}
@@ -4186,19 +4282,19 @@ function renderSubmittedList(){
       openStageNodePop(stepEl, pos, stepEl.dataset.key);
     });
   });
+  // 点卡片（岗位行或空白处）打开详情窗口：看进度/JD、改状态；详情右上角的小笔翻过去才是编辑
   list.querySelectorAll('.role').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.role-del-btn, .position-link, .track, .track-add')) return;
-      openDrawer(row.dataset.id);
+      if(submittedDragJustEnded || e.target.closest('.role-del-btn, .position-link, .track, .track-add')) return;
+      const pos = positions.find(p=>p.id===row.dataset.id);
+      if(pos) openCompanyDetail(pos.companyId, 'submitted');
     });
   });
-  // 点卡片上岗位以外的地方（公司名那一行、空白处）也打开编辑，编辑的是这张卡里排第一的岗位
-  // （编辑弹窗里本来就会列出这家公司的所有岗位）
   list.querySelectorAll('.progress-company').forEach(card=>{
     card.addEventListener('click', (e)=>{
       if(submittedDragJustEnded || e.target.closest('.role, button, a, input, .drag-handle, .track, .chip')) return;
-      const first = card.querySelector('.role[data-id]');
-      if(first) openDrawer(first.dataset.id);
+      const first = positions.find(p=>p.id===card.querySelector('.role[data-id]')?.dataset.id);
+      if(first) openCompanyDetail(first.companyId, 'submitted');
     });
   });
 }
@@ -5317,7 +5413,8 @@ function openDrawer(id){
 
   overlay.classList.add('active');
   drawer.classList.add('active');
-  setTimeout(()=>document.getElementById('f-company').focus(), 50);
+  if(!drawerSkipFocus) setTimeout(()=>document.getElementById('f-company').focus(), 50);
+  drawerSkipFocus = false;
   drawerOpenSnapshot = captureDrawerSnapshot();
 }
 
@@ -5431,9 +5528,71 @@ function validateCompanyField(){
 
 /* ---- 岗位要求配图（存在 Supabase Storage，需要先连接同步） ---- */
 function requirementImageUrl(path){
-  if(!sb || !path) return '';
-  const { data } = sb.storage.from(REQUIREMENT_BUCKET).getPublicUrl(path);
-  return data ? data.publicUrl : '';
+  if(!path) return '';
+  if(sb){
+    const { data } = sb.storage.from(REQUIREMENT_BUCKET).getPublicUrl(path);
+    if(data) return data.publicUrl;
+  }
+  return `${DEFAULT_SUPABASE_URL}/storage/v1/object/public/${REQUIREMENT_BUCKET}/${path.split('/').map(encodeURIComponent).join('/')}`;
+}
+// 上传前压一下：长边最多 2000 像素、转成 JPEG，看 JD 小字够清楚，一张一般几百 KB。
+// 本来就不大的 JPG/PNG/WebP 原样传；GIF 原样传（压了会丢动画）。
+async function compressJdImage(file){
+  if(file.type==='image/gif') return file;
+  let bmp;
+  try{ bmp = await createImageBitmap(file); }catch(e){ return file; }
+  const scale = Math.min(1, 2000/Math.max(bmp.width, bmp.height));
+  if(scale===1 && file.size < 700*1024 && /^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width*scale); c.height = Math.round(bmp.height*scale);
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise(r=>c.toBlob(r, 'image/jpeg', .86));
+  if(!blob) return file;
+  // 缩过尺寸的一律用缩过的；尺寸没变（只是文件大）的，压完更小才换
+  return (scale < 1 || blob.size < file.size || !/^image\/(jpeg|png|webp)$/.test(file.type)) ? blob : file;
+}
+function jdUploadsPending(){
+  return positionDraft.some(e=>(e.images||[]).some(i=>i.uploading));
+}
+let saveAfterUploads = false;
+async function uploadJdImages(idx, files){
+  const entry = positionDraft[idx];
+  if(!entry || !files.length) return;
+  if(!sb){ entry._imageError = '需要先连接同步，才能上传图片'; renderPositionEditor(); return; }
+  entry._imageError = '';
+  const jobs = files.filter(f=>f.type.startsWith('image/')).map(file=>{
+    const ph = { uploading:true, preview: URL.createObjectURL(file) };
+    entry.images.push(ph);
+    return {file, ph};
+  });
+  renderPositionEditor();
+  await Promise.all(jobs.map(async ({file, ph})=>{
+    try{
+      const body = await compressJdImage(file);
+      if(body.size > 5*1024*1024) throw new Error('图片太大（压缩后仍超过 5MB）');
+      const type = body.type || file.type || 'image/jpeg';
+      const ext = ({'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'})[type] || 'jpg';
+      const rand = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/-/g,'');
+      const path = `jd/${rand}.${ext}`;
+      const { error } = await sb.storage.from(REQUIREMENT_BUCKET).upload(path, body, {contentType:type, cacheControl:'31536000'});
+      if(error) throw error;
+      ph.path = path;
+      ph.uploading = false;
+    }catch(err){
+      entry.images = entry.images.filter(x=>x!==ph);
+      entry._imageError = '有图片没传上去：' + ((err&&err.message)||String(err));
+    }
+    // 先把云端图片预载好再换掉本地预览，换的时候不闪
+    if(ph.path){ await new Promise(r=>{ const im = new Image(); im.onload = im.onerror = r; im.src = requirementImageUrl(ph.path); }); }
+    if(drawer.classList.contains('active')) renderPositionEditor();
+  }));
+  if(saveAfterUploads && !jdUploadsPending()){
+    saveAfterUploads = false;
+    document.getElementById('saveBtn').classList.remove('is-waiting');
+    if(drawer.classList.contains('active')) document.getElementById('saveBtn').click();
+  }
 }
 function deleteStorageImage(path){
   if(!sb || !path) return;
@@ -5449,7 +5608,7 @@ function bindPositionGroupDrag(block, idx, box){
   if(positionDraft.length<2) return;
   block.addEventListener('pointerdown', e=>{
     if(e.button!==0 || pgSettling) return;
-    if(e.target.closest('textarea, a, select, .position-group-del')) return;
+    if(e.target.closest('textarea, a, select, .position-group-del, .jd-thumbs')) return;
     if(e.pointerType==='touch' && e.target.closest('input, button')) return;
     const startY = e.clientY;
     let armed = false, dragging = false, groups, rects, to = idx, gap = 10, sp;
@@ -5525,16 +5684,15 @@ function renderPositionEditor(){
   const box = document.getElementById('positionItems');
   const showExclusive = positionDraft.length>1;
   box.innerHTML = positionDraft.map((item, idx)=>{
-    const hasJd = item.requirement || (item.images||[]).length>0;
-    const imagesHtml = (item.images||[]).map((img, imgIdx)=>{
-      if(img.uploading){
-        return `<div class="req-img-thumb uploading" data-idx="${idx}" data-img-idx="${imgIdx}">上传中…</div>`;
-      }
-      return `<div class="req-img-thumb" data-idx="${idx}" data-img-idx="${imgIdx}">
-        <img src="${requirementImageUrl(img.path)}">
-        <button class="req-img-del" type="button" data-idx="${idx}" data-img-idx="${imgIdx}">&times;</button>
-      </div>`;
-    }).join('');
+    const imgCount = (item.images||[]).length;
+    const hasJd = !!((item.requirement||'').trim() || imgCount);
+    const imagesHtml = (item.images||[]).map((img, imgIdx)=>`
+      <div class="jd-tile${img.uploading?' uploading':''}" data-img-idx="${imgIdx}">
+        <img src="${img.uploading ? img.preview : requirementImageUrl(img.path)}" alt="" draggable="false">
+        ${img.uploading ? '<span class="jd-tile-spin"></span>' : `<button class="jd-tile-del" type="button" data-img-idx="${imgIdx}" aria-label="去掉这张图">&times;</button>`}
+      </div>`).join('');
+    const noteLabel = item._noteOpen ? '收起' : (item.note ? escapeHtml(item.note) : (hasJd ? '备注 / JD' : '+ 备注 / JD'));
+    const jdChip = (!item._noteOpen && hasJd) ? `<span class="jd-chip">${ICON_IMAGE}${imgCount ? imgCount : 'JD'}</span>` : '';
     const exclusiveHtml = !showExclusive ? '' : `
       <button class="exclusive-toggle${item._exclusiveOpen?' open':''}" type="button" data-idx="${idx}">
         <span class="chevron">${ICON_CHEVRON_DOWN.replace('13" height="13"','11" height="11"')}</span>
@@ -5576,15 +5734,13 @@ function renderPositionEditor(){
           <input type="text" class="position-location-input" value="${escapeHtml(item.location||'')}" placeholder="${escapeHtml(locationPlaceholder(item.name))}" maxlength="20" title="不填的话，保存时会从岗位名、公司名里自动认">
           ${positionDraft.length>1 ? '<button class="position-group-del" type="button" title="删除这个岗位" aria-label="删除这个岗位">&times;</button>' : ''}
         </div>
-        <button class="position-note-toggle position-note-link${item.note?' has':''}" type="button" data-idx="${idx}">${item._noteOpen ? '收起备注' : (item.note ? escapeHtml(item.note) : '+ 备注')}</button>
-        <textarea class="position-note-input" data-idx="${idx}" placeholder="备注" style="display:${item._noteOpen?'block':'none'}">${escapeHtml(item.note||'')}</textarea>
-        <button class="add-item-btn position-jd-toggle" type="button" data-idx="${idx}">${hasJd?'查看':'添加'}岗位要求/图片 ${item._jdOpen?'▴':'▾'}</button>
-        <div class="position-jd-body" style="display:${item._jdOpen?'block':'none'};">
-          <textarea class="position-jd-text" data-idx="${idx}" placeholder="粘贴JD原文，或者自己整理的要点">${escapeHtml(item.requirement||'')}</textarea>
-          <div class="requirement-image-editor">${imagesHtml}</div>
-          <button class="add-item-btn position-jd-addimg" type="button" data-idx="${idx}">+ 添加图片</button>
-          <input type="file" class="position-jd-file" data-idx="${idx}" accept="image/*" multiple style="display:none;">
-          <div class="field-hint position-jd-hint" data-idx="${idx}">${escapeHtml(item._imageError||'')}</div>
+        <button class="position-note-toggle position-note-link${item.note && !item._noteOpen?' has':''}" type="button" data-idx="${idx}"><span class="pn-text">${noteLabel}</span>${jdChip}</button>
+        <div class="position-extra" style="display:${item._noteOpen?'block':'none'}">
+          <textarea class="position-note-input" data-idx="${idx}" placeholder="备注">${escapeHtml(item.note||'')}</textarea>
+          <textarea class="position-jd-text" data-idx="${idx}" placeholder="JD 原文">${escapeHtml(item.requirement||'')}</textarea>
+          <div class="jd-thumbs jd-edit">${imagesHtml}<button class="jd-tile jd-add" type="button" aria-label="添加图片">+</button></div>
+          <input type="file" class="position-jd-file" accept="image/*" multiple hidden>
+          ${item._imageError ? `<div class="field-hint position-jd-hint">${escapeHtml(item._imageError)}</div>` : ''}
         </div>
         ${exclusiveHtml}
       </div>
@@ -5599,7 +5755,7 @@ function renderPositionEditor(){
       renderPositionEditor();
       if(positionDraft[idx]._noteOpen){
         const ta = box.querySelector(`.position-group[data-idx="${idx}"] .position-note-input`);
-        if(ta) ta.focus();
+        if(ta && !matchMedia('(pointer:coarse)').matches) ta.focus();
       }
     });
     block.querySelector('.position-note-input').addEventListener('input', e=>{
@@ -5643,51 +5799,56 @@ function renderPositionEditor(){
         updateSharedSettingsLabel();
       });
     }
-    block.querySelector('.position-jd-toggle').addEventListener('click', ()=>{
-      positionDraft[idx]._jdOpen = !positionDraft[idx]._jdOpen;
-      renderPositionEditor();
-    });
     block.querySelector('.position-jd-text').addEventListener('input', e=>{
       positionDraft[idx].requirement = e.target.value;
     });
-    const addImgBtn = block.querySelector('.position-jd-addimg');
     const fileInput = block.querySelector('.position-jd-file');
-    addImgBtn.addEventListener('click', ()=>{
+    const thumbs = block.querySelector('.jd-thumbs');
+    thumbs.querySelector('.jd-add').addEventListener('click', ()=>{
       if(!sb){
-        positionDraft[idx]._imageError = '需要先在"同步设置"里连接同步码和 Supabase，才能上传图片';
+        positionDraft[idx]._imageError = '需要先连接同步，才能上传图片';
         renderPositionEditor();
         return;
       }
       fileInput.click();
     });
-    fileInput.addEventListener('change', async (e)=>{
+    fileInput.addEventListener('change', e=>{
       const files = [...e.target.files];
       e.target.value = '';
-      positionDraft[idx]._imageError = '';
-      for(const file of files){
-        const placeholder = { uploading:true };
-        positionDraft[idx].images.push(placeholder);
-        renderPositionEditor();
-        try{
-          const path = `${syncId||'local'}/${editingId||'new_'+Date.now()}/${idx}_${Date.now()}_${file.name}`;
-          const { error } = await sb.storage.from(REQUIREMENT_BUCKET).upload(path, file);
-          if(error) throw error;
-          placeholder.uploading = false;
-          placeholder.path = path;
-        }catch(err){
-          positionDraft[idx].images = positionDraft[idx].images.filter(x=>x!==placeholder);
-          positionDraft[idx]._imageError = '图片上传失败：' + ((err&&err.message)||String(err));
-        }
-        renderPositionEditor();
-      }
+      uploadJdImages(idx, files);
     });
-    block.querySelectorAll('.req-img-del').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const imgIdx = Number(btn.dataset.imgIdx);
-        const [removed] = positionDraft[idx].images.splice(imgIdx,1);
-        if(removed && removed.path) deleteStorageImage(removed.path);
-        renderPositionEditor();
+    // 备注/JD 框里直接粘贴截图（⌘V）、或者把图片拖进这一块，都算添加图片
+    block.querySelectorAll('.position-note-input, .position-jd-text').forEach(ta=>{
+      ta.addEventListener('paste', e=>{
+        const files = [...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith('image/'));
+        if(!files.length) return;
+        e.preventDefault();
+        uploadJdImages(idx, files);
       });
+    });
+    const extra = block.querySelector('.position-extra');
+    extra.addEventListener('dragover', e=>{ if([...e.dataTransfer.items].some(i=>i.kind==='file')){ e.preventDefault(); extra.classList.add('drop-on'); } });
+    extra.addEventListener('dragleave', ()=>extra.classList.remove('drop-on'));
+    extra.addEventListener('drop', e=>{
+      const files = [...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));
+      extra.classList.remove('drop-on');
+      if(!files.length) return;
+      e.preventDefault();
+      uploadJdImages(idx, files);
+    });
+    thumbs.querySelectorAll('.jd-tile-del').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        e.stopPropagation();
+        // 只从这个岗位里去掉，不删云端文件：没点保存就关掉、或者以后在改动记录里改回去，图片都还在
+        positionDraft[idx].images.splice(Number(btn.dataset.imgIdx), 1);
+        const tile = btn.closest('.jd-tile');
+        fxPopOut(tile, ()=>renderPositionEditor());
+      });
+    });
+    bindJdThumbReorder(thumbs, positionDraft[idx].images, ()=>renderPositionEditor(), (i, el)=>{
+      const imgs = positionDraft[idx].images;
+      const shown = imgs.map((im)=>im.uploading ? im.preview : requirementImageUrl(im.path));
+      openLightbox(shown, i, el);
     });
     // 专属设置：折叠开关、状态、链接、待办清单
     const exclusiveToggle = block.querySelector('.exclusive-toggle');
@@ -5781,9 +5942,28 @@ document.getElementById('f-company-deadline').addEventListener('input', e=>{
 });
 
 function closeDrawer(){
+  if(flipBusy){ setTimeout(closeDrawer, 120); return; }
+  closeCloseConfirm();
+  saveAfterUploads = false;
+  document.getElementById('saveBtn').classList.remove('is-waiting');
+  const ctx = flipCtx;
+  flipCtx = null;
+  if(ctx && drawer.classList.contains('active')){
+    editingId = null;
+    // 翻回详情：公司要是还有岗位，就翻回它现在所在的那一栏（刚才可能改了状态）
+    const alive = sortPositions(positions.filter(p=>!p.deleted && p.companyId===ctx.companyId));
+    if(alive.length){
+      let st = ctx.status, rs = ctx.reviewStage;
+      if(!alive.some(p=>p.status===st && (rs===undefined || reviewStageOf(p)===rs))){
+        st = alive[0].status;
+        rs = st==='inprogress' ? reviewStageOf(alive[0]) : undefined;
+      }
+      flipSwap(drawer, overlay, companyDetailDrawer, companyDetailOverlay, ()=>openCompanyDetail(ctx.companyId, st, rs), -1);
+      return;
+    }
+  }
   overlay.classList.remove('active');
   drawer.classList.remove('active');
-  closeCloseConfirm();
   editingId = null;
 }
 // 误关保护：弹窗打开时拍一份"快照"，关闭前跟当下状态比一比——没改过东西就直接
@@ -6041,6 +6221,11 @@ function effectiveChecklist(entry, sharedChecklist){
   return list.filter(i=>i.text.trim()!=='');
 }
 document.getElementById('saveBtn').addEventListener('click', ()=>{
+  if(jdUploadsPending()){
+    saveAfterUploads = true;
+    document.getElementById('saveBtn').classList.add('is-waiting');
+    return;
+  }
   const companyName = document.getElementById('f-company').value.trim();
   if(!companyName){
     document.getElementById('f-company').closest('.field').classList.add('has-error');
@@ -6166,6 +6351,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   touchedPositionIds.forEach(id=>queueUpsert('positions', id));
   clearHelpFillIfLeftTodo(company.id);
   flushQueue();
+  if(flipCtx) flipCtx.companyId = company.id;
   closeDrawer();
   const cardsBefore = snapshotCards();
   renderAll();
@@ -7192,7 +7378,9 @@ const companyDetailOverlay = document.getElementById('companyDetailOverlay');
 const companyDetailDrawer = document.getElementById('companyDetailDrawer');
 const STATUS_LABEL = {todo:'待填写', inprogress:'填报中', submitted:'已提交'};
 
+let detailCtx = null;
 function openCompanyDetail(companyId, status, reviewStage){
+  detailCtx = {companyId, status, reviewStage};
   const company = getCompany(companyId);
   const list = sortPositions(positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
     && (reviewStage===undefined || reviewStageOf(p)===reviewStage)));
@@ -7232,9 +7420,9 @@ function openCompanyDetail(companyId, status, reviewStage){
     const doneCount = (p.checklist||[]).filter(i=>i.done).length;
     const totalCount = (p.checklist||[]).length;
     const checklistText = totalCount>0 ? `待办 ${doneCount}/${totalCount}` : '';
-    const hasReq = p.requirement || (p.requirementImages||[]).length>0;
-    const imagesHtml = (p.requirementImages||[]).map(path=>
-      `<a href="${requirementImageUrl(path)}" target="_blank" rel="noopener"><img src="${requirementImageUrl(path)}"></a>`
+    const reqText = (p.requirement||'').trim();
+    const imagesHtml = (p.requirementImages||[]).map((path, i)=>
+      `<button type="button" class="jd-tile" data-img-idx="${i}"><img src="${requirementImageUrl(path)}" alt="" loading="lazy" draggable="false"></button>`
     ).join('');
     const ownLink = normalizeLink(p.link);
     const linkHref = (ownLink && ownLink!==defaultLink) ? ownLink : '';
@@ -7273,10 +7461,10 @@ function openCompanyDetail(companyId, status, reviewStage){
         ${checklistText ? `<div class="field-hint" id="checklist-count-${p.id}">${checklistText}</div>` : ''}
         ${checklistHtml ? `<div class="detail-checklist">${checklistHtml}</div>` : ''}
         ${linkHref ? `<a class="position-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">🔗 打开网申链接 ↗</a>` : ''}
-        ${hasReq ? `
-          <div class="requirement-body">
-            ${p.requirement ? `<div class="requirement-text">${escapeHtml(p.requirement)}</div>` : ''}
-            ${imagesHtml ? `<div class="requirement-images">${imagesHtml}</div>` : ''}
+        ${(reqText || imagesHtml) ? `
+          <div class="detail-jd" data-id="${p.id}">
+            ${reqText ? `<div class="detail-jd-text">${escapeHtml(reqText)}</div><button type="button" class="detail-jd-more" hidden>展开</button>` : ''}
+            ${imagesHtml ? `<div class="jd-thumbs">${imagesHtml}</div>` : ''}
           </div>
         ` : ''}
         ${progressHtml}
@@ -7360,15 +7548,38 @@ function openCompanyDetail(companyId, status, reviewStage){
     });
   });
   setupPositionDragSort(companyId, status, reviewStage);
-  // 点岗位卡片本身直接进编辑；勾选框、链接、图片自己有各自的动作，点这些不应该顺带触发编辑
-  document.querySelectorAll('.position-detail-item').forEach(item=>{
-    item.addEventListener('click', (e)=>{
-      if(e.target.closest('.position-detail-del, .position-drag-handle, .detail-checklist-item, .position-link, .requirement-images a, .progress-checkbox-item, .progress-checkbox-add, .drawer-custom-stage')) return;
-      if(positionDragJustEnded) return;
-      closeCompanyDetail();
-      openDrawer(item.dataset.id);
+  // JD 文字超过 3 行先收起来，有"展开"；点缩略图看大图
+  detailBody.querySelectorAll('.detail-jd').forEach(box=>{
+    const t = box.querySelector('.detail-jd-text'), more = box.querySelector('.detail-jd-more');
+    if(t && more){
+      if(t.scrollHeight > t.clientHeight + 2) more.hidden = false;
+      more.addEventListener('click', ()=>{
+        const open = !box.classList.contains('open');
+        const h0 = t.clientHeight;
+        box.classList.toggle('open', open);
+        more.textContent = open ? '收起' : '展开';
+        const h1 = t.clientHeight;
+        if(!fxReduced()) t.animate([{height:h0+'px'},{height:h1+'px'}], {duration:280, easing:'cubic-bezier(.22,1,.36,1)'});
+      });
+    }
+    const pos = positions.find(x=>x.id===box.dataset.id);
+    box.querySelectorAll('.jd-tile').forEach(tile=>{
+      tile.addEventListener('click', ()=>{
+        openLightbox((pos.requirementImages||[]).map(requirementImageUrl), Number(tile.dataset.imgIdx), tile);
+      });
     });
   });
+  // 点岗位卡片本身 = 翻到编辑；勾选框、链接、图片自己有各自的动作，点这些不应该顺带触发编辑
+  document.querySelectorAll('.position-detail-item').forEach(item=>{
+    item.addEventListener('click', (e)=>{
+      if(e.target.closest('.position-detail-del, .position-drag-handle, .detail-checklist-item, .position-link, .detail-jd, .progress-checkbox-item, .progress-checkbox-add, .drawer-custom-stage')) return;
+      if(positionDragJustEnded) return;
+      flipToEdit(item.dataset.id);
+    });
+  });
+  const editBtn = document.getElementById('companyDetailEditBtn');
+  editBtn.innerHTML = ICON_PEN;
+  editBtn.onclick = ()=>{ if(list[0]) flipToEdit(list[0].id); };
   document.querySelectorAll('.position-detail-del').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -7389,11 +7600,7 @@ function openCompanyDetail(companyId, status, reviewStage){
     });
   });
   document.getElementById('companyDetailAddBtn').onclick = ()=>{
-    closeCompanyDetail();
-    openDrawer(null);
-    document.getElementById('f-company').value = company ? company.name : '';
-    renderOtherPositionsBox();
-    validateCompanyField();
+    flipToEdit(null, company ? company.name : '');
   };
 
   companyDetailOverlay.classList.add('active');
@@ -7510,6 +7717,414 @@ function closeCompanyDetail(){
 document.getElementById('companyDetailClose').addEventListener('click', closeCompanyDetail);
 document.getElementById('companyDetailCloseBtn').addEventListener('click', closeCompanyDetail);
 companyDetailOverlay.addEventListener('click', closeCompanyDetail);
+
+/* ---- 详情 ⇄ 编辑 翻面：像翻一张卡片，绕竖轴转 180°，转到一半（侧面对着人、看不见）时把
+   前一个弹窗换成后一个。角度由弹簧驱动，起步带一点初速度，落定时轻轻回弹一下。 ---- */
+let flipCtx = null;        // 编辑弹窗是从详情翻过来的：记下详情是哪家公司哪一栏，关编辑时翻回去
+let drawerSkipFocus = false;
+let flipBusy = false;      // 正在翻：这期间再点关闭/再点翻面都不理，免得两套动画打架
+function flipSwap(fromD, fromO, toD, toO, show, dir){
+  if(flipBusy) return;
+  if(fxReduced()){
+    fromO.classList.remove('active'); fromD.classList.remove('active');
+    show();
+    return;
+  }
+  const base = 'translate(-50%,-50%) perspective(1600px)';
+  const paint = (el, a)=>{
+    const k = Math.sin(Math.min(90, Math.abs(a))*Math.PI/180);
+    el.style.transform = `${base} rotateY(${a}deg) scale(${1 - .06*k})`;
+  };
+  let swapped = false;
+  fromD.getAnimations().forEach(a=>a.cancel());
+  fromD.style.pointerEvents = 'none';
+  flipBusy = true;
+  const sp = springValue(v=>{
+    if(v < 90){ paint(fromD, v*dir); return; }
+    if(!swapped){
+      swapped = true;
+      [fromO, toO].forEach(o=>o.style.transition = 'none');
+      toO.classList.add('active');
+      fromO.classList.remove('active');
+      if(fromD.classList.contains('active')){ fromD._noFx = true; fromD.classList.remove('active'); }
+      fromD.style.transform = ''; fromD.style.pointerEvents = '';
+      toD._noFx = !toD.classList.contains('active');
+      show();
+      toD.getAnimations().forEach(a=>a.cancel());
+      void toO.offsetWidth;
+      [fromO, toO].forEach(o=>o.style.transition = '');
+    }
+    paint(toD, (v - 180)*dir);
+  }, 0, {k:260, c:25, eps:.4, v:380});
+  sp.to(180);
+  sp.onRest(()=>{ toD.style.transform = ''; flipBusy = false; });
+}
+function flipToEdit(id, prefillCompanyName){
+  if(!detailCtx || flipBusy) return;
+  flipCtx = {...detailCtx};
+  drawerSkipFocus = true;
+  flipSwap(companyDetailDrawer, companyDetailOverlay, drawer, overlay, ()=>{
+    openDrawer(id);
+    if(!id && prefillCompanyName!=null){
+      document.getElementById('f-company').value = prefillCompanyName;
+      renderOtherPositionsBox();
+      validateCompanyField();
+      drawerOpenSnapshot = captureDrawerSnapshot();
+    }
+  }, 1);
+}
+
+// 去掉一张缩略图：缩小淡出，再重画
+function fxPopOut(el, done){
+  if(!el || fxReduced()){ done(); return; }
+  const a = el.animate([{transform:'scale(1)', opacity:1}, {transform:'scale(.6)', opacity:0}], {duration:180, easing:'cubic-bezier(.4,0,1,1)', fill:'forwards'});
+  a.onfinish = done;
+}
+
+// 编辑弹窗里的缩略图：点一下看大图；按住拖动调顺序（电脑上按住移动一点就拖，手机上长按 0.3 秒）。
+// 被拖的那张跟着手走（硬弹簧，二维），其它的各自用弹簧滑到新空位，松手后弹进空位再保存顺序。
+function bindJdThumbReorder(box, arr, rerender, onOpen){
+  box.querySelectorAll('.jd-tile:not(.jd-add)').forEach(tile=>{
+    tile.addEventListener('pointerdown', e=>{
+      if(e.button!==0 || e.target.closest('.jd-tile-del')) return;
+      const touch = e.pointerType==='touch';
+      const tiles = [...box.querySelectorAll('.jd-tile:not(.jd-add)')];
+      const from = tiles.indexOf(tile);
+      const x0 = e.clientX, y0 = e.clientY;
+      let armed = !touch, dragging = false, to = from, rects, pose = {x:0, y:0}, sx, sy, peers;
+      const hold = touch ? setTimeout(()=>{ armed = true; tile.classList.add('jd-armed'); }, 300) : null;
+      const block = ev=>{ if(dragging || armed) ev.preventDefault(); };
+      if(touch) window.addEventListener('touchmove', block, {passive:false});
+      const paint = ()=>{ tile.style.transform = `translate(${pose.x}px,${pose.y}px) scale(1.08)`; };
+      const move = ev=>{
+        const dx = ev.clientX - x0, dy = ev.clientY - y0;
+        if(!dragging){
+          if(!armed){ if(Math.hypot(dx,dy) > 8) up(true); return; }
+          if(Math.hypot(dx,dy) < (touch ? 1 : 5)) return;
+          dragging = true;
+          rects = tiles.map(t=>t.getBoundingClientRect());
+          tile.classList.add('jd-dragging'); tile.classList.remove('jd-armed');
+          tiles.forEach(t=>t.classList.add('sp-live'));
+          sx = springValue(v=>{ pose.x = v; paint(); }, 0, SPRING_FOLLOW);
+          sy = springValue(v=>{ pose.y = v; paint(); }, 0, SPRING_FOLLOW);
+          peers = new Map(tiles.filter(t=>t!==tile).map(t=>{
+            const st = {x:0, y:0};
+            const pt = ()=>{ t.style.transform = (Math.abs(st.x)<.05 && Math.abs(st.y)<.05) ? '' : `translate(${st.x}px,${st.y}px)`; };
+            return [t, {x: springValue(v=>{ st.x = v; pt(); }, 0, SPRING_PEER), y: springValue(v=>{ st.y = v; pt(); }, 0, SPRING_PEER)}];
+          }));
+          try{ tile.setPointerCapture(e.pointerId); }catch(_){}
+        }
+        ev.preventDefault();
+        sx.to(dx, SPRING_FOLLOW); sy.to(dy, SPRING_FOLLOW);
+        // 离哪个格子的中心最近，就落在哪个格子
+        const cx = rects[from].left + rects[from].width/2 + dx, cy = rects[from].top + rects[from].height/2 + dy;
+        let best = from, bd = Infinity;
+        rects.forEach((r,i)=>{ const d = Math.hypot(r.left + r.width/2 - cx, r.top + r.height/2 - cy); if(d < bd){ bd = d; best = i; } });
+        to = best;
+        // 其它格子：按新顺序算各自该去的格子，滑过去
+        const order = tiles.filter(t=>t!==tile); order.splice(to, 0, tile);
+        order.forEach((t,i)=>{
+          if(t===tile) return;
+          const j = tiles.indexOf(t);
+          const p = peers.get(t);
+          p.x.to(rects[i].left - rects[j].left); p.y.to(rects[i].top - rects[j].top);
+        });
+      };
+      function up(cancelled){
+        clearTimeout(hold);
+        tile.classList.remove('jd-armed');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        window.removeEventListener('touchmove', block);
+        if(!dragging){
+          if(cancelled!==true && !(cancelled && cancelled.type==='pointercancel')) onOpen(from, tile.querySelector('img'));
+          return;
+        }
+        const finish = ()=>{
+          sx.stop(); sy.stop(); peers.forEach(p=>{ p.x.stop(); p.y.stop(); });
+          if(to!==from){ const [m] = arr.splice(from, 1); arr.splice(to, 0, m); }
+          rerender();
+        };
+        tile.style.transition = 'transform 0s';
+        const tx = rects[to].left - rects[from].left, ty = rects[to].top - rects[from].top;
+        sx.to(tx, {...SPRING_DROP, eps:.5}); sy.to(ty, {...SPRING_DROP, eps:.5});
+        let n = 0; const one = ()=>{ if(++n===2) finish(); };
+        sx.onRest(one); sy.onRest(one);
+      }
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+  });
+}
+
+/* ---- 看大图：全屏深色底，左右滑动/方向键切换，双指或滚轮放大、双击放大，往下拖关闭。
+   打开时从点的那张缩略图的位置放大出来，关的时候缩回去。 ---- */
+const lb = {el:null, urls:[], i:0, from:null, z:1, tx:0, ty:0, x:null, open:false};
+function lightboxOpen(){ return lb.open; }
+function lbBuild(){
+  if(lb.el) return;
+  const el = document.createElement('div');
+  el.className = 'lightbox';
+  el.innerHTML = `
+    <div class="lb-bg"></div>
+    <div class="lb-track"></div>
+    <div class="lb-top">
+      <span class="lb-count"></span>
+      <div class="lb-actions">
+        <a class="lb-btn lb-orig" target="_blank" rel="noopener">原图</a>
+        <button type="button" class="lb-btn lb-close" aria-label="关闭">&times;</button>
+      </div>
+    </div>
+    <button type="button" class="lb-nav lb-prev" aria-label="上一张">‹</button>
+    <button type="button" class="lb-nav lb-next" aria-label="下一张">›</button>`;
+  document.body.appendChild(el);
+  lb.el = el;
+  el.querySelector('.lb-close').addEventListener('click', closeLightbox);
+  el.querySelector('.lb-prev').addEventListener('click', ()=>lbGo(lb.i-1));
+  el.querySelector('.lb-next').addEventListener('click', ()=>lbGo(lb.i+1));
+  document.addEventListener('keydown', e=>{
+    if(!lb.open) return;
+    if(e.key==='ArrowLeft'){ e.preventDefault(); lbGo(lb.i-1); }
+    if(e.key==='ArrowRight'){ e.preventDefault(); lbGo(lb.i+1); }
+  });
+  lbBindGestures(el.querySelector('.lb-track'));
+}
+const lbW = ()=>lb.el.clientWidth;
+function lbImg(i=lb.i){ return lb.el.querySelectorAll('.lb-slide img')[i]; }
+function lbPaintImg(){ const im = lbImg(); if(im) im.style.transform = `translate(${lb.tx}px,${lb.ty}px) scale(${lb.z})`; }
+function lbPaintTrack(x){ lb.el.querySelector('.lb-track').style.transform = `translateX(${x}px)`; }
+function lbUpdateUi(){
+  lb.el.querySelector('.lb-count').textContent = lb.urls.length>1 ? `${lb.i+1} / ${lb.urls.length}` : '';
+  lb.el.querySelector('.lb-orig').href = lb.urls[lb.i];
+  lb.el.querySelector('.lb-prev').hidden = lb.i<=0;
+  lb.el.querySelector('.lb-next').hidden = lb.i>=lb.urls.length-1;
+}
+// 图片在屏幕上按"整张放得下"摆放时的位置和大小
+function lbFitRect(im){
+  const W = lbW(), H = lb.el.clientHeight, pad = innerWidth<=640 ? 0 : 48;
+  const nw = im.naturalWidth || 4, nh = im.naturalHeight || 3;
+  const s = Math.min((W-pad*2)/nw, (H-pad*2-40)/nh, 1);
+  const w = nw*s, h = nh*s;
+  return {left:(W-w)/2, top:(H-h)/2, width:w, height:h};
+}
+function openLightbox(urls, index, fromEl){
+  if(!urls.length) return;
+  lbBuild();
+  Object.assign(lb, {urls, i:Math.max(0, Math.min(urls.length-1, index)), from:fromEl||null, z:1, tx:0, ty:0, open:true});
+  const track = lb.el.querySelector('.lb-track');
+  track.innerHTML = urls.map((u,k)=>`<div class="lb-slide" style="left:${k*100}%"><img src="${escapeHtml(u)}" alt="" draggable="false"></div>`).join('');
+  lb.el.classList.add('open');
+  document.documentElement.classList.add('lb-lock');
+  lb.x = springValue(lbPaintTrack, -lb.i*lbW(), {k:420, c:40, eps:.5});
+  lbPaintTrack(-lb.i*lbW());
+  lbUpdateUi();
+  const im = lbImg(), bg = lb.el.querySelector('.lb-bg');
+  const zoomFrom = ()=>{
+    // 从缩略图的位置放大出来：先算出图片最终摆放的位置，再用弹簧从缩略图的位置/大小过渡过去
+    const src = lb.from && lb.from.isConnected ? lb.from.getBoundingClientRect() : null;
+    const fit = lbFitRect(im);
+    const s0 = src ? Math.max(src.width/fit.width, src.height/fit.height) : .9;
+    const dx0 = src ? (src.left + src.width/2) - (fit.left + fit.width/2) : 0;
+    const dy0 = src ? (src.top + src.height/2) - (fit.top + fit.height/2) : 24;
+    im.style.clipPath = '';
+    springValue(t=>{
+      bg.style.opacity = Math.min(1, t);
+      lb.el.style.setProperty('--lb-ui', Math.min(1, Math.max(0, t*1.4-.4)));
+      const k = 1 - t;
+      im.style.transform = `translate(${dx0*k}px,${dy0*k}px) scale(${s0 + (1-s0)*t})`;
+      im.style.opacity = src ? 1 : Math.min(1, t*1.5);
+    }, 0, {k:380, c:34, eps:.002}).to(1).onRest(()=>{ im.style.transform = ''; });
+  };
+  if(im.complete && im.naturalWidth) zoomFrom();
+  else { bg.style.opacity = 1; lb.el.style.setProperty('--lb-ui', 1); im.style.opacity = 0; im.onload = ()=>{ im.onload = null; zoomFrom(); }; }
+}
+function closeLightbox(){
+  if(!lb.open) return;
+  lb.open = false;
+  lb.x && lb.x.stop();
+  const im = lbImg(), bg = lb.el.querySelector('.lb-bg');
+  const done = ()=>{
+    lb.el.classList.remove('open');
+    lb.el.querySelector('.lb-track').innerHTML = '';
+    document.documentElement.classList.remove('lb-lock');
+  };
+  if(fxReduced() || !im){ done(); return; }
+  // 关：缩回原来那张缩略图（还在屏幕上、而且还是同一张的话），否则淡出缩小
+  const sameThumb = lb.from && lb.from.isConnected && lb.from.closest('.jd-thumbs') && lb.i === [...lb.from.closest('.jd-thumbs').querySelectorAll('.jd-tile:not(.jd-add) img')].indexOf(lb.from.tagName==='IMG' ? lb.from : lb.from.querySelector('img'));
+  const fit = lbFitRect(im);
+  const cur = {z: lb.z, tx: lb.tx, ty: lb.ty, op: parseFloat(bg.style.opacity||1)};
+  let s1 = .85, dx1 = 0, dy1 = cur.ty + 40;
+  if(sameThumb){
+    const r = lb.from.getBoundingClientRect();
+    s1 = Math.max(r.width/fit.width, r.height/fit.height);
+    dx1 = (r.left + r.width/2) - (fit.left + fit.width/2);
+    dy1 = (r.top + r.height/2) - (fit.top + fit.height/2);
+  }
+  springValue(t=>{
+    const z = cur.z + (s1 - cur.z)*t, x = cur.tx + (dx1 - cur.tx)*t, y = cur.ty + (dy1 - cur.ty)*t;
+    im.style.transform = `translate(${x}px,${y}px) scale(${z})`;
+    if(!sameThumb) im.style.opacity = 1 - t;
+    bg.style.opacity = cur.op*(1 - t);
+    lb.el.style.setProperty('--lb-ui', Math.max(0, 1 - t*2));
+  }, 0, {k:420, c:40, eps:.004, v:sameThumb ? 0 : 1}).to(1).onRest(done);
+}
+function lbGo(i, v=0){
+  if(i<0 || i>=lb.urls.length){ lb.x.to(-lb.i*lbW()); return; }
+  if(i!==lb.i){ lbResetZoom(true); lb.i = i; lbUpdateUi(); }
+  lb.x.v = v;
+  lb.x.to(-lb.i*lbW());
+}
+function lbResetZoom(instant){
+  const im = lbImg();
+  if(instant){ lb.z = 1; lb.tx = 0; lb.ty = 0; if(im) im.style.transform = ''; return; }
+  lbZoomTo(1, 0, 0);
+}
+// 缩放/平移用弹簧过渡到目标
+function lbZoomTo(z, tx, ty){
+  const s = {z:lb.z, tx:lb.tx, ty:lb.ty};
+  springValue(t=>{
+    lb.z = s.z + (z - s.z)*t; lb.tx = s.tx + (tx - s.tx)*t; lb.ty = s.ty + (ty - s.ty)*t;
+    lbPaintImg();
+  }, 0, {k:420, c:38, eps:.002}).to(1);
+}
+// 放大后平移不能把图片拖出屏幕太多
+function lbClampPan(z, tx, ty){
+  const im = lbImg(); if(!im) return {tx, ty};
+  const f = lbFitRect(im), W = lbW(), H = lb.el.clientHeight;
+  const mx = Math.max(0, (f.width*z - W)/2), my = Math.max(0, (f.height*z - H)/2);
+  return {tx: Math.max(-mx, Math.min(mx, tx)), ty: Math.max(-my, Math.min(my, ty))};
+}
+function lbZoomAt(z, cx, cy){
+  // 以屏幕上 (cx,cy) 这个点为中心缩放：这个点下面的图片内容缩放前后不动
+  z = Math.max(1, Math.min(5, z));
+  const W = lbW(), H = lb.el.clientHeight;
+  const px = cx - W/2, py = cy - H/2;
+  const qx = (px - lb.tx)/lb.z, qy = (py - lb.ty)/lb.z;
+  return lbClampPan(z, px - qx*z, py - qy*z);
+}
+function lbBindGestures(track){
+  const pts = new Map();
+  let g = null, lastTap = 0;
+  track.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const z = lb.z*Math.exp(-e.deltaY*.002);
+    const p = lbZoomAt(z, e.clientX, e.clientY);
+    lb.z = Math.max(1, Math.min(5, z)); lb.tx = p.tx; lb.ty = p.ty;
+    lbPaintImg();
+  }, {passive:false});
+  track.addEventListener('pointerdown', e=>{
+    if(!lb.open) return;
+    try{ track.setPointerCapture(e.pointerId); }catch(_){}
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const bg = lb.el.querySelector('.lb-bg');
+    if(pts.size===2){
+      const [a,b] = [...pts.values()];
+      g = {mode:'pinch', d0:Math.hypot(a.x-b.x, a.y-b.y), z0:lb.z, tx0:lb.tx, ty0:lb.ty, mx:(a.x+b.x)/2, my:(a.y+b.y)/2};
+      return;
+    }
+    g = {mode:null, x0:e.clientX, y0:e.clientY, t0:performance.now(), tx0:lb.tx, ty0:lb.ty, trackX:-lb.i*lbW(), bg, onImg: !!e.target.closest('img'), hist:[{x:e.clientX, y:e.clientY, t:performance.now()}]};
+    lb.x.stop();
+  });
+  track.addEventListener('pointermove', e=>{
+    if(!g || !pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(g.mode==='pinch'){
+      if(pts.size<2) return;
+      const [a,b] = [...pts.values()];
+      const d = Math.hypot(a.x-b.x, a.y-b.y);
+      const z = Math.max(.8, Math.min(6, g.z0*d/g.d0));
+      const W = lbW(), H = lb.el.clientHeight;
+      const px = g.mx - W/2, py = g.my - H/2, nx = (a.x+b.x)/2 - W/2, ny = (a.y+b.y)/2 - H/2;
+      const qx = (px - g.tx0)/g.z0, qy = (py - g.ty0)/g.z0;
+      lb.z = z; lb.tx = nx - qx*z; lb.ty = ny - qy*z;
+      lbPaintImg();
+      return;
+    }
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    g.hist.push({x:e.clientX, y:e.clientY, t:performance.now()}); if(g.hist.length>6) g.hist.shift();
+    if(!g.mode){
+      if(Math.hypot(dx,dy) < 6) return;
+      g.mode = lb.z>1.01 ? 'pan' : (Math.abs(dx) >= Math.abs(dy) ? 'swipe' : 'dismiss');
+    }
+    if(g.mode==='pan'){
+      lb.tx = g.tx0 + dx; lb.ty = g.ty0 + dy; lbPaintImg();
+    } else if(g.mode==='swipe'){
+      // 第一张往右、最后一张往左拉，有阻力
+      const edge = (lb.i===0 && dx>0) || (lb.i===lb.urls.length-1 && dx<0);
+      lbPaintTrack(g.trackX + (edge ? dx*.35 : dx));
+    } else {
+      const k = Math.min(1, Math.abs(dy)/420);
+      lb.tx = dx*.6; lb.ty = dy; lb.z = 1 - k*.25;
+      lbPaintImg();
+      g.bg.style.opacity = 1 - k*.9;
+      lb.el.style.setProperty('--lb-ui', 1 - Math.min(1, k*3));
+    }
+  });
+  const end = e=>{
+    if(!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if(!g) return;
+    if(g.mode==='pinch'){
+      if(pts.size>0){
+        // 还剩一根手指：接着当平移
+        const [p] = [...pts.values()];
+        g = {mode:'pan', x0:p.x, y0:p.y, tx0:lb.tx, ty0:lb.ty, hist:[], bg:g.bg};
+        return;
+      }
+      const z = Math.max(1, Math.min(5, lb.z));
+      const c = lbClampPan(z, lb.tx, lb.ty);
+      lbZoomTo(z<1.05 ? 1 : z, z<1.05 ? 0 : c.tx, z<1.05 ? 0 : c.ty);
+      g = null; return;
+    }
+    const h = g.hist, a = h[0], b = h[h.length-1];
+    const dt = Math.max(1, b.t - a.t);
+    const vx = (b.x - a.x)/dt*1000, vy = (b.y - a.y)/dt*1000;
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    if(!g.mode){
+      // 点按：双击放大/还原；单击背景（不是图片）关闭
+      const now = performance.now();
+      if(now - lastTap < 300){
+        lastTap = 0;
+        if(lb.z>1.01) lbZoomTo(1, 0, 0);
+        else { const p = lbZoomAt(2.5, e.clientX, e.clientY); lbZoomTo(2.5, p.tx, p.ty); }
+      } else {
+        lastTap = now;
+        const onImg = g.onImg;
+        if(!onImg) setTimeout(()=>{ if(lastTap===now && lb.z<=1.01) closeLightbox(); }, 300);
+      }
+    } else if(g.mode==='pan'){
+      const c = lbClampPan(lb.z, lb.tx + vx*.12, lb.ty + vy*.12);
+      lbZoomTo(lb.z, c.tx, c.ty);
+    } else if(g.mode==='swipe'){
+      const W = lbW();
+      const cur = g.trackX + dx;
+      lb.x.x = cur;
+      let ni = lb.i;
+      if(dx < -W*.18 || vx < -500) ni = lb.i + 1;
+      if(dx > W*.18 || vx > 500) ni = lb.i - 1;
+      ni = Math.max(0, Math.min(lb.urls.length-1, ni));
+      lbGo(ni, vx);
+    } else if(g.mode==='dismiss'){
+      if(Math.abs(dy) > 110 || Math.abs(vy) > 700) closeLightbox();
+      else {
+        const s = {z:lb.z, tx:lb.tx, ty:lb.ty, op:parseFloat(g.bg.style.opacity)};
+        const bg = g.bg;
+        springValue(t=>{
+          lb.z = s.z + (1 - s.z)*t; lb.tx = s.tx*(1-t); lb.ty = s.ty*(1-t);
+          lbPaintImg();
+          bg.style.opacity = s.op + (1 - s.op)*t;
+          lb.el.style.setProperty('--lb-ui', Math.min(1, t*1.5));
+        }, 0, {k:500, c:40, eps:.002}).to(1);
+      }
+    }
+    g = null;
+  };
+  track.addEventListener('pointerup', end);
+  track.addEventListener('pointercancel', end);
+  track.addEventListener('dblclick', e=>e.preventDefault());
+}
 
 /* ---- 回收站：找回被软删除的岗位（连带复活它所属的公司，如果公司也被删了的话） ---- */
 const recycleBinOverlay = document.getElementById('recycleBinOverlay');
@@ -8029,6 +8644,7 @@ function fxDrawer(d){
   const st = fxDrawerState.get(d);
   if(st.on===on) return;
   st.on = on;
+  if(d._noFx){ d._noFx = false; return; }
   if(fxReduced()) return;
   d.getAnimations().forEach(a=>a.cancel());
   const at = (dx,dy,s)=>`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${s})`;
@@ -8722,6 +9338,7 @@ setInterval(()=>{ if(isSyncConfigured() && sb) pullAndMerge(); }, 60000);
 /* ---- 键盘快捷键：Esc 关闭当前抽屉，单行输入框里回车直接保存 ---- */
 document.addEventListener('keydown', (e)=>{
   if(e.key !== 'Escape') return;
+  if(lightboxOpen()){ closeLightbox(); return; }
   if(datePop.classList.contains('open')){ closeDatePop(); return; }
   if(document.getElementById('closeConfirm').classList.contains('active')) closeCloseConfirm();
   else if(document.getElementById('companySuggest').hidden===false) hideCompanySuggest();
