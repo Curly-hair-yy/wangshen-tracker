@@ -1290,15 +1290,14 @@
      挂在 body 下面，position:absolute + scrollY，跟内容一起滚动，不用监听滚动去关）。
      原生 date/datetime-local 输入框还在、只是藏起来当"数据源"，各处读 .value 的
      老代码不用改；看得见的是旁边那个 .dp-trigger 按钮。 */
-  .track .step:hover .step-dot{transform:scale(1.12);}
-  /* 节点右上角的小笔：悬停才出现，点它打开改时间/环节的小窗口 */
-  .track .step-edit{position:absolute;top:-7px;left:calc(50% + 7px);z-index:2;width:18px;height:18px;padding:0;border:none;border-radius:50%;
-    background:#fff;color:var(--text-2);box-shadow:0 1px 4px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;
-    opacity:0;transform:scale(.6);pointer-events:none;transition:opacity .15s ease, transform .18s cubic-bezier(.34,1.56,.64,1), color .15s ease;}
-  .track .step-edit svg{width:10px;height:10px;}
-  .track .step:hover .step-edit,.track .step.dp-anchor .step-edit{opacity:1;transform:none;pointer-events:auto;}
-  .track .step-edit:hover{color:var(--purple,var(--blue));}
-  @media (hover:none){ .track .step-edit{display:none;} }
+  .track .step-dot:hover{transform:scale(1.12);}
+  /* 圆圈 = 完成（点击区域往外扩一圈，手指也好点中）；环节名/日期 = 编辑，悬停时环节名加深一点 */
+  .track .step-dot{position:relative;}
+  .track .step-dot::after{content:"";position:absolute;inset:-9px;border-radius:50%;}
+  .track .step-label,.track .step-date{cursor:pointer;}
+  .track .step-label{transition:filter .15s ease, transform .12s ease;}
+  .track .step-label:hover{filter:brightness(.94) saturate(1.2);}
+  .track .step-label:active{transform:scale(.95);}
   .track .step-dot{transition:transform .12s ease;}
   .track .step.dp-anchor .step-dot{transform:scale(1.18);}
   .dp-native-hidden{display:none !important;}
@@ -3831,7 +3830,6 @@ function renderTrackHtml(p, company){
     ${i>0 ? `<span class="seg seg-${st.status||'none'}"></span>` : ''}
     <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}" style="--sc:var(--${stageColorVar(st.key)});--sc-soft:var(--${stageColorVar(st.key)}-soft)">
       <span class="step-dot"></span>
-      <button type="button" class="step-edit" title="改时间 / 环节" aria-label="改时间 / 环节">${ICON_PEN}</button>
       <div class="step-label">${st.label}</div>
       <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
     </div>
@@ -4265,26 +4263,13 @@ function renderSubmittedList(){
       if(pos) openStageAddPop(btn, pos);
     });
   });
-  // 轨道节点：点圆圈 = 标记完成（已完成的再点一下问一句再取消）；悬停出现的小笔 = 打开改时间/环节的小窗口；
-  // 手机上没有悬停，长按圆圈打开小窗口。
+  // 轨道节点：点圆圈 = 标记完成（已完成的再点一下问一句再取消）；点下面的环节名/日期 = 打开改时间/环节的小窗口
   list.querySelectorAll('.track .step').forEach(stepEl=>{
-    let longPressed = false, holdTimer = null;
-    const openPop = ()=>{
-      const pos = positions.find(p=>p.id===stepEl.dataset.id);
-      if(pos) openStageNodePop(stepEl, pos, stepEl.dataset.key);
-    };
-    stepEl.addEventListener('pointerdown', e=>{
-      longPressed = false;
-      if(e.pointerType!=='touch') return;
-      holdTimer = setTimeout(()=>{ longPressed = true; if(navigator.vibrate) navigator.vibrate(8); openPop(); }, 450);
-    });
-    ['pointerup','pointercancel','pointerleave'].forEach(t=>stepEl.addEventListener(t, ()=>clearTimeout(holdTimer)));
-    stepEl.addEventListener('contextmenu', e=>{ if(longPressed) e.preventDefault(); });
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
-      if(longPressed){ longPressed = false; return; }
-      if(e.target.closest('.step-edit')){ openPop(); return; }
-      toggleTrackStepDone(stepEl.dataset.id, stepEl.dataset.key);
+      if(e.target.closest('.step-dot')){ toggleTrackStepDone(stepEl.dataset.id, stepEl.dataset.key); return; }
+      const pos = positions.find(p=>p.id===stepEl.dataset.id);
+      if(pos) openStageNodePop(stepEl, pos, stepEl.dataset.key);
     });
   });
   // 点卡片（岗位行或空白处）打开详情窗口：看进度/JD、改状态；详情右上角的小笔翻过去才是编辑
