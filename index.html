@@ -735,7 +735,10 @@
     padding:2px 6px;
   }
   .item-row .del:hover{color:var(--red);}
-  .add-item-btn{
+.bin-section-title{font-size:12px;font-weight:600;color:var(--text-3);margin:16px 0 8px;}
+  .bin-section-title:first-child{margin-top:0;}
+  .bin-diff{font-size:12px;color:var(--text-2);line-height:1.5;margin-top:4px;overflow-wrap:anywhere;}
+    .add-item-btn{
     font-size:13px;color:var(--primary);background:none;border:none;cursor:pointer;
     padding:4px 0;
   }
@@ -6048,6 +6051,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
   const now = new Date().toISOString();
   const cleanSharedChecklist = checklistDraft.filter(i=>i.text.trim()!=='');
 
+  const histBefore = editingId ? captureEditSnapshot(companyName) : null;
   // 查找或创建公司（按名字匹配时不管有没有被软删除都算找到——如果之前删过这家公司，
   // 现在又新增了它的岗位，直接把原来的公司记录复活，而不是产生一个重复的新公司）
   let companyTouched = false;
@@ -6156,6 +6160,7 @@ document.getElementById('saveBtn').addEventListener('click', ()=>{
     });
   }
   positionDraftRemoved.forEach(id=>deletePosition(id));
+  if(histBefore) recordEditHistory(histBefore, touchedPositionIds);
   saveData();
   if(companyTouched) queueUpsert('companies', company.id);
   touchedPositionIds.forEach(id=>queueUpsert('positions', id));
@@ -7522,11 +7527,23 @@ function renderRecycleBin(){
   const deletedPositions = positions.filter(p=>p.deleted)
     .sort((a,b)=>new Date(b.deletedAt||b.updatedAt) - new Date(a.deletedAt||a.updatedAt));
   const body = document.getElementById('recycleBinBody');
-  if(deletedPositions.length===0){
+  const history = loadEditHistory();
+  if(deletedPositions.length===0 && history.length===0){
     body.innerHTML = `<div class="empty-hint">回收站是空的</div>`;
     return;
   }
-  body.innerHTML = deletedPositions.map(p=>{
+  const historyHtml = history.map(h=>`
+      <div class="position-detail-item bin-history-item" data-hid="${h.id}" style="cursor:default;">
+        <div class="position-detail-head">
+          <span class="position-detail-name">${escapeHtml(h.title)}</span>
+        </div>
+        <div class="field-hint">${h.kind==='restore' ? '恢复之前' : '修改于'} ${fmtDateTime(h.at)}</div>
+        ${h.changes.length ? `<div class="bin-diff">${h.changes.slice(0,6).map(escapeHtml).join('<br>')}${h.changes.length>6?`<br>…等 ${h.changes.length} 处`:''}</div>` : ''}
+        <div class="position-detail-actions" style="margin-top:8px;">
+          <button class="add-item-btn bin-revert-btn" data-hid="${h.id}" type="button">改回这次修改之前</button>
+        </div>
+      </div>`).join('');
+  const deletedHtml = deletedPositions.map(p=>{
     const company = getCompany(p.companyId);
     return `
       <div class="position-detail-item" data-id="${p.id}" style="cursor:default;">
@@ -7540,12 +7557,156 @@ function renderRecycleBin(){
       </div>
     `;
   }).join('');
-  body.querySelectorAll('.add-item-btn').forEach(btn=>{
+  body.innerHTML =
+    (deletedPositions.length ? `<div class="bin-section-title">删除的岗位</div>${deletedHtml}` : '') +
+    (history.length ? `<div class="bin-section-title">改动记录</div>${historyHtml}` : '');
+  body.querySelectorAll('.add-item-btn:not(.bin-revert-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       restoreDeletedPosition(btn.dataset.id);
       fxCollapse(btn.closest('.position-detail-item'), renderRecycleBin);
     });
   });
+  body.querySelectorAll('.bin-revert-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(revertEditHistory(btn.dataset.hid)) renderRecycleBin();
+    });
+  });
+}
+
+/* ---- 改动记录：编辑弹窗每次保存前，把这次会动到的公司/岗位原样拍一份快照存在本机，
+   回收站里可以一键改回去。改回去之前也会先拍一份"恢复之前"，所以改回去本身也能再撤销。
+   只存本机（localStorage），不进同步；改回去写回的数据照常同步。 ---- */
+const EDIT_HISTORY_KEY = 'wangshen_edit_history';
+const EDIT_HISTORY_MAX = 60;
+function loadEditHistory(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(EDIT_HISTORY_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+function saveEditHistory(list){
+  safeSetItem(EDIT_HISTORY_KEY, JSON.stringify(list.slice(0, EDIT_HISTORY_MAX)));
+}
+const clone = o=>JSON.parse(JSON.stringify(o));
+function captureEditSnapshot(companyName){
+  const ids = new Set([...positionDraft.map(e=>e._existingId).filter(Boolean), ...positionDraftRemoved]);
+  const snapPositions = positions.filter(p=>ids.has(p.id)).map(clone);
+  const companyIds = new Set(snapPositions.map(p=>p.companyId));
+  const target = companies.find(c=>c.name.toLowerCase()===String(companyName||'').toLowerCase());
+  if(target) companyIds.add(target.id);
+  return { companies: companies.filter(c=>companyIds.has(c.id)).map(clone), positions: snapPositions };
+}
+const HISTORY_POS_FIELDS = [
+  ['position','岗位名'], ['location','地点'], ['status','状态'], ['deadline','截止'], ['link','链接'],
+  ['note','备注'], ['requirement','岗位要求'], ['checklist','待办'], ['progress','进度'], ['stageDeadlines','提醒'],
+  ['requirementImages','图片'],
+];
+function historyBrief(v, key){
+  if(key==='status') return STATUS_LABEL[v] || v || '空';
+  if(v==null || v==='') return '空';
+  if(typeof v!=='string') return '';
+  const t = v.replace(/\s+/g,' ').trim();
+  return t.length>24 ? t.slice(0,24)+'…' : t;
+}
+function historyChanges(before){
+  const out = [];
+  before.companies.forEach(b=>{
+    const c = getCompany(b.id);
+    if(!c) return;
+    if((b.name||'')!==(c.name||'')) out.push(`公司名：${historyBrief(b.name)} → ${historyBrief(c.name)}`);
+    if((b.note||'')!==(c.note||'')) out.push(`公司备注：${historyBrief(b.note)} → ${historyBrief(c.note)}`);
+  });
+  before.positions.forEach(b=>{
+    const p = positions.find(x=>x.id===b.id);
+    if(!p) return;
+    const name = b.position || p.position || '（未命名岗位）';
+    if(!b.deleted && p.deleted){ out.push(`删掉了岗位：${historyBrief(name)}`); return; }
+    if(b.deleted && !p.deleted){ out.push(`找回了岗位：${historyBrief(name)}`); return; }
+    if(b.companyId!==p.companyId){
+      const c = getCompany(p.companyId);
+      out.push(`${historyBrief(name)}：换到 ${historyBrief(c?c.name:'')}`);
+    }
+    HISTORY_POS_FIELDS.forEach(([k,label])=>{
+      const ov = b[k], nv = p[k];
+      if(JSON.stringify(ov??'')===JSON.stringify(nv??'')) return;
+      if(k==='position'){ out.push(`岗位名：${historyBrief(ov)} → ${historyBrief(nv)}`); return; }
+      const o = historyBrief(ov,k), n = historyBrief(nv,k);
+      out.push(o||n ? `${historyBrief(name)} · ${label}：${o} → ${n}` : `${historyBrief(name)} · 改了${label}`);
+    });
+  });
+  return out;
+}
+function recordEditHistory(before, touchedIds, kind){
+  const known = new Set(before.positions.map(p=>p.id));
+  const added = (touchedIds||[]).filter(id=>!known.has(id));
+  const changes = historyChanges(before);
+  added.forEach(id=>{
+    const p = positions.find(x=>x.id===id);
+    if(p) changes.push(`新加了岗位：${historyBrief(p.position||'（未命名岗位）')}`);
+  });
+  if(!changes.length) return;
+  const firstPos = before.positions[0] ? positions.find(x=>x.id===before.positions[0].id) : null;
+  const c = getCompany(firstPos ? firstPos.companyId : (before.companies[0]||{}).id) || before.companies[0];
+  const list = loadEditHistory();
+  list.unshift({
+    id: 'h_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    at: new Date().toISOString(),
+    kind: kind||'edit',
+    title: c ? c.name : '（未知公司）',
+    changes, added, before,
+  });
+  saveEditHistory(list);
+}
+function revertEditHistory(hid){
+  const list = loadEditHistory();
+  const h = list.find(x=>x.id===hid);
+  if(!h) return false;
+  const now = new Date().toISOString();
+  // 改回去之前先拍一份现在的样子，这次"改回去"也能再撤销
+  const posIds = new Set([...h.before.positions.map(p=>p.id), ...(h.added||[])]);
+  const nowSnap = {
+    companies: companies.filter(c=>h.before.companies.some(b=>b.id===c.id)).map(clone),
+    positions: positions.filter(p=>posIds.has(p.id)).map(clone),
+  };
+  const touchedCompanies = new Set(), touchedPositions = new Set();
+  h.before.companies.forEach(b=>{
+    const c = getCompany(b.id);
+    if(c) Object.assign(c, clone(b), {updatedAt: now}); else companies.push(Object.assign(clone(b), {updatedAt: now}));
+    touchedCompanies.add(b.id);
+  });
+  h.before.positions.forEach(b=>{
+    const p = positions.find(x=>x.id===b.id);
+    if(p) Object.assign(p, clone(b), {updatedAt: now}); else positions.push(Object.assign(clone(b), {updatedAt: now}));
+    touchedPositions.add(b.id);
+  });
+  (h.added||[]).forEach(id=>{
+    const p = positions.find(x=>x.id===id);
+    if(p && !p.deleted){ p.deleted = true; p.deletedAt = now; p.updatedAt = now; touchedPositions.add(id); }
+  });
+  // 岗位被挪走/删掉后公司里一个不剩，公司也跟着软删除（跟 deletePosition 一样）
+  companies.forEach(c=>{
+    if(touchedCompanies.has(c.id) || nowSnap.positions.some(p=>p.companyId===c.id)){
+      const alive = positions.some(p=>p.companyId===c.id && !p.deleted);
+      if(!alive && !c.deleted){ c.deleted = true; c.deletedAt = now; c.updatedAt = now; touchedCompanies.add(c.id); }
+    }
+  });
+  const rest = list.filter(x=>x.id!==hid);
+  saveEditHistory(rest);
+  const restoreChanges = historyChanges(nowSnap);
+  if(restoreChanges.length){
+    rest.unshift({
+      id: 'h_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      at: now, kind: 'restore', title: h.title,
+      changes: restoreChanges, added: [], before: nowSnap,
+    });
+    saveEditHistory(rest);
+  }
+  saveData();
+  touchedCompanies.forEach(id=>queueUpsert('companies', id));
+  touchedPositions.forEach(id=>queueUpsert('positions', id));
+  flushQueue();
+  renderAll();
+  return true;
 }
 function restoreDeletedPosition(id){
   const p = positions.find(x=>x.id===id);
