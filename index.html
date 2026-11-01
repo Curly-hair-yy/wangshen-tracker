@@ -1291,6 +1291,14 @@
      原生 date/datetime-local 输入框还在、只是藏起来当"数据源"，各处读 .value 的
      老代码不用改；看得见的是旁边那个 .dp-trigger 按钮。 */
   .track .step:hover .step-dot{transform:scale(1.12);}
+  /* 节点右上角的小笔：悬停才出现，点它打开改时间/环节的小窗口 */
+  .track .step-edit{position:absolute;top:-7px;left:calc(50% + 7px);z-index:2;width:18px;height:18px;padding:0;border:none;border-radius:50%;
+    background:#fff;color:var(--text-2);box-shadow:0 1px 4px rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    opacity:0;transform:scale(.6);pointer-events:none;transition:opacity .15s ease, transform .18s cubic-bezier(.34,1.56,.64,1), color .15s ease;}
+  .track .step-edit svg{width:10px;height:10px;}
+  .track .step:hover .step-edit,.track .step.dp-anchor .step-edit{opacity:1;transform:none;pointer-events:auto;}
+  .track .step-edit:hover{color:var(--purple,var(--blue));}
+  @media (hover:none){ .track .step-edit{display:none;} }
   .track .step-dot{transition:transform .12s ease;}
   .track .step.dp-anchor .step-dot{transform:scale(1.18);}
   .dp-native-hidden{display:none !important;}
@@ -3862,6 +3870,7 @@ function renderTrackHtml(p, company){
     ${i>0 ? `<span class="seg seg-${st.status||'none'}"></span>` : ''}
     <div class="step${st.status?' '+st.status:''}" data-id="${p.id}" data-key="${st.key}" style="--sc:var(--${stageColorVar(st.key)});--sc-soft:var(--${stageColorVar(st.key)}-soft)">
       <span class="step-dot"></span>
+      <button type="button" class="step-edit" title="改时间 / 环节" aria-label="改时间 / 环节">${ICON_PEN}</button>
       <div class="step-label">${st.label}</div>
       <div class="step-date">${st.dateLabel || '&nbsp;'}</div>
     </div>
@@ -4295,12 +4304,26 @@ function renderSubmittedList(){
       if(pos) openStageAddPop(btn, pos);
     });
   });
+  // 轨道节点：点圆圈 = 标记完成（已完成的再点一下问一句再取消）；悬停出现的小笔 = 打开改时间/环节的小窗口；
+  // 手机上没有悬停，长按圆圈打开小窗口。
   list.querySelectorAll('.track .step').forEach(stepEl=>{
+    let longPressed = false, holdTimer = null;
+    const openPop = ()=>{
+      const pos = positions.find(p=>p.id===stepEl.dataset.id);
+      if(pos) openStageNodePop(stepEl, pos, stepEl.dataset.key);
+    };
+    stepEl.addEventListener('pointerdown', e=>{
+      longPressed = false;
+      if(e.pointerType!=='touch') return;
+      holdTimer = setTimeout(()=>{ longPressed = true; if(navigator.vibrate) navigator.vibrate(8); openPop(); }, 450);
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach(t=>stepEl.addEventListener(t, ()=>clearTimeout(holdTimer)));
+    stepEl.addEventListener('contextmenu', e=>{ if(longPressed) e.preventDefault(); });
     stepEl.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const pos = positions.find(p=>p.id===stepEl.dataset.id);
-      if(!pos) return;
-      openStageNodePop(stepEl, pos, stepEl.dataset.key);
+      if(longPressed){ longPressed = false; return; }
+      if(e.target.closest('.step-edit')){ openPop(); return; }
+      toggleTrackStepDone(stepEl.dataset.id, stepEl.dataset.key);
     });
   });
   // 点卡片（岗位行或空白处）打开详情窗口：看进度/JD、改状态；详情右上角的小笔翻过去才是编辑
@@ -6995,6 +7018,45 @@ function positionHasOwnStage(p, key){
 }
 // 小菜单顶部可以切"这个岗位 / 整家公司"：选整家公司时，改日期、删除、换环节会一起作用到
 // 这家公司所有已提交的岗位，同一家公司流程一样的就不用一个个点。
+// 点轨道圆圈标记完成：日期按截止时间校正（过了截止日才点，记成截止那天）。
+// 这个环节是公司级提醒的话，跟提醒事项里打勾一样：公司那条记完成，这家公司已提交的岗位一起打勾。
+async function toggleTrackStepDone(posId, key){
+  const p = positions.find(x=>x.id===posId);
+  if(!p) return;
+  const c = getCompany(p.companyId);
+  const done = !!effectiveProgress(p, c).progress[key];
+  const compEntry = c ? companyStageDeadlineEntry(c, key) : null;
+  const now = new Date().toISOString();
+  const touched = new Set([p.id]);
+  if(!p.progress) p.progress = {};
+  if(!p.progressDates) p.progressDates = {};
+  if(done){
+    const label = (PROGRESS_STAGES.find(s=>s.key===key)||{}).label || key;
+    if(!(await askConfirm({title:'取消完成？', subject:`${c?c.name:''} · ${p.position||''} · ${label}`, okText:'取消完成', cancelText:'不了'}))) return;
+    setProgressChecked(p.progress, p.progressDates, key, false);
+    if(compEntry && compEntry.done){ setCompanyStageDone(c, key, false); c.updatedAt = now; queueUpsert('companies', c.id); }
+  } else {
+    setProgressChecked(p.progress, p.progressDates, key, true);
+    fixStageDoneDate(p, key);
+    if(compEntry && !compEntry.done){
+      setCompanyStageDone(c, key, true); c.updatedAt = now; queueUpsert('companies', c.id);
+      positions.filter(x=>!x.deleted && x.companyId===c.id && x.status==='submitted' && !(x.progress && x.progress[key])).forEach(x=>{
+        if(!x.progress) x.progress = {};
+        if(!x.progressDates) x.progressDates = {};
+        setProgressChecked(x.progress, x.progressDates, key, true);
+        fixStageDoneDate(x, key);
+        touched.add(x.id);
+      });
+    }
+  }
+  touched.forEach(id=>{ const x = positions.find(y=>y.id===id); x.updatedAt = now; queueUpsert('positions', id); });
+  saveData();
+  flushQueue();
+  renderAll();
+  // 刚点的那个圆圈弹一下
+  const dot = document.querySelector(`#submittedList .track .step[data-id="${posId}"][data-key="${key}"] .step-dot`);
+  if(dot && !fxReduced()) dot.animate([{transform:'scale(1)'},{transform:'scale(1.4)'},{transform:'scale(1)'}], {duration:380, easing:'cubic-bezier(.34,1.56,.64,1)'});
+}
 function openStageNodePop(stepEl, pos, initialKey){
   let key = initialKey;
   let scope = 'one';
