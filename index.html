@@ -4087,7 +4087,9 @@ function computeCompanyCandidates(g, company){
       }
     });
   });
-  if(company){
+  // 公司级提醒：这张卡里的岗位全都已经结束了，就不再算待处理、也不再挂提醒胶囊
+  const allEnded = g.list.length>0 && g.list.every(p=>effectiveProgress(p, company).progress.ended);
+  if(company && !allEnded){
     PROGRESS_STAGES.forEach(s=>{
       const entry = companyStageDeadlineEntry(company, s.key);
       if(entry && entry.date && !entry.done){
