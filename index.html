@@ -2255,6 +2255,23 @@
   .jd-mark{display:inline-flex;vertical-align:-1px;margin-left:4px;color:var(--text-4,var(--text-3));opacity:.8;}
   .jd-mark svg{width:12px;height:12px;}
   .position-line .jd-mark{margin-left:-4px;margin-right:auto;flex-shrink:0;}
+
+  /* 提醒事项点进来的详情：顶部这条提醒 */
+  .detail-reminder{margin-bottom:16px;padding:12px 14px;border-radius:16px;background:var(--lavender-soft,var(--blue-soft));}
+  .detail-reminder.is-done{background:var(--field);}
+  .dr-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .dr-head .rdate{font-size:15px;}
+  .dr-gap{flex:1;}
+  .dr-state{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;
+    background:#fff;color:var(--text-3);box-shadow:inset 0 0 0 1px var(--line);}
+  .dr-state svg{width:11px;height:11px;}
+  .dr-state.booked{background:#e8efc4;color:#4d6014;box-shadow:none;}
+  .dr-state.done{background:#e8efc4;color:#4d6014;box-shadow:none;}
+  .dr-state.declined{background:var(--gray-soft);color:var(--gray-ink);box-shadow:none;}
+  .dr-scope{margin-top:6px;font-size:12px;color:var(--text-2);}
+  .dr-note{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(0,0,0,.08);font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:14px;line-height:1.6;
+    color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;}
+  .position-detail-item.is-target{box-shadow:0 0 0 2px var(--purple,var(--blue)), var(--shadow-1);}
 </style>
 </head>
 <body>
@@ -2523,7 +2540,8 @@
     </div>
   </div>
   <div class="drawer-body">
-    <div class="field">
+    <div id="companyDetailReminder"></div>
+    <div class="field" id="companyDetailMoveField">
       <label>归类</label>
       <div class="status-toggle" id="companyDetailMoveToggle">
         <button data-status="todo" type="button">待填写</button>
@@ -3174,6 +3192,8 @@ function renderStats(){
 // 更久→蓝（显示日期而不是"还剩几天"）。没有截止字段就不显示。
 function deadlineBadge(r){
   if(!r.deadline) return '';
+  // 已经提交了，网申截止时间就不用再提醒（不显示"已逾期 N 天"之类）
+  if(r.status==='submitted') return '';
   const d = daysUntil(r.deadline);
   let cls='blue', text=fmtDate(r.deadline);
   if(d<0){ cls='red'; text=`已逾期 ${Math.abs(d)} 天`; }
@@ -4690,7 +4710,9 @@ function renderRemindersList(){
   list.querySelectorAll('.reminder-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
       if(e.target.closest('.reminder-check, .reminder-delete-btn, .reminder-decline-btn, .reminder-book, .position-link, .reminder-note-link')) return;
-      openReminderDrawerForEdit(row.dataset.scope, row.dataset.id, row.dataset.key);
+      const rem = {scope: row.dataset.scope, id: row.dataset.id, key: row.dataset.key};
+      const companyId = rem.scope==='company' ? rem.id : positions.find(p=>p.id===rem.id)?.companyId;
+      if(companyId) openCompanyDetail(companyId, 'submitted', undefined, rem);
     });
   });
   // 圆形勾选框身兼"标记完成"和"撤销完成"两个动作——看这一行当前是不是已完成
@@ -4947,10 +4969,59 @@ function openReminderDrawerForEdit(scope, id, stageKey){
   reminderOverlay.classList.add('active');
   reminderDrawer.classList.add('active');
 }
+let reminderFlipCtx = null;   // 编辑提醒是从详情翻过来的：关的时候翻回详情
+let reminderAfterSave = null; // 保存后这条提醒在哪（环节/岗位可能改了），翻回去显示改完的那条
 function closeReminderDrawer(){
+  if(flipBusy){ setTimeout(closeReminderDrawer, 120); return; }
+  const ctx = reminderFlipCtx;
+  reminderFlipCtx = null;
+  const rem = reminderAfterSave || (ctx && ctx.reminder);
+  reminderAfterSave = null;
+  if(ctx && rem && reminderDrawer.classList.contains('active') && reminderEntryOf(rem)){
+    reminderEditTarget = null;
+    const companyId = rem.scope==='company' ? rem.id : positions.find(p=>p.id===rem.id)?.companyId;
+    flipSwap(reminderDrawer, reminderOverlay, companyDetailDrawer, companyDetailOverlay, ()=>openCompanyDetail(companyId, 'submitted', undefined, rem), -1);
+    return;
+  }
   reminderOverlay.classList.remove('active');
   reminderDrawer.classList.remove('active');
   reminderEditTarget = null;
+}
+function flipToReminderEdit(){
+  if(!detailCtx || !detailCtx.reminder || flipBusy) return;
+  reminderFlipCtx = {...detailCtx};
+  const r = detailCtx.reminder;
+  flipSwap(companyDetailDrawer, companyDetailOverlay, reminderDrawer, reminderOverlay, ()=>openReminderDrawerForEdit(r.scope, r.id, r.key), 1);
+}
+// 这条提醒现在的数据（没有了返回 null）
+function reminderEntryOf(rem){
+  if(!rem) return null;
+  if(rem.scope==='company') return companyStageDeadlineEntry(getCompany(rem.id), rem.key);
+  const p = positions.find(x=>x.id===rem.id && !x.deleted);
+  return p ? stageDeadlineEntry(p.stageDeadlines||{}, rem.key) : null;
+}
+// 详情窗口顶部的提醒卡：环节 + 时间（周几、几点、紧急程度颜色）+ 预约/完成状态 + 适用范围 + 备注
+function renderDetailReminder(rem){
+  const e = reminderEntryOf(rem);
+  if(!e) return '';
+  const p = rem.scope==='position' ? positions.find(x=>x.id===rem.id) : null;
+  const done = e.declined ? 'declined' : ((rem.scope==='company' ? e.done : !!(p && p.progress && p.progress[rem.key])) ? 'done' : '');
+  const doneDate = e.declined ? e.declinedDate : (rem.scope==='company' ? e.doneDate : ((p && p.progressDates)||{})[rem.key]);
+  const status = done==='declined' ? `<span class="dr-state declined">不参加${doneDate?' '+shortDateLabel(doneDate):''}</span>`
+    : done==='done' ? `<span class="dr-state done">已完成${doneDate?' '+shortDateLabel(doneDate):''}</span>`
+    : `<span class="dr-state${e.booked?' booked':''}">${e.booked ? ICON_CHECK+'已预约' : '未预约'}</span>`;
+  const when = e.date ? `<span class="rdate ${done ? '' : reminderUrgency(e.date)}">${reminderShortDate(e.date)}</span><span class="rtag rtag-time">${reminderWeekday(e.date)} ${reminderTime(e.date)}</span>` : '';
+  return `
+    <div class="detail-reminder${done?' is-done':''}">
+      <div class="dr-head">
+        <span class="chip ${stageColor(rem.key)}">${trackStepLabel(rem.key)}</span>
+        ${when}
+        <span class="dr-gap"></span>
+        ${status}
+      </div>
+      <div class="dr-scope">${rem.scope==='company' ? '全部岗位通用' : '只针对：' + escapeHtml((p && p.position) || '（未命名岗位）')}</div>
+      ${e.note ? `<div class="dr-note">${linkifyNote(e.note)}</div>` : ''}
+    </div>`;
 }
 document.getElementById('addReminderBtn').addEventListener('click', openReminderDrawerForAdd);
 
@@ -5053,6 +5124,7 @@ reminderDeleteBtn.addEventListener('click', ()=>{
       flushQueue();
     }
   }
+  reminderFlipCtx = null;
   closeReminderDrawer();
   renderAll();
 });
@@ -5120,6 +5192,7 @@ reminderSaveBtn.addEventListener('click', ()=>{
     queueUpsert('positions', pos.id);
     flushQueue();
   }
+  reminderAfterSave = {scope:newTarget.scope, id: newTarget.scope==='company' ? newTarget.companyId : newTarget.positionId, key:newTarget.stageKey};
   closeReminderDrawer();
   renderAll();
 });
@@ -6000,7 +6073,7 @@ function closeDrawer(){
         st = alive[0].status;
         rs = st==='inprogress' ? reviewStageOf(alive[0]) : undefined;
       }
-      flipSwap(drawer, overlay, companyDetailDrawer, companyDetailOverlay, ()=>openCompanyDetail(ctx.companyId, st, rs), -1);
+      flipSwap(drawer, overlay, companyDetailDrawer, companyDetailOverlay, ()=>openCompanyDetail(ctx.companyId, st, rs, ctx.reminder), -1);
       return;
     }
   }
@@ -7467,9 +7540,13 @@ const companyDetailDrawer = document.getElementById('companyDetailDrawer');
 const STATUS_LABEL = {todo:'待填写', inprogress:'填报中', submitted:'已提交'};
 
 let detailCtx = null;
-function openCompanyDetail(companyId, status, reviewStage){
-  detailCtx = {companyId, status, reviewStage};
+// reminder：从提醒事项点进来时带着这条提醒 {scope, id, key}，窗口顶部先显示它，右上角小笔改的是这条提醒
+function openCompanyDetail(companyId, status, reviewStage, reminder){
+  if(reminder && !reminderEntryOf(reminder)) reminder = null;
+  detailCtx = {companyId, status, reviewStage, reminder: reminder||null};
   const company = getCompany(companyId);
+  document.getElementById('companyDetailReminder').innerHTML = reminder ? renderDetailReminder(reminder) : '';
+  document.getElementById('companyDetailMoveField').style.display = reminder ? 'none' : '';
   const list = sortPositions(positions.filter(p=>!p.deleted && p.companyId===companyId && p.status===status
     && (reviewStage===undefined || reviewStageOf(p)===reviewStage)));
   const stageLabel = reviewStage ? ` · ${REVIEW_STAGE_LABEL[reviewStage]}` : '';
@@ -7537,7 +7614,7 @@ function openCompanyDetail(companyId, status, reviewStage){
       </div>
     ` : '';
     return `
-      <div class="position-detail-item" data-id="${p.id}">
+      <div class="position-detail-item${reminder && reminder.scope==='position' && reminder.id===p.id ? ' is-target' : ''}" data-id="${p.id}">
         ${list.length>1 ? `<span class="position-drag-handle" title="按住拖动调整顺序" aria-label="拖动调整顺序">⠿</span>` : ''}
         <button class="position-detail-del" type="button" data-id="${p.id}" title="删除这个岗位">&times;</button>
         <div class="position-detail-head">
@@ -7629,9 +7706,9 @@ function openCompanyDetail(companyId, status, reviewStage){
           flushQueue();
           renderAll();
         }
-        openCompanyDetail(companyId, status, reviewStage);
+        openCompanyDetail(companyId, status, reviewStage, reminder);
       };
-      input.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); ev.stopPropagation(); commit(); } if(ev.key==='Escape'){ ev.stopPropagation(); openCompanyDetail(companyId, status, reviewStage); } });
+      input.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); ev.stopPropagation(); commit(); } if(ev.key==='Escape'){ ev.stopPropagation(); openCompanyDetail(companyId, status, reviewStage, reminder); } });
       wrap.querySelector('button').addEventListener('click', ev=>{ ev.stopPropagation(); commit(); });
       wrap.addEventListener('click', ev=>ev.stopPropagation());
     });
@@ -7668,7 +7745,8 @@ function openCompanyDetail(companyId, status, reviewStage){
   });
   const editBtn = document.getElementById('companyDetailEditBtn');
   editBtn.innerHTML = ICON_PEN;
-  editBtn.onclick = ()=>{ if(list[0]) flipToEdit(list[0].id); };
+  editBtn.title = reminder ? '编辑这条提醒' : '编辑';
+  editBtn.onclick = ()=>{ if(reminder) flipToReminderEdit(); else if(list[0]) flipToEdit(list[0].id); };
   document.querySelectorAll('.position-detail-del').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -7682,7 +7760,7 @@ function openCompanyDetail(companyId, status, reviewStage){
         if(remaining.length===0){
           closeCompanyDetail();
         } else {
-          openCompanyDetail(companyId, status, reviewStage);
+          openCompanyDetail(companyId, status, reviewStage, reminder);
         }
       });
       });
