@@ -2203,11 +2203,6 @@
   #saveBtn.is-waiting{opacity:.6;pointer-events:none;}
   #saveBtn.is-waiting::after{content:"…";}
   /* 详情窗口：右上角小笔 + JD */
-  .detail-edit-btn{width:28px;height:28px;border-radius:50%;border:none;background:var(--gray-soft);color:var(--gray-ink);
-    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s ease, color .15s ease, transform .1s ease;}
-  .detail-edit-btn:hover{background:var(--purple-soft,var(--blue-soft));color:var(--purple,var(--blue));}
-  .detail-edit-btn:active{transform:scale(.92);}
-  .detail-edit-btn svg{width:14px;height:14px;}
   #companyDetailDrawer .drawer-head > div{gap:8px !important;}
   .detail-jd{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);cursor:default;}
   .detail-jd-text{font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap;overflow-wrap:anywhere;
@@ -2257,7 +2252,10 @@
   .position-line .jd-mark{margin-left:-4px;margin-right:auto;flex-shrink:0;}
 
   /* 提醒事项点进来的详情：顶部这条提醒 */
-  .detail-reminder{margin-bottom:16px;padding:12px 14px;border-radius:16px;background:var(--lavender-soft,var(--blue-soft));}
+  .detail-reminder{margin-bottom:16px;padding:12px 14px;border-radius:16px;background:var(--lavender-soft,var(--blue-soft));cursor:pointer;
+    transition:transform .15s cubic-bezier(.2,.8,.2,1), box-shadow .15s ease;}
+  .detail-reminder:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
+  .detail-reminder:active{transform:scale(.99);}
   .detail-reminder.is-done{background:var(--field);}
   .dr-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .dr-head .rdate{font-size:15px;}
@@ -2534,7 +2532,6 @@
     <h3 id="companyDetailTitle">公司详情</h3>
     <div style="display:flex;align-items:center;gap:8px;">
       <a class="position-link" id="companyDetailLink" href="#" target="_blank" rel="noopener" style="display:none;">链接 ↗</a>
-      <button class="detail-edit-btn" id="companyDetailEditBtn" type="button" title="编辑" aria-label="编辑"></button>
       <button class="favorite-star" id="companyDetailFavoriteBtn" type="button" title="收藏这家公司">☆</button>
       <button class="drawer-close" id="companyDetailClose">&times;</button>
     </div>
@@ -7743,10 +7740,9 @@ function openCompanyDetail(companyId, status, reviewStage, reminder){
       flipToEdit(item.dataset.id);
     });
   });
-  const editBtn = document.getElementById('companyDetailEditBtn');
-  editBtn.innerHTML = ICON_PEN;
-  editBtn.title = reminder ? '编辑这条提醒' : '编辑';
-  editBtn.onclick = ()=>{ if(reminder) flipToReminderEdit(); else if(list[0]) flipToEdit(list[0].id); };
+  // 点顶部的提醒卡 = 翻到编辑这条提醒（点里面的链接照常打开链接）
+  const remCard = document.querySelector('#companyDetailReminder .detail-reminder');
+  if(remCard) remCard.addEventListener('click', e=>{ if(!e.target.closest('a')) flipToReminderEdit(); });
   document.querySelectorAll('.position-detail-del').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -9061,10 +9057,34 @@ async function flushQueue(){
   const ordered = [...syncQueue].sort((a,b)=>(a.table==='companies'?0:1) - (b.table==='companies'?0:1));
   const remaining = [];
   let lastError = '';
+  // 上传前先看一眼云端这几条现在的更新时间：云端已经比本地新（别的设备/外部刚写过），就不拿本地的
+  // 旧数据整行覆盖它，改成拉一次云端的新数据下来。上传时也用这条记录"现在"的样子，不用排队时存的旧样子。
+  const remoteTimes = new Map();
+  let needPull = false;
+  try{
+    for(const table of ['companies','positions']){
+      const ids = [...new Set(ordered.filter(t=>t.op==='upsert' && t.table===table).map(t=>t.recordId))];
+      if(!ids.length) continue;
+      const { data, error } = await sb.from(table).select('id,updated_at').in('id', ids);
+      if(error) throw error;
+      (data||[]).forEach(r=>remoteTimes.set(table+':'+r.id, new Date(r.updated_at).getTime()));
+    }
+  }catch(err){
+    // 查不到就先不传，等下一轮重试，宁可晚一点也不冒覆盖的风险
+    flushing = false;
+    setSyncState('error', (err && err.message) || String(err));
+    scheduleRetry();
+    return;
+  }
   for(const task of ordered){
     try{
       if(task.op==='upsert'){
-        const { error } = await sb.from(task.table).upsert(task.payload);
+        const rec = task.table==='companies' ? getCompany(task.recordId) : positions.find(p=>p.id===task.recordId);
+        const payload = rec ? (task.table==='companies' ? companyToRemote(rec) : positionToRemote(rec)) : task.payload;
+        const remoteT = remoteTimes.get(task.table+':'+task.recordId);
+        const localT = new Date(payload.updated_at).getTime();
+        if(remoteT!==undefined && localT < remoteT){ needPull = true; continue; }
+        const { error } = await sb.from(task.table).upsert(payload);
         if(error) throw error;
       } else {
         // 现在的删除都走软删除（upsert 一条 deleted:true 的记录），不会再新产生 op:'delete'
@@ -9086,6 +9106,7 @@ async function flushQueue(){
   saveSyncQueue();
   flushing = false;
   if(succeeded.size) sendChangeSignal();
+  if(needPull) pullAndMerge();
   if(syncQueue.length===0){
     setSyncState('synced');
   } else if(remaining.length>0){
